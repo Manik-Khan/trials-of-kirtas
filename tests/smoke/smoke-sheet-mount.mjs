@@ -65,6 +65,7 @@ function mockCD({ canEdit = true } = {}) {
   ok(slot.querySelectorAll('[data-list="abilities"] .abil').length === 6, 'six ability tiles');
   ok(slot.querySelectorAll('[data-list="saves"] .save').length === 6, 'six saves');
   ok([...slot.querySelectorAll('[data-list="saves"] .save')].filter(e => e.classList.contains('prof')).length === 2, 'two proficient saves (Wis/Cha)');
+  ok(slot.querySelector('[data-list="saves"] + .saves-caption')?.textContent.trim() === 'Saving Throws', 'saving-throw bar has a learner-facing caption');
   ok(slot.querySelectorAll('[data-list="features"] .feat').length === ROW.structural.features.length, 'all features rendered');
   ok(slot.querySelector('[data-f="skillProficiencies"]').textContent.includes('Arcana'), 'skill proficiencies render in Senses & Lore');
   ok(slot.querySelector('[data-f="toolProficiencies"]').textContent.includes("Navigator's Tools"), 'tool proficiencies render in Senses & Lore');

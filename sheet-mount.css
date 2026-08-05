@@ -288,6 +288,7 @@
 .tok-sheet .abil.neg .md{background:var(--red-br);color:var(--cream)}
 
 .tok-sheet .saves{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin-top:12px}
+.tok-sheet .saves-caption{margin-top:7px;text-align:center;font:600 9px/1 "Oswald",sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--cream-fnt)}
 .tok-sheet .save{display:flex;align-items:center;gap:7px;justify-content:center;padding:7px 4px;background:var(--panel);
   border:1px solid var(--hair);font-family:"Oswald",sans-serif;text-transform:uppercase;letter-spacing:.06em}
 .tok-sheet .save .sv-n{font-weight:500;font-size:12px;color:var(--cream-dim)}

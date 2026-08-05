@@ -38,8 +38,19 @@
     return null;
   }
   function joinEntries(e) {
-    if (typeof e === 'string') return e;
-    if (Array.isArray(e)) return e.filter(function (x) { return typeof x === 'string'; }).join(' ');
+    function clean(s) {
+      return String(s == null ? '' : s).replace(/\{@\w+\s+([^}]*)\}/g, function (_, body) { return body.split('|')[0]; }).replace(/\{@\w+\}/g, '');
+    }
+    if (typeof e === 'string') return clean(e);
+    if (Array.isArray(e)) return e.map(joinEntries).filter(Boolean).join(' ');
+    if (e && typeof e === 'object') {
+      var body = '';
+      if (e.entry != null) body = joinEntries(e.entry);
+      else if (e.entries != null) body = joinEntries(e.entries);
+      else if (e.items != null) body = joinEntries(e.items);
+      if (!body) return '';
+      return (e.name ? clean(e.name) + ': ' : '') + body;
+    }
     return '';
   }
 

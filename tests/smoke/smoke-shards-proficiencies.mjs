@@ -11,8 +11,8 @@ const start = html.indexOf('var PROF_SKILLS = [');
 const end = html.indexOf('var ProfUI = (function(){');
 if (start < 0 || end < 0 || end <= start) { console.log('could not slice the proficiency core'); process.exit(1); }
 const core = html.slice(start, end);
-const { resolveProf, flattenProficiencies, profTakenSet, normSkillName, countGrants } =
-  (new Function(core + '\n; return { resolveProf, flattenProficiencies, profTakenSet, normSkillName, countGrants };'))();
+const { resolveProf, flattenProficiencies, profTakenSet, normSkillName, countGrants, proficiencyChoiceGaps } =
+  (new Function(core + '\n; return { resolveProf, flattenProficiencies, profTakenSet, normSkillName, countGrants, proficiencyChoiceGaps };'))();
 
 // ── sample build: Wizard 3 / Eladrin / Sage ──
 const data = {
@@ -95,6 +95,29 @@ ok('flatten skills deduped (no Arcana twice)', flat.skills.filter(s => s === 'Ar
 ok('flatten languages = race fixed ∪ picks', ['Common', 'Elvish', 'Draconic', 'Infernal', 'Abyssal'].every(l => flat.languages.includes(l)));
 ok('flatten weapons carries race grants', flat.weapons.includes('Longsword'));
 ok('flatten carries feature-granted Hexblade proficiencies', flat.weapons.includes('Martial') && flat.armor.includes('Medium') && flat.armor.includes('Shield'));
+
+// subrace fields are separate grants layered onto the base race (High Elf's extra
+// language and weapon training were previously normalized, then dropped by ProfUI).
+const withSubrace = resolveProf(Object.assign({}, data, {
+  subraceName: 'High Elf',
+  subrace: {
+    languages: { fixed: [], anyStandard: 0, any: 1 },
+    skillProficiencies: { fixed: [], anyCount: 0, choose: [] },
+    toolProficiencies: { fixed: [], anyCount: 0, choose: [] },
+    weaponProficiencies: { fixed: ['longsword'], anyCount: 0, choose: [] },
+    armorProficiencies: { fixed: [], anyCount: 0, choose: [] }
+  }
+}), false);
+ok('subrace language choice reaches the model', withSubrace.languages.choices.some(c => c.id === 'subrace-lgany' && c.count === 1));
+ok('subrace weapon grant reaches the model', names(withSubrace.weapons.fixed).includes('Longsword'));
+
+const gaps = proficiencyChoiceGaps(m, Object.assign({}, picks, { skills: {} }));
+ok('unfinished choices report their exact type/count', gaps.some(g => g.type === 'tools') === false && gaps.some(g => g.type === 'skills' && g.required === 2 && g.chosen === 0));
+const complete = { skills:{}, languages:{}, tools:{}, weapons:{}, armor:{} };
+Object.keys(m).forEach(type => (m[type].choices || []).forEach(ch => { complete[type][ch.id] = ch.pool.slice(0, ch.count); }));
+ok('a completely filled proficiency model has no Forge blockers', proficiencyChoiceGaps(m, complete).length === 0);
+ok('Forge commit narrates and blocks unfinished proficiency choices',
+  html.includes("ProfUI.incomplete()") && html.includes('Finish every proficiency choice before forging:'));
 
 console.log(`\nproficiencies core: ${pass}/${pass + fail} checks pass` + (fail ? ` — ${fail} FAILED` : ' \u2713'));
 process.exit(fail ? 1 : 0);

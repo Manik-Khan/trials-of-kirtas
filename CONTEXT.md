@@ -437,6 +437,37 @@ the current key. The remaining field gates are: run that SQL once, deploy the
 cache-stamped files, sign in as Cosmere, confirm the badge attachment, and open
 Reforge to confirm the Hexblade rows and expanded spells against the live save.
 
+### August 5 follow-up — Ves languages, trait stability, elf Trance mock
+
+Vesperian's displayed STR +1 and CON +5 are saving throws, not ability-score
+bonuses: Fighter grants STR/CON save proficiency, so the sheet adds PB +2 to
+STR -1 and CON +3. The production save strip is mathematically correct; a clear
+"Saving Throws" caption now sits immediately beneath it so the totals cannot be
+mistaken for a second row of ability modifiers.
+
+Vesperian's saved Reforge snapshot genuinely carried no language or tool picks.
+The Proficiencies step showed the customized Dimir Operative grants at 0/1 for
+Languages and 0/1 for Tools. The data layer also missed the book-wide MPMM/AAG
+language rule because those individual race records omit it; normalized modern
+races now regain Common + one chosen language. Subrace language/tool/weapon/armor
+grants now survive normalization and reach the picker, and Forge refuses to
+write while any visible proficiency choice remains unfinished. Ves must still
+choose the two unknown languages (one Shadar-Kai, one customized background) and
+one customized-background tool; unchecking background customization makes the
+Dimir tool the fixed Disguise Kit instead.
+
+Intermittent racial-trait loss had a concrete write-path cause: `raceForBuild()`
+converted a failed rules-data fetch into `race:null`, allowing a reforge to save
+without racial traits. A selected-race fetch now fails loudly and aborts the
+write. Nested feature/trait entries are recursively flattened and 5etools tags
+removed, so list-backed details (such as Eladrin seasons) reach the sheet instead
+of disappearing from the description. `_edits/mock-sheet-elf-rest-proficiencies.html`
+is the standalone approval gate for temporary Trance selections: MPMM
+Shadar-Kai/Eladrin/Sea Elf get two weapon-or-tool picks, AAG Astral Elf gets one
+skill plus one weapon-or-tool pick, and PHB Elf gets no temporary-proficiency
+prompt. Live long-rest wiring remains intentionally unported until M approves
+the mock.
+
 ---
 
 ## 🟢 Character-sheet progression and rail field pass — July 22–23

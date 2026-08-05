@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trials of Kirtas — Elf Trance Proficiencies Mock</title>
+<style>
+  :root{--coal:#101514;--panel:#18201e;--panel2:#111817;--cream:#eee4cc;--muted:#9b9687;--gold:#d2aa53;--teal:#60c8c3;--red:#ce4b39;--rule:rgba(210,170,83,.28)}
+  *{box-sizing:border-box} body{margin:0;min-height:100vh;background:radial-gradient(circle at 78% 12%,rgba(77,111,121,.22),transparent 34%),linear-gradient(135deg,#191510,#101817 58%,#09110f);color:var(--cream);font-family:Georgia,serif;padding:34px}
+  .page{max-width:1180px;margin:auto}.eyebrow{font:700 12px/1.2 Arial,sans-serif;letter-spacing:.24em;text-transform:uppercase;color:var(--red)}
+  h1{font-size:44px;line-height:1;margin:9px 0 8px}.lede{margin:0;color:var(--muted);font-style:italic}.versions{display:flex;gap:8px;flex-wrap:wrap;margin:26px 0 18px}
+  button,select{font:700 12px/1.2 Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase}.version{border:1px solid var(--rule);background:#111716;color:var(--muted);padding:10px 14px;cursor:pointer}.version.on{color:#111;background:var(--gold);border-color:var(--gold)}
+  .sheet{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.75fr);gap:16px}.card{background:linear-gradient(145deg,rgba(27,37,34,.96),rgba(14,20,19,.97));border:1px solid var(--rule);box-shadow:0 22px 60px rgba(0,0,0,.32)}
+  .head{padding:18px 22px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;gap:16px}.head h2{font-size:25px;margin:0}.source{font:700 10px/1 Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--teal)}
+  .body{padding:22px}.rule{color:#cfc7b4;line-height:1.55;margin:0 0 20px}.status{border-left:3px solid var(--teal);background:rgba(96,200,195,.08);padding:11px 14px;margin-bottom:20px;color:#d9ece8}.status.off{border-color:var(--muted);background:rgba(255,255,255,.035);color:var(--muted)}
+  .choice{display:grid;grid-template-columns:150px 1fr;align-items:center;gap:14px;padding:14px 0;border-top:1px solid rgba(255,255,255,.08)}.choice label{font:700 11px/1.2 Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+  .pickline{display:grid;grid-template-columns:150px 1fr;gap:8px}select{width:100%;background:#0e1514;color:var(--cream);border:1px solid rgba(96,200,195,.42);padding:12px;text-transform:none;letter-spacing:.02em}.none{padding:18px;border:1px dashed rgba(255,255,255,.14);color:var(--muted);font-style:italic}
+  .actions{display:flex;justify-content:flex-end;gap:9px;margin-top:22px}.apply{border:1px solid var(--gold);background:var(--gold);color:#111;padding:11px 16px;cursor:pointer}.apply:disabled{opacity:.38;cursor:not-allowed}.cancel{border:1px solid var(--rule);background:transparent;color:var(--muted);padding:11px 16px}
+  .lore{padding:7px 20px 18px}.lrow{display:grid;grid-template-columns:120px 1fr;gap:12px;padding:13px 2px;border-bottom:1px solid rgba(255,255,255,.07)}.lrow span{font:700 10px/1.4 Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}.lrow b{font-size:15px;line-height:1.35}.temp{color:var(--teal)}.note{padding:14px 20px;color:var(--muted);font-size:13px;line-height:1.45;border-top:1px solid var(--rule)}
+  .save-demo{margin-top:16px;padding:14px 18px;background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.08)}.save-demo h3{margin:0 0 11px;font:700 11px/1 Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}.saves{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.sv{padding:9px;text-align:center;background:#0d1413;border:1px solid rgba(255,255,255,.06);font:700 11px Arial,sans-serif;color:var(--muted)}.sv b{display:block;color:var(--cream);font-size:15px;margin-top:3px}.sv.prof{border-color:rgba(96,200,195,.45);color:var(--teal)}
+  @media(max-width:760px){body{padding:18px}.sheet{grid-template-columns:1fr}.choice,.pickline{grid-template-columns:1fr}.saves{grid-template-columns:repeat(3,1fr)}h1{font-size:36px}}
+</style>
+</head>
+<body>
+<main class="page">
+  <div class="eyebrow">Standalone interaction mock · no live character writes</div>
+  <h1>Trance Proficiencies</h1>
+  <p class="lede">Choose what elven memory lends you until the next long rest.</p>
+  <div class="versions" id="versions"></div>
+  <section class="sheet">
+    <article class="card">
+      <header class="head"><h2 id="traitName">Trance</h2><span class="source" id="source"></span></header>
+      <div class="body">
+        <p class="rule" id="rule"></p>
+        <div class="status" id="status"></div>
+        <div id="choices"></div>
+        <div class="actions"><button class="cancel" type="button">Keep Current</button><button class="apply" id="apply" type="button">Apply after Long Rest</button></div>
+      </div>
+    </article>
+    <aside class="card">
+      <header class="head"><h2>Senses &amp; Lore</h2><span class="source">Sheet preview</span></header>
+      <div class="lore">
+        <div class="lrow"><span>Languages</span><b>Common · Elvish · Draconic</b></div>
+        <div class="lrow"><span>Tools</span><b>Disguise Kit</b></div>
+        <div class="lrow"><span>Trance picks</span><b class="temp" id="summary">—</b></div>
+        <div class="lrow"><span>Duration</span><b id="duration">Until next long rest</b></div>
+      </div>
+      <div class="note">Temporary picks are shown separately from permanent proficiencies, so the sheet never implies the character permanently learned them.</div>
+    </aside>
+  </section>
+  <section class="save-demo">
+    <h3>Saving Throws · proficiency included where the dot is filled</h3>
+    <div class="saves"><div class="sv prof">● STR<b>+1</b></div><div class="sv">○ DEX<b>+4</b></div><div class="sv prof">● CON<b>+5</b></div><div class="sv">○ INT<b>+2</b></div><div class="sv">○ WIS<b>+1</b></div><div class="sv">○ CHA<b>+0</b></div></div>
+  </section>
+</main>
+<script>
+const variants={
+  shadar:{label:'Shadar-Kai · MPMM',trait:'Trance',source:'Shadar-Kai · MPMM',rule:'After you finish your four-hour trance, choose two weapon or tool proficiencies you do not already have. They last until your next long rest.',choices:[['Weapon or tool',''],['Weapon or tool','']]},
+  eladrin:{label:'Eladrin · MPMM',trait:'Trance',source:'Eladrin · MPMM',rule:'After trance, choose two weapon or tool proficiencies you do not already have. Your seasonal choice remains a separate Eladrin decision.',choices:[['Weapon or tool',''],['Weapon or tool','']]},
+  sea:{label:'Sea Elf · MPMM',trait:'Trance',source:'Sea Elf · MPMM',rule:'After you finish trance, choose two weapon or tool proficiencies you do not already have. They last until your next long rest.',choices:[['Weapon or tool',''],['Weapon or tool','']]},
+  astral:{label:'Astral Elf · AAG',trait:'Astral Trance',source:'Astral Elf · AAG',rule:'After Astral Trance, choose one skill proficiency and one weapon or tool proficiency. They last until your next long rest.',choices:[['Skill','skill'],['Weapon or tool','']]},
+  phb:{label:'Elf · PHB',trait:'Trance',source:'Elf · PHB',rule:'This version of Trance shortens the rest to four hours but does not grant temporary proficiencies.',choices:[]}
+};
+const pools={skill:['Choose a skill…','Arcana','Athletics','Deception','History','Insight','Investigation','Medicine','Nature','Performance','Persuasion','Religion','Sleight of Hand','Stealth','Survival'],weapon:['Choose a weapon…','Battleaxe','Hand Crossbow','Heavy Crossbow','Longbow','Longsword','Rapier','Shortbow','Shortsword','Warhammer'],tool:['Choose a tool…',"Alchemist's Supplies","Carpenter's Tools",'Disguise Kit','Forgery Kit','Herbalism Kit',"Smith's Tools","Thieves' Tools"]};
+const versionHost=document.getElementById('versions'),traitNameEl=document.getElementById('traitName'),sourceEl=document.getElementById('source'),ruleEl=document.getElementById('rule'),statusEl=document.getElementById('status'),choicesEl=document.getElementById('choices'),applyEl=document.getElementById('apply'),durationEl=document.getElementById('duration'),summaryEl=document.getElementById('summary');
+let current='shadar';
+function options(pool){return pools[pool].map((x,i)=>`<option value="${i?' '+x:''}">${x}</option>`).join('')}
+function render(){
+  const v=variants[current];
+  versionHost.innerHTML=Object.keys(variants).map(k=>`<button type="button" class="version${k===current?' on':''}" data-v="${k}">${variants[k].label}</button>`).join('');
+  traitNameEl.textContent=v.trait;sourceEl.textContent=v.source;ruleEl.textContent=v.rule;
+  statusEl.className='status'+(v.choices.length?'':' off');statusEl.textContent=v.choices.length?'New selections replace the previous Trance picks when this long rest completes.':'No proficiency prompt appears for this version.';
+  choicesEl.innerHTML=v.choices.length?v.choices.map((c,i)=>`<div class="choice"><label>Choice ${i+1} · ${c[0]}</label>${c[1]==='skill'?`<select data-pick>${options('skill')}</select>`:`<div class="pickline"><select data-kind><option value="weapon">Weapon</option><option value="tool">Tool</option></select><select data-pick>${options('weapon')}</select></div>`}</div>`).join(''):'<div class="none">Trance grants no temporary proficiency choices for the PHB Elf.</div>';
+  applyEl.disabled=true;durationEl.textContent=v.choices.length?'Until next long rest':'Not applicable';summaryEl.textContent='—';wire();
+}
+function wire(){
+  document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{current=b.dataset.v;render()});
+  document.querySelectorAll('[data-kind]').forEach(k=>k.onchange=()=>{const p=k.parentElement.querySelector('[data-pick]');p.innerHTML=options(k.value)});
+  document.querySelectorAll('[data-pick]').forEach(p=>p.onchange=update);
+}
+function update(){const vals=[...document.querySelectorAll('[data-pick]')].map(p=>p.value.trim()).filter(Boolean);summaryEl.textContent=vals.length?vals.join(' · '):'—';applyEl.disabled=variants[current].choices.length>0&&vals.length<variants[current].choices.length}
+applyEl.onclick=()=>{statusEl.textContent='Preview applied — these choices would be saved with the long-rest result.';statusEl.className='status'};
+render();
+</script>
+</body>
+</html>

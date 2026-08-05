@@ -618,12 +618,12 @@
 </div>
 
 <!-- engine + data + write-path modules (deployed alongside this page) -->
-<script src="soul-shards-data.js?v=caim1"></script>
+<script src="soul-shards-data.js?v=ves1"></script>
 <script src="soul-shards-engine.js?v=caim1"></script>
 <script src="soul-shards-spellcasting.js?v=sf1"></script>
 <script src="armor-ac.js?v=um1"></script>
 <script src="character-readiness.js?v=cr1"></script>
-<script src="soul-shards-derive.js?v=cr2"></script>
+<script src="soul-shards-derive.js?v=ves1"></script>
 <script src="character-data.js?v=cd2"></script>
 <script src="homebrew-races.js?v=sf1"></script>
 <script src="soul-shards-persona.js?v=sf1"></script>
@@ -3524,11 +3524,12 @@ function resolveProf(data, custom){
   data = data || {};
   function mk(){ return { fixed: [], choices: [] }; }
   var model = { skills: mk(), languages: mk(), tools: mk(), weapons: mk(), armor: mk() };
-  function pushChoose(t, parsed, src, label, norm, anyPool){
+  function pushChoose(t, parsed, src, label, norm, anyPool, idPrefix){
     parsed = parsed || { fixed: [], anyCount: 0, choose: [] };
+    idPrefix = idPrefix || src;
     (parsed.fixed || []).forEach(function(n){ t.fixed.push({ name: norm(n), src: src, label: label }); });
-    (parsed.choose || []).forEach(function(pool){ t.choices.push({ id: src + '-ch' + t.choices.length, src: src, label: label, pool: (pool || []).map(norm), count: 1 }); });
-    if (parsed.anyCount) t.choices.push({ id: src + '-any' + t.choices.length, src: src, label: label, pool: (anyPool || []).slice(), count: parsed.anyCount });
+    (parsed.choose || []).forEach(function(pool){ t.choices.push({ id: idPrefix + '-ch' + t.choices.length, src: src, label: label, pool: (pool || []).map(norm), count: 1 }); });
+    if (parsed.anyCount) t.choices.push({ id: idPrefix + '-any' + t.choices.length, src: src, label: label, pool: (anyPool || []).slice(), count: parsed.anyCount });
   }
 
   // class proficiencies — the STARTING class's full startingProficiencies, plus each
@@ -3565,17 +3566,21 @@ function resolveProf(data, custom){
   });
 
   // race — normalized loadRace model (already parsed per type)
-  var r = data.race;
-  if (r){
-    var rl = data.raceName || r.name || 'Race';
-    pushChoose(model.skills, r.skillProficiencies, 'race', rl, normSkillName, PROF_SKILLS);
+  function addRaceProf(r, rl, idp){
+    if (!r) return;
+    pushChoose(model.skills, r.skillProficiencies, 'race', rl, normSkillName, PROF_SKILLS, idp);
     var L = r.languages || { fixed: [], anyStandard: 0, any: 0 };
     (L.fixed || []).forEach(function(n){ model.languages.fixed.push({ name: n, src: 'race', label: rl }); });
-    if (L.anyStandard) model.languages.choices.push({ id: 'race-lgstd', src: 'race', label: rl, pool: PROF_STD_LANGS.slice(), count: L.anyStandard });
-    if (L.any) model.languages.choices.push({ id: 'race-lgany', src: 'race', label: rl, pool: PROF_ALL_LANGS.slice(), count: L.any });
-    pushChoose(model.tools, r.toolProficiencies, 'race', rl, cleanProfName, PROF_TOOL_POOL);
-    pushChoose(model.weapons, r.weaponProficiencies, 'race', rl, cleanProfName, []);
-    pushChoose(model.armor, r.armorProficiencies, 'race', rl, cleanProfName, []);
+    if (L.anyStandard) model.languages.choices.push({ id: idp + '-lgstd', src: 'race', label: rl, pool: PROF_STD_LANGS.slice(), count: L.anyStandard });
+    if (L.any) model.languages.choices.push({ id: idp + '-lgany', src: 'race', label: rl, pool: PROF_ALL_LANGS.slice(), count: L.any });
+    pushChoose(model.tools, r.toolProficiencies, 'race', rl, cleanProfName, PROF_TOOL_POOL, idp);
+    pushChoose(model.weapons, r.weaponProficiencies, 'race', rl, cleanProfName, [], idp);
+    pushChoose(model.armor, r.armorProficiencies, 'race', rl, cleanProfName, [], idp);
+  }
+  var r = data.race;
+  if (r){
+    addRaceProf(r, data.raceName || r.name || 'Race', 'race');
+    addRaceProf(data.subrace, data.subraceName || (data.subrace && (data.subrace.label || data.subrace.name)) || 'Subrace', 'subrace');
   }
 
   // background — customize turns its grants into free choices of equal count (per type)
@@ -3622,6 +3627,20 @@ function flattenProficiencies(model, picks){
   return out;
 }
 
+// Every visible choice must be filled before Forge writes a character. Keeping this
+// pure lets the smoke prove that a saved build cannot silently emit Languages/Tools —.
+function proficiencyChoiceGaps(model, picks){
+  model = model || {}; picks = picks || {}; var out = [];
+  ['skills', 'languages', 'tools', 'weapons', 'armor'].forEach(function(type){
+    var tm = model[type] || { choices: [] }, tp = picks[type] || {};
+    (tm.choices || []).forEach(function(ch){
+      var count = (tp[ch.id] || []).length;
+      if (count < ch.count) out.push({ type: type, id: ch.id, label: ch.label, chosen: count, required: ch.count });
+    });
+  });
+  return out;
+}
+
 var ProfUI = (function(){
   var _freq = 0, _classProf = null, _race = null, _bgProf = null, _featureProf = null, _startName = '', _addedClassProfs = [];
 
@@ -3631,11 +3650,13 @@ var ProfUI = (function(){
     return p;
   }
   function data(){
+    var sr = (_race && draft.subrace && (_race.subraces || []).filter(function(s){ return s.name === draft.subrace.n || s.label === draft.subrace.n; })[0]) || null;
     return {
       className: _startName || (chosenClass() ? chosenClass().n : ''), classProf: _classProf || {},
       addedClasses: _addedClassProfs || [],
       featureProf: _featureProf || {},
       raceName: (draft.species && draft.species.n) || '', race: _race,
+      subraceName: (draft.subrace && draft.subrace.n) || '', subrace: sr,
       bgName: (draft.bg && draft.bg.n) || '', bgProf: _bgProf
     };
   }
@@ -3759,8 +3780,9 @@ var ProfUI = (function(){
     flat.expertise = [];
     return flat;
   }
+  function incomplete(){ return proficiencyChoiceGaps(model(), pd()); }
 
-  return { mount: mount, ensureLoaded: ensureLoaded, proficienciesForStructural: proficienciesForStructural };
+  return { mount: mount, ensureLoaded: ensureLoaded, proficienciesForStructural: proficienciesForStructural, incomplete: incomplete };
 })();
 
 
@@ -3771,7 +3793,9 @@ var engineReq = 0;
 function raceForBuild(){
   if (draft.species && draft.species.custom && draft.species.model) return Promise.resolve(draft.species.model);   // homebrew race: the inline model is authoritative
   if (!draft.species || typeof SoulShardsData === 'undefined' || typeof SoulShardsData.loadRace !== 'function') return Promise.resolve(null);
-  return SoulShardsData.loadRace(draft.species.n, draft.species.s).catch(function(){ return null; });
+  // A chosen race is build-critical: never turn a transient fetch failure into a
+  // successful race:null forge, which would silently replace the sheet without traits.
+  return SoulShardsData.loadRace(draft.species.n, draft.species.s);
 }
 // base assigned scores + racial increases — the scores the engine actually builds from.
 function effectiveAbilities(race){
@@ -4292,6 +4316,12 @@ function forgeCommit(){
   var itemsReady = soft((typeof ItemsUI !== 'undefined') ? ItemsUI.ensureLoaded() : Promise.resolve(true));
   var profReady = soft((typeof ProfUI !== 'undefined') ? ProfUI.ensureLoaded() : Promise.resolve(true));
   Promise.all([loadClassEntries(), raceForBuild(), spellsReady, choicesReady, featsReady, itemsReady, profReady]).then(function(res){
+    var profGaps = (typeof ProfUI !== 'undefined' && ProfUI.incomplete) ? ProfUI.incomplete() : [];
+    if (profGaps.length){
+      var profNames = profGaps.map(function(g){ return g.type.charAt(0).toUpperCase() + g.type.slice(1) + ' (' + g.chosen + '/' + g.required + ')'; });
+      fxStatus('err', 'Finish every proficiency choice before forging: ' + profNames.join(', ') + '. Open the Proficiencies step to choose them.');
+      return;
+    }
     var assembled = buildStructuralPreview(res[0], res[1]);
     if (assembled && assembled._error){ fxStatus('err', assembled._error); return; }
     var structural = Object.assign({}, assembled); delete structural._incomplete;

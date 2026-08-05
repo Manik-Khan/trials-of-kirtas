@@ -51,6 +51,31 @@ const zarielEntry = {
   entries: [{ type: 'entries', name: 'Legacy of Avernus', data: { overwrite: 'Infernal Legacy' }, entries: ['You know thaumaturgy, searing smite, and branding smite.'] }],
 };
 
+const modernElf = Data.normalizeRace({
+  name: 'Shadar-Kai', source: 'MPMM', size: ['M'], speed: 30,
+  entries: [{ type:'entries', name:'Trance', entries:['Choose from shared elven memory.'] }]
+}, []);
+ok('MPMM shared creation rule restores Common', modernElf.languages.fixed.includes('Common'), modernElf.languages);
+ok('MPMM shared creation rule restores one chosen language', modernElf.languages.any === 1, modernElf.languages);
+const astralElf = Data.normalizeRace({ name:'Astral Elf', source:'AAG', size:['M'], speed:30, entries:[] }, []);
+ok('AAG shared creation rule restores Common + one choice', astralElf.languages.fixed.includes('Common') && astralElf.languages.any === 1, astralElf.languages);
+const oldRace = Data.normalizeRace({ name:'Old Race', source:'PHB', size:['M'], speed:30, entries:[] }, []);
+ok('PHB races do not receive the modern fallback', oldRace.languages.fixed.length === 0 && oldRace.languages.any === 0, oldRace.languages);
+
+const elfWithHigh = Data.normalizeRace({
+  name:'Elf', source:'PHB', size:['M'], speed:30,
+  languageProficiencies:[{ common:true }, { elvish:true }], entries:[]
+}, [{
+  name:'High', source:'PHB', raceName:'Elf', raceSource:'PHB',
+  languageProficiencies:[{ any:1 }], weaponProficiencies:[{ longsword:true }],
+  toolProficiencies:[{ 'herbalism kit':true }], armorProficiencies:[{ light:true }], entries:[]
+}]);
+ok('subrace language fields survive normalization', elfWithHigh.subraces[0].languages.any === 1, elfWithHigh.subraces[0]);
+ok('subrace tool/weapon/armor fields survive normalization',
+  elfWithHigh.subraces[0].toolProficiencies.fixed.includes('herbalism kit') &&
+  elfWithHigh.subraces[0].weaponProficiencies.fixed.includes('longsword') &&
+  elfWithHigh.subraces[0].armorProficiencies.fixed.includes('light'), elfWithHigh.subraces[0]);
+
 const monk = Data.normalizeClass(monkFile);
 const built = Engine.build({ classModel: monk, level: 2, abilities: { str: 14, dex: 16, con: 14, int: 10, wis: 16, cha: 10 } });
 const builtNames = built.features.map(f => f.name);
@@ -75,6 +100,21 @@ ok('derived sheet excludes the overwritten Infernal Legacy row', !derivedNames.i
 ok('derived sheet includes Legacy of Avernus', derivedNames.includes('Legacy of Avernus'), derivedNames);
 ok('derived sheet includes the promoted Flurry row', derivedNames.includes('Flurry of Blows'), derivedNames);
 
+const nestedRace = Data.normalizeRace({
+  name:'Eladrin', source:'MPMM', size:['M'], speed:30,
+  entries:[{ type:'entries', name:'Fey Step', entries:[
+    'Teleport, then choose a season.',
+    { type:'list', items:[{ type:'item', name:'Autumn', entry:'A creature can be {@condition charmed}.' }] }
+  ] }]
+}, []);
+const nestedDerived = Derive.deriveStructural({
+  name:'Nested', abilities:{ str:14,dex:16,con:14,int:10,wis:16,cha:10 },
+  classes:[{ model:monk, level:2 }], race:nestedRace, proficiencies:{}
+}, { engine:Engine, spellcasting:Spellcasting });
+const feyStep = nestedDerived.structural.features.find(f => f.name === 'Fey Step');
+ok('nested trait list text reaches the sheet description', /Autumn:/.test(feyStep.desc) && /charmed/.test(feyStep.desc), feyStep);
+ok('5etools tags are removed from sheet feature text', !/\{@/.test(feyStep.desc), feyStep);
+
 function extractFunction(src, name) {
   const start = src.indexOf('function ' + name + '(');
   if (start < 0) throw new Error('missing function: ' + name);
@@ -86,6 +126,12 @@ function extractFunction(src, name) {
   return src.slice(start, end);
 }
 const shards = readFileSync(new URL('../../shards.html', import.meta.url), 'utf8');
+const raceForBuild = new Function('draft', 'SoulShardsData',
+  extractFunction(shards, 'raceForBuild') + '\nreturn raceForBuild;'
+)({ species:{ n:'Shadar-Kai', s:'MPMM' } }, { loadRace:() => Promise.reject(new Error('rules host unavailable')) });
+let raceRejected = false;
+try { await raceForBuild(); } catch (err) { raceRejected = /rules host unavailable/.test(err.message); }
+ok('a failed chosen-race load aborts instead of becoming race:null', raceRejected);
 const raceSpellFns = new Function('draft', 'raceName',
   extractFunction(shards, 'spellSourcesFor') + '\n' + extractFunction(shards, 'collectAdditional') +
   '\nreturn { spellSourcesFor, collectAdditional };'

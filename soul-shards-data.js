@@ -487,6 +487,16 @@
     }
     return { fixed, anyStandard, any };
   }
+  // Monsters of the Multiverse and Astral Adventurer's Guide put their
+  // character-language grant in the book-wide creation rules instead of repeating
+  // languageProficiencies on every race record: Common + one agreed language.
+  // Preserve an explicit race grant when present; otherwise restore that shared rule.
+  function raceLanguages(race) {
+    const parsed = parseLanguages(race && race.languageProficiencies);
+    if (parsed.fixed.length || parsed.anyStandard || parsed.any) return parsed;
+    if (race && (race.source === 'MPMM' || race.source === 'AAG')) return { fixed: ['Common'], anyStandard: 0, any: 1 };
+    return parsed;
+  }
   function parseProfChoose(arr) {
     // returns { fixed:[...names], anyCount:n, choose:[ [opts] ] }
     const fixed = []; let anyCount = 0; const choose = [];
@@ -520,7 +530,11 @@
         speed: sr.speed ? parseSpeed(sr.speed) : null,
         darkvision: sr.darkvision != null ? sr.darkvision : null,
         resist: sr.resist || [], traits: collectTraits(sr.entries, sr.source),
+        languages: parseLanguages(sr.languageProficiencies),
         skillProficiencies: parseProfChoose(sr.skillProficiencies),
+        toolProficiencies: parseProfChoose(sr.toolProficiencies),
+        weaponProficiencies: parseProfChoose(sr.weaponProficiencies),
+        armorProficiencies: parseProfChoose(sr.armorProficiencies),
         additionalSpells: sr.additionalSpells || null,
         overwrites,
         replacesAdditionalSpells: !!(sr.additionalSpells && overwrites.length),
@@ -534,7 +548,7 @@
       abilityBonuses: ab.fixed, abilityChoices: ab.choices,
       resist: resolved.resist || [], immune: resolved.immune || [],
       conditionImmune: resolved.conditionImmune || [], vulnerable: resolved.vulnerable || [],
-      languages: parseLanguages(resolved.languageProficiencies),
+      languages: raceLanguages(resolved),
       skillProficiencies: parseProfChoose(resolved.skillProficiencies),
       toolProficiencies: parseProfChoose(resolved.toolProficiencies),
       weaponProficiencies: parseProfChoose(resolved.weaponProficiencies),
@@ -849,7 +863,7 @@
     loadFeats, featPrereqText, featMeetsPrereq, featAbilityChoice, featsForChar,
     loadBackgrounds, backgroundEquipment, backgroundProficiencies, parseStartingEquipment,
     loadRace,
-    parseAbility, parseSpeed, parseSize, parseLanguages, parseProfChoose,
+    parseAbility, parseSpeed, parseSize, parseLanguages, raceLanguages, parseProfChoose,
     collectTraits, applyMod, resolveCopy, normalizeRace, makeLoadRace,
   };
   if (typeof window !== 'undefined') window.SoulShardsData = API;
