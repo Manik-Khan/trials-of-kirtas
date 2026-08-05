@@ -162,6 +162,17 @@ const settle = () => new Promise(r => setTimeout(r, 30)); // let the async init 
   });
 
   // ── ② staff-only prompt ────────────────────────────────────────────────
+  await T('rowToEntry: stable seat key canonicalizes Vesperian display name', async () => {
+    const w = boot({ data: [], error: null }); await settle();
+    const entry = w.eval(`rowToEntry({ id:1, actor_key:'vesperian', actor_name:'Vesperian', created_at:'2026-07-01T00:00:00Z', body:'x' })`);
+    eq(entry.author, 'Vesperian Vale');
+  });
+  await T('loadIdentity: stale saved Vesperian name refreshes from the seat key', async () => {
+    const w = boot({ data: [], error: null }); await settle();
+    w.eval(`localStorage.setItem(ID_KEY, JSON.stringify({ playerId:'vesperian', name:'Vesperian', character:'Fighter', color:'#5a9aaa' }));
+            currentIdentity = null; loadIdentity();`);
+    eq(w.eval('currentIdentity.name'), 'Vesperian Vale');
+  });
   await T('checkSessionPrompt: hidden for non-staff', async () => {
     const w = boot({ data: [], error: null }); await settle();
     w.eval(`IS_STAFF = false; currentIdentity = { name:'P' };
@@ -171,10 +182,26 @@ const settle = () => new Promise(r => setTimeout(r, 30)); // let the async init 
   });
   await T('checkSessionPrompt: shows for staff after 20h', async () => {
     const w = boot({ data: [], error: null }); await settle();
-    w.eval(`IS_STAFF = true; currentIdentity = { name:'DM' };
+    w.eval(`IS_STAFF = true; currentIdentity = { name:'DM' }; currentSession = 3;
             allEntries = [{ id:'1', timestamp: new Date(Date.now() - 30*3600*1000).toISOString(), session: 3, text:'x' }];
             checkSessionPrompt();`);
     ok(!w.eval(`document.getElementById('session-prompt').classList.contains('hidden')`), 'shows for staff');
+  });
+  await T('checkSessionPrompt: campaign already advanced past latest entry stays quiet', async () => {
+    const w = boot({ data: [], error: null }); await settle();
+    w.eval(`IS_STAFF = true; currentIdentity = { name:'DM' }; currentSession = 7;
+            allEntries = [{ id:'1', timestamp: new Date(Date.now() - 30*3600*1000).toISOString(), session: 6, text:'x' }];
+            checkSessionPrompt();`);
+    ok(w.eval(`document.getElementById('session-prompt').classList.contains('hidden')`), 'Session 7 must not offer Session 8 from a Session 6 timestamp');
+  });
+  await T('checkSessionPrompt: Stay on Current is remembered for this exact gap', async () => {
+    const w = boot({ data: [], error: null }); await settle();
+    w.eval(`IS_STAFF = true; currentIdentity = { name:'DM' }; currentSession = 7;
+            allEntries = [{ id:'last-7', timestamp: new Date(Date.now() - 30*3600*1000).toISOString(), session: 7, text:'x' }];
+            checkSessionPrompt(); dismissSessionPrompt(true);
+            document.getElementById('session-prompt').classList.add('hidden'); checkSessionPrompt();`);
+    ok(w.eval(`document.getElementById('session-prompt').classList.contains('hidden')`), 'same gap stays dismissed after reload logic');
+    eq(w.eval(`localStorage.getItem(SESSION_PROMPT_KEY)`), '7:last-7');
   });
 
   // ── ③b realtime repaint guard ──────────────────────────────────────────
@@ -220,6 +247,9 @@ const settle = () => new Promise(r => setTimeout(r, 30)); // let the async init 
     ok(!/quill\.root\.innerHTML\s*=\s*(entry\.text|draft\.content)/.test(html), 'no raw innerHTML loads remain');
     ok(/\.select\('current_session'\)/.test(html), 'row-count verification present');
     ok(/if \(!IS_STAFF\) return;/.test(html), 'staff gate present in checkSessionPrompt');
+    ok(/Number\(lastEntry\.session\) !== Number\(currentSession\)/.test(html), 'session prompt trusts the campaign row before elapsed time');
+    ok(/localStorage\.getItem\(SESSION_PROMPT_KEY\) === fingerprint/.test(html), 'Stay on Current remembers the exact session gap');
+    ok(/author: canonicalActorName\(r\.actor_key, r\.actor_name\)/.test(html), 'Chronicle rows render names from stable actor keys');
     ok(/if \(!editingEntryId\) document\.getElementById\('d-session'\)\.value = currentSession;/.test(html), 'realtime repaint guard present');
     ok(!/session:\s*document\.getElementById\('d-session'\)\.value,/.test(html.slice(html.indexOf('function saveDraft'), html.indexOf('function saveDraft') + 600)), 'saveDraft no longer persists session');
   });

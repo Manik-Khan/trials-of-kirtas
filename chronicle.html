@@ -1224,7 +1224,7 @@
     <div class="session-prompt-body" id="session-prompt-body"></div>
     <div class="session-prompt-btns">
       <button class="session-prompt-btn primary" id="session-prompt-yes">Start New Session</button>
-      <button class="session-prompt-btn secondary" onclick="dismissSessionPrompt()">Stay on Current</button>
+      <button class="session-prompt-btn secondary" onclick="dismissSessionPrompt(true)">Stay on Current</button>
     </div>
   </div>
 </div>
@@ -1422,7 +1422,7 @@ function rowToEntry(r) {
   return {
     id: String(r.id), _rowId: r.id, _authorId: r.author_id || null,
     session: (r.session == null ? 0 : r.session),
-    author: r.actor_name, character: m.character, color: m.color,
+    author: canonicalActorName(r.actor_key, r.actor_name), character: m.character, color: m.color,
     timestamp: r.created_at, text: r.body,
     ...(r.tags && r.tags.length && { tags: r.tags }),
     ...(m.location     && { location: m.location }),
@@ -1440,7 +1440,7 @@ const PLAYERS = [
   { id:'cosmere',   name:'Cosmere',     character:'Warlock',  color:'#c05060' },
   { id:'liadan',    name:'Líadan',    character:'Bard',     color:'#5a9a6a' },
   { id:'caim',      name:'Caim',      character:'Monk',     color:'#8060c0' },
-  { id:'vesperian', name:'Vesperian', character:'Fighter',  color:'#5a9aaa' },
+  { id:'vesperian', name:'Vesperian Vale', character:'Fighter',  color:'#5a9aaa' },
 ];
 
 // Known NPCs and locations pulled from tooltips.js data
@@ -1476,6 +1476,7 @@ function getKnownLocations() {
 // ══════════════════════════════════════════════════════════
 const ID_KEY      = 'kirtas-chronicle-identity';
 const DRAFT_KEY   = 'kirtas-chronicle-draft';
+const SESSION_PROMPT_KEY = 'kirtas-chronicle-session-prompt';
 let currentIdentity = null;
 let pendingPlayer   = null;
 let allEntries      = [];
@@ -1484,6 +1485,7 @@ let activeFilters   = { session: null, author: null, tags: [], search: '' };
 let drawerOpen      = false;
 let quill           = null;
 let editingEntryId  = null;
+let pendingSessionPromptFingerprint = null;
 
 // Inline dropdown state
 let inlineMode      = null; // 'mention' | 'tag'
@@ -1513,12 +1515,25 @@ const COMBAT_PAGE   = 100;   // rows per combat-channel page
 // ══════════════════════════════════════════════════════════
 function loadIdentity() {
   try { const s = localStorage.getItem(ID_KEY); if(s) currentIdentity = JSON.parse(s); } catch(e) {}
+  // Pre-auth identities stored a display-name snapshot. Refresh that snapshot
+  // from the stable seat key so an old "Vesperian" device cannot keep writing
+  // a second name after the canonical character name becomes "Vesperian Vale".
+  if (currentIdentity) {
+    const p = getPlayer(currentIdentity.playerId);
+    if (p && (currentIdentity.name !== p.name || currentIdentity.character !== p.character)) {
+      saveIdentity({ ...currentIdentity, name:p.name, character:p.character });
+    }
+  }
 }
 function saveIdentity(id) {
   currentIdentity = id;
   try { localStorage.setItem(ID_KEY, JSON.stringify(id)); } catch(e) {}
 }
 function getPlayer(id) { return PLAYERS.find(p=>p.id===id); }
+function canonicalActorName(actorKey, fallback) {
+  const p = getPlayer(actorKey);
+  return p ? p.name : fallback;
+}
 // Identity is auth-bound now: non-staff may only post as their own character
 // (profiles.character_key); staff may pick anyone (incl. DM/Narrator). The
 // modal keeps choosing display color; ownership (author_id) comes from auth
@@ -2181,20 +2196,31 @@ function checkSessionPrompt() {
   if (!currentIdentity) return;
   if (!allEntries.length) return;
   const lastEntry = allEntries.reduce((a,b)=>new Date(a.timestamp)>new Date(b.timestamp)?a:b);
+  // The campaign row is authority. If it already points at a different session
+  // (normally the new, still-empty one), do not infer another bump from an old
+  // Chronicle timestamp. Session 7 + latest entry in 6 must not offer Session 8.
+  if (Number(lastEntry.session) !== Number(currentSession)) return;
   const hoursSince = (Date.now() - new Date(lastEntry.timestamp)) / 1000 / 60 / 60;
   if (hoursSince < 20) return;
+  const fingerprint = `${currentSession}:${lastEntry.id || lastEntry.timestamp}`;
+  try { if (localStorage.getItem(SESSION_PROMPT_KEY) === fingerprint) return; } catch(e) {}
+  pendingSessionPromptFingerprint = fingerprint;
   const nextSession = currentSession + 1;
   document.getElementById('session-prompt-body').textContent =
     `It's been ${Math.round(hoursSince)} hours since the last entry. Start Session ${nextSession}?`;
   document.getElementById('session-prompt-yes').onclick = () => {
     bumpSessionTo(nextSession);
-    dismissSessionPrompt();
+    dismissSessionPrompt(false);
   };
   document.getElementById('session-prompt').classList.remove('hidden');
 }
 
-function dismissSessionPrompt() {
+function dismissSessionPrompt(remember) {
   document.getElementById('session-prompt').classList.add('hidden');
+  if (remember && pendingSessionPromptFingerprint) {
+    try { localStorage.setItem(SESSION_PROMPT_KEY, pendingSessionPromptFingerprint); } catch(e) {}
+  }
+  pendingSessionPromptFingerprint = null;
 }
 
 async function bumpSession() {
