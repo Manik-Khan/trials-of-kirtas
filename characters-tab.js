@@ -58,7 +58,7 @@
     // present, a plain re-inject would re-hit the same file, so cache-bust to force a
     // fresh fetch; the fresh module's IIFE overwrites the stale window.CharacterData.
     if (window.CharacterData && typeof window.CharacterData.loadParty === 'function') return Promise.resolve();
-    var src = window.CharacterData ? ('character-data.js?v=' + Date.now()) : 'character-data.js';
+    var src = window.CharacterData ? ('character-data.js?v=' + Date.now()) : 'character-data.js?v=cd2';
     return loadScript(src).then(function () { return waitFor(function () { return !!(window.CharacterData && typeof window.CharacterData.loadParty === 'function'); }, 5000); });
   }
   // The v11 sheet's deps, in order — mirrors sheet-v2.html's includes. Most pages
@@ -67,10 +67,10 @@
     if (window.mountSheet) return Promise.resolve();
     loadCssOnce('sheet-mount.css?v=sup1');
     return Promise.resolve()
-      .then(function () { return window.CharacterData ? null : loadScript('character-data.js'); })
+      .then(function () { return window.CharacterData ? null : loadScript('character-data.js?v=cd2'); })
       .then(function () { return window.ResourceDerive ? null : loadScript('resource-derive.js'); })
       .then(function () { return existsScript('dice-engine.js') ? null : loadScript('dice-engine.js'); })
-      .then(function () { return window.mountSheet ? null : loadScript('sheet-mount.js?v=src2', true); })
+      .then(function () { return window.mountSheet ? null : loadScript('sheet-mount.js?v=src3', true); })
       .then(function () { return waitFor(function () { return !!window.mountSheet; }, 5000); });
   }
 

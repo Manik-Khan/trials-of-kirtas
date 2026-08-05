@@ -340,8 +340,9 @@ The source contract is now explicit:
   feed renders **Cosmere Runestar**, **Vesperian Vale**, and creature display
   names rather than keys such as `cosmererunestar-ae1a` or `foe-picked-*`.
 - Cosmere's current live key is `cosmererunestar-ae1a`. `cosmere` is a retired
-  compatibility identity, not a second live sheet. His Shield spell is valid
-  through Sorcerer multiclass provenance, not the Hexblade list.
+  compatibility identity, not a second live sheet. His currently saved Shield
+  spell has Sorcerer multiclass provenance; Shield is also a Hexblade expanded-
+  list option, but it remains a normal pick rather than an automatic grant.
 - `data/characters/<current-key>.json` is a versioned backup, not runtime
   authority. The exporter now also refreshes familiar compatibility files such
   as `cosmere.json`; an alias payload records `sourceKey` so it cannot masquerade
@@ -412,6 +413,29 @@ chooser still reading the cached `structural.combat.ac`, so Vesperian displayed
 AC `—` there even though the combat kit derived 19. The local Forge correction
 now sends chooser cards through the shared `CharacterCombat` authority; its
 deployed browser check remains. This is not a missing Mage Armor mechanic.
+
+### August 5 follow-up — Cosmere attachment + Reforge proficiencies/spells
+
+The July audit left three compatibility seams locally corrected but not yet
+deployed. `sheet-mount.js?v=src3` renders all five saved proficiency categories
+(skills, languages, tools, weapons, armor), rather than only languages. The
+Reforge Proficiencies step now consumes the derive's existing feature-grant
+scanner, so Hex Warrior visibly contributes Medium armor, Shield, and Martial
+weapons before save. The Spells step now consumes subclass
+`additionalSpells.expanded` per caster; Hexblade Shield/Wrathful Smite and later
+expanded options are pickable under Warlock with subclass provenance and still
+count against normal known/prepared limits.
+
+The identity failure was database-side: `characters.key` had been opened, but
+both `profiles.character_key` and `set_membership()` still admitted only the four
+retired static keys. `schema_delta_profile_character_keys_open.sql` drops the
+profile check, validates assignments against current non-deleted character rows,
+and idempotently reattaches `ianakira@gmail.com` to
+`cosmererunestar-ae1a`. Navigation, the character badge, and `CharacterData`
+also accept the retired `cosmere` alias during transition while linking/fetching
+the current key. The remaining field gates are: run that SQL once, deploy the
+cache-stamped files, sign in as Cosmere, confirm the badge attachment, and open
+Reforge to confirm the Hexblade rows and expanded spells against the live save.
 
 ---
 

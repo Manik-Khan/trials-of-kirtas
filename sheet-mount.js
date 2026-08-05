@@ -392,8 +392,19 @@ function renderSheet(root, char){
   setF('darkvision', senses.darkvision?(senses.darkvision+' ft'):'\u2014');
   setF('passivePerception', s.passivePerception);
   setF('passiveInsight', s.passiveInsight);
-  var langs=(s.proficiencies&&s.proficiencies.languages)||s.languages;
-  if(langs!=null) setF('languages', Array.isArray(langs)?langs.join(' \u00B7 '):langs);
+  var profs=s.proficiencies||{};
+  function profText(v){
+    if(v==null) return '\u2014';
+    var text=Array.isArray(v)?v.filter(Boolean).join(' \u00B7 '):String(v);
+    return text||'\u2014';
+  }
+  var skillProfs=profs.skills;
+  if(skillProfs==null) skillProfs=(s.skills||[]).filter(function(sk){ return sk.prof; }).map(function(sk){ return sk.name; });
+  setF('skillProficiencies', profText(skillProfs));
+  setF('languages', profText(profs.languages!=null?profs.languages:s.languages));
+  setF('toolProficiencies', profText(profs.tools));
+  setF('weaponProficiencies', profText(profs.weapons));
+  setF('armorProficiencies', profText(profs.armor));
   setStatus(root, v);
   var notes=(char.notes!=null?char.notes:s.notes);
   var ntEl=root.querySelector('[data-notes]');
@@ -1006,7 +1017,11 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
         <div class="lrow"><span>Darkvision</span><b data-f="darkvision">60 ft</b></div>
         <div class="lrow"><span>Passive Perception</span><b data-f="passivePerception">13</b></div>
         <div class="lrow"><span>Passive Insight</span><b data-f="passiveInsight">13</b></div>
-        <div class="lrow"><span>Languages</span><b data-f="languages">Common · Elvish · Infernal</b></div>
+        <div class="lrow"><span>Skills</span><b data-f="skillProficiencies">—</b></div>
+        <div class="lrow"><span>Languages</span><b data-f="languages">—</b></div>
+        <div class="lrow"><span>Tools</span><b data-f="toolProficiencies">—</b></div>
+        <div class="lrow"><span>Weapons</span><b data-f="weaponProficiencies">—</b></div>
+        <div class="lrow"><span>Armor</span><b data-f="armorProficiencies">—</b></div>
       </div>
       <div class="lblock">
         <div class="lhead">Resources <span class="lhint">tap to spend</span></div>

@@ -65,5 +65,12 @@ ok('no-proficiency input still yields 18 skills', bare.structural.skills.length 
 ok('no-proficiency input -> none proficient', bare.structural.skills.every(x => x.prof === false));
 ok('no-proficiency input -> Stealth = bare DEX +2', bare.structural.skills.find(x => x.name === 'Stealth').bonus === 2);
 
+const hexGrants = Derive.featureGrantedProficiencies([{ features: [{
+  name: 'Hex Warrior',
+  entries: ['You gain proficiency with medium armor, shields, and martial weapons.']
+}] }]);
+ok('Hex Warrior prose grants medium armor + shields', hexGrants.armor.includes('Medium') && hexGrants.armor.includes('Shield'));
+ok('Hex Warrior prose grants martial weapons', hexGrants.weapons.includes('Martial'));
+
 console.log(`\nderive proficiency output: ${pass}/${pass + fail} checks pass` + (fail ? ` — ${fail} FAILED` : ' \u2713'));
 process.exit(fail ? 1 : 0);

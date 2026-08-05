@@ -35,7 +35,8 @@ const data = {
     skills: { fixed: ['arcana', 'history'], anyCount: 0, choose: [] },
     languages: { fixed: [], anyStandard: 2, any: 0 },
     tools: { fixed: [], anyCount: 0, choose: [] }
-  }
+  },
+  featureProf: { armor: ['Medium', 'Shield'], weapons: ['Martial'] }
 };
 
 let pass = 0, fail = 0;
@@ -72,6 +73,8 @@ ok('bg language choice (standard 2) present', m.languages.choices.some(c => c.sr
 
 // weapons: race fixed folds in (display-only granted)
 ok('weapons.fixed has race Longsword', names(m.weapons.fixed).includes('Longsword'));
+ok('feature-granted Hexblade armor is visible', names(m.armor.fixed).includes('Medium') && names(m.armor.fixed).includes('Shield'));
+ok('feature-granted Hexblade martial weapons are visible', names(m.weapons.fixed).includes('Martial'));
 
 // ── customize ON: bg fixed skills flip to a free choice (the tandem behaviour) ──
 const mc = resolveProf(data, true);
@@ -91,6 +94,7 @@ ok('flatten skills = race ∪ bg ∪ picks', ['Perception', 'Arcana', 'History',
 ok('flatten skills deduped (no Arcana twice)', flat.skills.filter(s => s === 'Arcana').length === 1);
 ok('flatten languages = race fixed ∪ picks', ['Common', 'Elvish', 'Draconic', 'Infernal', 'Abyssal'].every(l => flat.languages.includes(l)));
 ok('flatten weapons carries race grants', flat.weapons.includes('Longsword'));
+ok('flatten carries feature-granted Hexblade proficiencies', flat.weapons.includes('Martial') && flat.armor.includes('Medium') && flat.armor.includes('Shield'));
 
 console.log(`\nproficiencies core: ${pass}/${pass + fail} checks pass` + (fail ? ` — ${fail} FAILED` : ' \u2713'));
 process.exit(fail ? 1 : 0);

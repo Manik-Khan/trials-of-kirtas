@@ -7,9 +7,10 @@
 import { readFileSync } from 'fs';
 
 const html = readFileSync(new URL('../../shards.html', import.meta.url), 'utf8');
-const s = html.indexOf('function collectBgExpanded(bg){');
-const e = html.indexOf('\n  }', s) + 4;
-const collectBgExpanded = (new Function(html.slice(s, e) + '\n; return collectBgExpanded;'))();
+const s = html.indexOf('function collectExpanded(additionalSpells){');
+const marker = 'function collectBgExpanded(bg){ return collectExpanded(bg && bg.additionalSpells); }';
+const e = html.indexOf(marker, s) + marker.length;
+const { collectExpanded, collectBgExpanded } = (new Function(html.slice(s, e) + '\n; return { collectExpanded, collectBgExpanded };'))();
 
 // Dimir Operative's real additionalSpells shape (from GGR / the 2014 mirror)
 const dimir = {
@@ -42,6 +43,15 @@ ok('all keys are lowercase', got.every(x => x.key === x.key.toLowerCase()));
 ok('missing background -> []', collectBgExpanded(null).length === 0);
 ok('background with no additionalSpells -> []', collectBgExpanded({ name: 'Acolyte' }).length === 0);
 
+const hexblade = collectExpanded([{ expanded: {
+  s1: ['shield', 'wrathful smite'],
+  s2: ['blur', 'branding smite']
+} }]);
+ok('Hexblade expanded list exposes Shield at level 1', hexblade.some(x => x.key === 'shield' && x.level === 1));
+ok('Hexblade expanded list exposes Blur at level 2', hexblade.some(x => x.key === 'blur' && x.level === 2));
+ok('Reforge folds subclass expanded refs into each caster', html.includes('expandedRefs: collectExpanded(sub && sub.additionalSpells)'));
+ok('subclass-expanded picks retain subclass provenance', html.includes("var subExpandedBy = function(n)") && html.includes("y?'subclass':origin"));
+
 console.log(`\ncollectBgExpanded: ${pass}/${pass + fail} checks pass` + (fail ? ` — ${fail} FAILED` : ' \u2713'));
 
 // ── (2) live resolution against the real data ──
@@ -52,7 +62,7 @@ const probe = (async () => {
   const D = mod.exports;
   if (typeof D.loadSpellMeta !== 'function') { console.log('\n(live) loadSpellMeta unavailable — skipping'); return; }
   try {
-    const metas = await D.loadSpellMeta(['encode thoughts', 'mage hand', 'pass without trace', 'meld into stone'], { detail: true });
+    const metas = await D.loadSpellMeta(['encode thoughts', 'mage hand', 'pass without trace', 'meld into stone', 'shield', 'blur'], { detail: true });
     const by = {}; (metas || []).forEach(m => { by[m.name.toLowerCase()] = m; });
     const show = (k, expLvl) => {
       const m = by[k];
@@ -64,6 +74,8 @@ const probe = (async () => {
     show('mage hand', 0);
     show('pass without trace', 2);
     show('meld into stone', 3);
+    show('shield', 1);
+    show('blur', 2);
   } catch (err) {
     console.log('\n(live) resolution skipped — ' + (err && err.message));
   }

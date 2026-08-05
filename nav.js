@@ -52,7 +52,7 @@ const PINNED_THEME = 'phantom';
 // ── Characters for the sheet switcher ──
 // Add new characters here when the party grows
 const CHARACTERS_NAV = [
-  { key: 'cosmere',     label: 'Cosmere',   full: 'Cosmere Runestar' },
+  { key: 'cosmererunestar-ae1a', aliases: ['cosmere'], label: 'Cosmere', full: 'Cosmere Runestar' },
   { key: 'caim',      label: 'Caim',    full: 'Caim' },
   { key: 'liadan',    label: 'Líadan',  full: 'Líadan Luchóg' },
   { key: 'vesperian', label: 'Vesperian', full: 'Vesperian Vale' },
@@ -224,7 +224,7 @@ async function populateCharMenu() {
   try {
     const me = (window.__tok && window.__tok.ready) ? await window.__tok.ready : null;
     if (!me || !me.characterKey) return;            // DM / unprovisioned → no caret
-    const c = CHARACTERS_NAV.find(x => x.key === me.characterKey);
+    const c = CHARACTERS_NAV.find(x => x.key === me.characterKey || (x.aliases || []).includes(me.characterKey));
     if (!c) return;
     const body = document.getElementById('char-menu-body');
     if (body) {
@@ -550,9 +550,9 @@ function mountRail() {
 // ── Mount the ◐ Settings flyout module ──
 // settings-flyout.js owns the unified Settings surface (look, presets, seat
 // accent, the absorbed cog). Injected like the rail: once, after auth.
-// SETTINGS_V busts browser caches — bump it whenever settings-flyout.js
-// changes (learned July 3: the un-stamped first deploy served stale files).
-const SETTINGS_V = 10;
+// SETTINGS_V busts browser caches — bump it whenever the injected look/settings/badge
+// scripts change (learned July 3: the un-stamped first deploy served stale files).
+const SETTINGS_V = 11;
 function mountSettings() {
   if (document.getElementById('tok-settings-js')) return;   // inject once
   // look-derive.js first: the flyout drives window.TokLook for the finish
@@ -674,7 +674,7 @@ applyTheme();
     //   window.__tok.profile : undefined until ready resolves, then object|null
     // profile shape: { id, userId, email, role, characterKey, username, grants, displayName }
     //   role         : 'overseer' | 'dm' | 'player' | 'pending'
-    //   characterKey : 'cosmere' | 'caim' | 'liadan' | 'vesperian' | null
+    //   characterKey : a current public.characters.key, or null
     //   username     : the account's own name (overseer-assigned), or null
     //   grants       : string[] of opt-in extra powers (inert until a feature checks one)
     //   displayName  : username || email local-part — what to SHOW for this account

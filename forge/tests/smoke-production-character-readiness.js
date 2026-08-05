@@ -164,7 +164,7 @@ function chonkFixture() {
     forgeHtml.includes('USE_CHARACTER_READINESS = new URLSearchParams(location.search).get("readiness") === "1"') &&
     forgeHtml.includes("readiness: USE_CHARACTER_READINESS"));
   ok("Soul Shards loads readiness before the manifest-producing derive",
-    shardsHtml.indexOf("character-readiness.js?v=cr1") < shardsHtml.indexOf("soul-shards-derive.js?v=cr1"));
+    shardsHtml.indexOf("character-readiness.js?v=cr1") < shardsHtml.indexOf("soul-shards-derive.js?v=cr2"));
   ok("Soul Shards creation and reforge share the same readiness field gate",
     shardsHtml.includes("var CHARACTER_READINESS_ON") && shardsHtml.includes("readinessEnabled: CHARACTER_READINESS_ON"));
   ok("Soul Shards refuses to forge an unresolved exact weapon choice",

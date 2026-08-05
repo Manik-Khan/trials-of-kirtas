@@ -377,7 +377,7 @@
     return { structural: structural, _incomplete: incomplete };
   }
 
-  var API = { deriveStructural };
+  var API = { deriveStructural: deriveStructural, featureGrantedProficiencies: featureGrantedProficiencies };
   if (typeof window !== 'undefined') window.SoulShardsDerive = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })();

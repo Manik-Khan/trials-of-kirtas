@@ -28,7 +28,10 @@ const ROW = {
     saves: { str:{bonus:-1,proficient:false}, dex:{bonus:2,proficient:false}, con:{bonus:2,proficient:false}, int:{bonus:0,proficient:false}, wis:{bonus:3,proficient:true}, cha:{bonus:5,proficient:true} },
     skills: [ {name:'Arcana',attr:'int',bonus:2,prof:true}, {name:'Perception',attr:'wis',bonus:3,prof:true}, {name:'Stealth',attr:'dex',bonus:2,prof:false} ],
     combat: { ac:14, acSource:'studded leather', hp:18, hpMax:23, initiative:2, speed:30, spellSaveDC:13, spellAttackBonus:5, hitDice:'2d8 + 1d6', senses:{darkvision:60} },
-    proficiencies: { languages:['Common','Elvish','Infernal'] },
+    proficiencies: {
+      skills:['Arcana','Perception'], languages:['Common','Elvish','Infernal'], tools:["Navigator's Tools"],
+      weapons:['Simple','Martial'], armor:['Light','Medium','Shield']
+    },
     classFeatures: { pactSlots:{max:2,level:1}, sorcererSlots:{'1':{max:2}}, sorceryPoints:{max:0,current:0} },
     spells: { cantrip:[{name:'Eldritch Blast',castingTime:'1 action'}], '1':[{name:'Hex',castingTime:'1 bonus'}] },
     features: [ {name:'Pact Magic',source:'class:Warlock',desc:'Short-rest pact slots.'}, {name:'Hex Warrior',source:'subclass:The Hexblade',desc:'CHA for a bonded weapon.'}, {name:'Fey Ancestry',source:'race:Astral Elf',desc:'Advantage vs charm.'} ]
@@ -63,6 +66,10 @@ function mockCD({ canEdit = true } = {}) {
   ok(slot.querySelectorAll('[data-list="saves"] .save').length === 6, 'six saves');
   ok([...slot.querySelectorAll('[data-list="saves"] .save')].filter(e => e.classList.contains('prof')).length === 2, 'two proficient saves (Wis/Cha)');
   ok(slot.querySelectorAll('[data-list="features"] .feat').length === ROW.structural.features.length, 'all features rendered');
+  ok(slot.querySelector('[data-f="skillProficiencies"]').textContent.includes('Arcana'), 'skill proficiencies render in Senses & Lore');
+  ok(slot.querySelector('[data-f="toolProficiencies"]').textContent.includes("Navigator's Tools"), 'tool proficiencies render in Senses & Lore');
+  ok(slot.querySelector('[data-f="weaponProficiencies"]').textContent.includes('Martial'), 'weapon proficiencies render in Senses & Lore');
+  ok(slot.querySelector('[data-f="armorProficiencies"]').textContent.includes('Medium') && slot.querySelector('[data-f="armorProficiencies"]').textContent.includes('Shield'), 'armor proficiencies render in Senses & Lore');
   ok(/t-race/.test(slot.querySelector('[data-list="features"]').innerHTML), 'feature origin stamp drives a race tag class');
   ok(/Pact Magic/.test(slot.querySelector('[data-list="pools"]').textContent), 'spell pools rendered from classFeatures');
   ok(slot.querySelector('[data-f="castAbility"]').textContent === 'Charisma', 'cast ability derived from spellSaveDC');

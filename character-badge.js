@@ -64,7 +64,7 @@
   // the nav's static catalog is authoritative for display names
   function navChar(key) {
     var list = (typeof CHARACTERS_NAV !== 'undefined' && CHARACTERS_NAV) || (window.CHARACTERS_NAV || []);
-    for (var i = 0; i < list.length; i++) if (list[i].key === key) return list[i];
+    for (var i = 0; i < list.length; i++) if (list[i].key === key || (list[i].aliases || []).indexOf(key) !== -1) return list[i];
     return null;
   }
 
@@ -174,6 +174,7 @@
     if (!menu) return;
     var key = profile && profile.characterKey;
     var nav = key ? navChar(key) : null;
+    var liveKey = (nav && nav.key) || key;
     var st = (charRow && charRow.structural) || {};
     var name = (nav && (nav.full || nav.label)) || (profile && profile.displayName) || 'Member';
     var initial = name.charAt(0).toUpperCase();
@@ -206,7 +207,7 @@
 
     var sheetA = menu.querySelector('#tb-sheet');
     sheetA.style.display = key ? '' : 'none';
-    if (key) sheetA.setAttribute('href', 'sheet-v2.html?character=' + encodeURIComponent(key));
+    if (key) sheetA.setAttribute('href', 'sheet-v2.html?character=' + encodeURIComponent(liveKey));
 
     menu.querySelector('.tb-accents').innerHTML = accents().map(function (hex) {
       return '<button type="button" class="tb-acc' + (hex.toLowerCase() === accent.toLowerCase() ? ' sel' : '')
@@ -217,7 +218,7 @@
     menu.querySelector('.tb-seatchip').textContent = (profile && profile.role ? profile.role : 'member').toUpperCase();
 
     // your characters: V1 pinned single; the switcher slot lights when >1
-    var chars = key ? [{ key: key, name: name, portrait: st.portrait }] : [];
+    var chars = key ? [{ key: liveKey, name: name, portrait: st.portrait }] : [];
     var list = menu.querySelector('#tb-charlist');
     if (!chars.length) {
       list.innerHTML = '<div class="tb-pinned">No character bound to this seat.</div>';
@@ -237,10 +238,12 @@
   var fetching = null;
   function fetchCharacter() {
     var key = profile && profile.characterKey;
+    var nav = key ? navChar(key) : null;
+    var liveKey = (nav && nav.key) || key;
     var sb = window.__tok && window.__tok.sb;
     if (!key || !sb) return Promise.resolve(null);
     if (fetching) return fetching;
-    fetching = sb.from('characters').select('key,structural,vitals').eq('key', key).maybeSingle()
+    fetching = sb.from('characters').select('key,structural,vitals').eq('key', liveKey).maybeSingle()
       .then(function (res) {
         fetching = null;
         if (!res.error && res.data) { charRow = res.data; render(); }

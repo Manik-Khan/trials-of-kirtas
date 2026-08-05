@@ -22,6 +22,12 @@
   'use strict';
 
   const COLS = 'key,owner,structural,vitals,inventory,equipment,currency,bio,notes,updated_at,delete_marked';
+  const STABLE_ALIASES = ['cosmere', 'caim', 'liadan', 'vesperian'];
+
+  function stableAlias(row) {
+    const name = String(row && row.structural && row.structural.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    return STABLE_ALIASES.find(alias => name.indexOf(alias) === 0) || null;
+  }
 
   // Wait for nav.js to finish assembling window.__tok. It builds __tok
   // asynchronously (Supabase CDN load + getSession) and signals completion by
@@ -95,7 +101,13 @@
     const sb = await client();
     const { data, error } = await sb.from('characters').select(COLS).eq('key', key);
     if (error) throw error;
-    return shape((data || [])[0] || null);
+    const exact = (data || [])[0] || null;
+    if (exact || !STABLE_ALIASES.includes(key)) return shape(exact);
+    // Stable party aliases predate Forge-generated keys. Keep old sheet links and
+    // transitional profile rows working, while exact current keys always win.
+    const { data: party, error: partyError } = await sb.from('characters').select(COLS).order('key');
+    if (partyError) throw partyError;
+    return shape((party || []).find(row => !row.delete_marked && stableAlias(row) === key) || null);
   }
 
   // may the current user EDIT this character? ANY party member may edit ANY party

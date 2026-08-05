@@ -18,13 +18,13 @@ let pass = 0, fail = 0
 const t = (n, c) => { c ? (pass++, console.log('  ✓ ' + n)) : (fail++, console.log('  ✗ ' + n)) }
 console.log('smoke-character-badge')
 
-function harness(role, characterKey) {
+function harness(role, characterKey, options = {}) {
   const dom = new JSDOM(`<!DOCTYPE html><html><head></head><body>
     <nav id="site-nav"><a href="index.html" class="nav-brand">Kirtas</a>
     <button class="nav-theme-btn" aria-expanded="false">◐</button></nav>
   </body></html>`, { url: 'https://tok.test/party.html', runScripts: 'dangerously', pretendToBeVisual: true })
   const w = dom.window
-  const vesperian = {
+  const vesperian = options.row || {
     key: 'vesperian',
     structural: {
       portrait: 'https://img.test/vesperian.png',
@@ -33,12 +33,12 @@ function harness(role, characterKey) {
     },
     vitals: { hp: 31, hpBonus: 2, hpTemp: 3, concentration: null },
   }
-  const rpcCalls = []
+  const rpcCalls = [], characterKeys = []
   w.__tok = {
     sb: {
       from(table) {
         if (table === 'characters') {
-          return { select() { return { eq() { return { maybeSingle: async () => ({ data: vesperian, error: null }) } } } } }
+          return { select() { return { eq(_column, key) { characterKeys.push(key); return { maybeSingle: async () => ({ data: vesperian, error: null }) } } } } }
         }
         return { select() { return { eq() { return { maybeSingle: async () => ({ data: { appearance: { background: 'bg-keep-me', accent: '#c96f6f' } }, error: null }) } } } } }
       },
@@ -49,11 +49,11 @@ function harness(role, characterKey) {
     ready: Promise.resolve(characterKey === undefined ? null : { role, characterKey, displayName: 'M' }),
   }
   // nav.js's static catalog, stubbed at global scope like the real page
-  w.CHARACTERS_NAV = [{ key: 'vesperian', label: 'Vesperian', full: 'Vesperian Vale' }]
+  w.CHARACTERS_NAV = options.catalog || [{ key: 'vesperian', label: 'Vesperian', full: 'Vesperian Vale' }]
   for (const code of [deriveSrc, flyoutSrc, badgeSrc]) {
     const s = w.document.createElement('script'); s.textContent = code; w.document.body.appendChild(s)
   }
-  return { dom, w, d: w.document, rpcCalls }
+  return { dom, w, d: w.document, rpcCalls, characterKeys }
 }
 
 const wait = ms => new Promise(r => setTimeout(r, ms))
@@ -143,6 +143,18 @@ t('no character: header falls back to displayName, vitals + sheet hidden, honest
   && C.d.querySelector('.tb-vitals').style.display === 'none'
   && C.d.querySelector('#tb-sheet').style.display === 'none'
   && C.d.querySelector('#tb-charlist').textContent.includes('No character bound'))
+
+// ── harness D: a transitional legacy profile alias resolves the audited row ──
+const D = harness('player', 'cosmere', {
+  catalog: [{ key: 'cosmererunestar-ae1a', aliases: ['cosmere'], label: 'Cosmere', full: 'Cosmere Runestar' }],
+  row: { key: 'cosmererunestar-ae1a', structural: { name: 'Cosmere Runestar', combat: { hpMax: 24 } }, vitals: { hp: 24 } }
+})
+await wait(60)
+click(D.w, D.d.querySelector('#tok-badge'))
+await wait(30)
+t('legacy profile alias fetches and links the audited current key',
+  D.characterKeys.includes('cosmererunestar-ae1a')
+  && D.d.querySelector('#tb-sheet').getAttribute('href') === 'sheet-v2.html?character=cosmererunestar-ae1a')
 
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)
