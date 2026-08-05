@@ -6,15 +6,15 @@
 //   • RENDER   — actions paint grouped (Attacks / Bonus damage / Utility) with the
 //                derived to-hit / damage meta; data-act on each row.
 //   • ROLL     — tapping an attack rolls through DiceEngine (RNG stubbed for a
-//                known outcome), paints a result card, and posts to the feed via
+//                known outcome) and posts only to the feed via
 //                window.__battle.onLogRoll with the engine's exact strings.
 //   • TOGGLES  — Adv/Dis/Bless flip, apply to the roll, and consume afterward.
 //   • DMG-ONLY — bonus-damage actions roll damage with no to-hit line.
 //   • UTILITY  — utility rows are inert (note shown inline; click does nothing).
 //
 // dice-engine.js + resource-derive.js are evaluated into the window first, as the
-// page loads them. Rolling is stateless, so assertions are on the feed + the
-// result DOM, not on any saved vitals.
+// page loads them. Rolling is stateless, so assertions are on the feed and the
+// absence of any sheet-local result surface, not on saved vitals.
 // ---------------------------------------------------------------------------
 import { JSDOM } from 'jsdom';
 import { readFileSync } from 'fs';
@@ -92,6 +92,7 @@ const C = await mount(cosmere); await settle();
   ok(ls && /to hit/i.test(ls.textContent) && /1d8/.test(ls.textContent), 'render: attack row shows to-hit + damage');
   const sh = [...C.querySelectorAll('.act.utility')].find(e => /Shield/.test(e.textContent));
   ok(sh && !sh.getAttribute('tabindex'), 'render: utility row is non-interactive (no tabindex)');
+  ok(!C.querySelector('[data-list="actionResult"]'), 'render: sheet has no local roll-result surface');
 }
 
 // ── ROLL an attack (longsword: kept 14, dmg 6 → 1d8) ──
@@ -104,9 +105,7 @@ const C = await mount(cosmere); await settle();
   ok(/^Longsword:/.test(feedLog[0].body), 'roll: body names the action');
   ok(/19/.test(feedLog[0].body), 'roll: body carries the to-hit total (19)');
   ok(/= 9\b/.test(feedLog[0].body), 'roll: body carries the damage (9)');
-  const card = C.querySelector('.actionresult .rcard.latest');
-  ok(card, 'roll: result card rendered');
-  ok(card && /19/.test(card.textContent) && /9/.test(card.textContent), 'roll: card shows hit total + damage');
+  ok(!C.querySelector('.actionresult, .rcard'), 'roll: no result card is added to the sheet');
 }
 
 // ── ADVANTAGE toggle applies + consumes ──
@@ -117,9 +116,8 @@ const C = await mount(cosmere); await settle();
   ok(adv.classList.contains('on'), 'adv: toggle on');
   setDice([rq(9, 20), rq(17, 20), rq(4, 8)]);      // adv keeps 17 (drop 9)
   fire(actEl(C, 'longsword'), 'click'); await settle();
-  const card = C.querySelector('.actionresult .rcard.latest');
-  ok(card && card.querySelector('.rcd-die.drop'), 'adv: result shows a dropped die');
   ok(/22/.test(feedLog[0].body), 'adv: kept the higher die (17+5=22)');
+  ok(!C.querySelector('.actionresult, .rcard'), 'adv: result remains feed-only');
   ok(!adv.classList.contains('on'), 'adv: toggle consumed after roll');
 }
 
@@ -130,19 +128,17 @@ const C = await mount(cosmere); await settle();
   ok(hex, 'damage-only row found');
   setDice([rq(4, 6)]);
   fire(hex, 'click'); await settle();
-  const card = C.querySelector('.actionresult .rcard.latest');
-  ok(card && /Damage/i.test(card.textContent) && !/To hit/i.test(card.textContent), 'dmg-only: damage line, no to-hit');
   ok(feedLog.length === 1 && /Dmg/.test(feedLog[0].body), 'dmg-only: posted to feed');
+  ok(!C.querySelector('.actionresult, .rcard'), 'dmg-only: no result card is added to the sheet');
 }
 
 // ── UTILITY is inert ──
 {
   feedLog = [];
-  const before = C.querySelectorAll('.actionresult .rcard').length;
   const sh = [...C.querySelectorAll('.act.utility')].find(e => /Shield/.test(e.textContent));
   fire(sh, 'click'); await settle();
   eq(feedLog.length, 0, 'utility: no feed post on click');
-  eq(C.querySelectorAll('.actionresult .rcard').length, before, 'utility: no new result card');
+  ok(!C.querySelector('.actionresult, .rcard'), 'utility: no result card on the sheet');
 }
 
 // ── CHECKS: abilities / saves / skills / initiative all roll ──
@@ -153,7 +149,7 @@ const C = await mount(cosmere); await settle();
   setDice([rq(15, 20), rq(2, 20)]);
   fire(cha, 'click'); await settle();
   ok(feedLog.length === 1 && /^Charisma: /.test(feedLog[0].body) && /= 18\b/.test(feedLog[0].body), 'check: ability rolls d20+mod (18)');
-  ok(C.querySelector('.actionresult .rcard.latest'), 'check: result card rendered');
+  ok(!C.querySelector('.actionresult, .rcard'), 'check: result remains feed-only');
 }
 {
   feedLog = [];

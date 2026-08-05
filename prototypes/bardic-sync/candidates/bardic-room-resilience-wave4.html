@@ -988,6 +988,32 @@
     return { devices, audioReady, trackReady, targetKey, hashes, trackIds };
   }
 
+  function hostTransitionGate(targetKey = ui.targetSlot.value) {
+    const target = state.slots[targetKey];
+    const listeners = activeDevices().filter((device) => device.role === 'listener');
+    const readyListeners = listeners.filter((device) => {
+      const slot = device.slots?.[targetKey];
+      return (
+        device.audioVerified === true &&
+        slot?.state === 'ready' &&
+        slot.trackId === target.trackId &&
+        slot.hash === target.hash
+      );
+    });
+    const catchingUpListeners = listeners.filter(
+      (device) => !readyListeners.includes(device)
+    );
+    const ready = Boolean(
+      state.audioVerifiedAt &&
+      target?.state === 'ready' &&
+      target.buffer &&
+      target.trackId &&
+      target.hash
+    );
+
+    return { ready, listeners, readyListeners, catchingUpListeners, targetKey };
+  }
+
   function renderDeviceSlot(device, key) {
     const slot = device.slots?.[key];
     if (!slot) return 'empty';
@@ -1031,6 +1057,7 @@
     const isHost = ui.role.value === 'host';
     const targetKey = ui.targetSlot.value;
     const { devices, audioReady, trackReady } = roomGate(targetKey);
+    const hostGate = hostTransitionGate(targetKey);
     const target = state.slots[targetKey];
     const transitionBusy = state.playbackState === 'transitioning';
     const stopping = state.playbackState === 'stopping';
@@ -1058,8 +1085,7 @@
       isHost &&
       state.connected &&
       state.subscribed &&
-      trackReady &&
-      target.state === 'ready' &&
+      hostGate.ready &&
       !transitionBusy &&
       !stopping;
 
@@ -1078,7 +1104,22 @@
     );
     ui.fadeMs.disabled = ui.transitionMode.value !== 'crossfade';
 
-    if (trackReady) {
+    if (isHost && hostGate.ready && hostGate.catchingUpListeners.length) {
+      const names = hostGate.catchingUpListeners
+        .map((device) => device.name || 'Listener')
+        .join(', ');
+      setBadge(
+        ui.roomGateBadge,
+        `Host ready for Track ${targetKey.toUpperCase()} · switching allowed · ${names} will catch up`,
+        'warn'
+      );
+    } else if (isHost && hostGate.ready && !hostGate.listeners.length) {
+      setBadge(
+        ui.roomGateBadge,
+        `Host ready for Track ${targetKey.toUpperCase()} · late listeners will catch up`,
+        'good'
+      );
+    } else if (trackReady) {
       setBadge(
         ui.roomGateBadge,
         `Track ${targetKey.toUpperCase()} ready · ${devices.length} devices · matching bytes`,
@@ -1733,6 +1774,8 @@
     state.recoveryNeeded = true;
     renderRecoveryUI();
 
+    const purgedSources = stopLocalSourceImmediately();
+
     const command = {
       transitionId: crypto.randomUUID(),
       playId: readiness.anchor.playId,
@@ -1741,8 +1784,8 @@
       trackHash: readiness.anchor.trackHash,
       positionSeconds: readiness.positionSeconds,
       startHostMs: readiness.joinHostMs,
-      mode: state.currentSource ? 'crossfade' : 'cut',
-      fadeMs: state.currentSource ? 250 : 8,
+      mode: 'cut',
+      fadeMs: 8,
       recovery: true,
     };
 
@@ -1754,6 +1797,7 @@
         positionSeconds: command.positionSeconds,
         startHostMs: command.startHostMs,
         sourceLabel,
+        purgedSources,
       });
     } catch (error) {
       state.recoveryState = 'blocked';
@@ -1963,9 +2007,9 @@
 
     const toSlot = ui.targetSlot.value;
     const slot = state.slots[toSlot];
-    const gate = roomGate(toSlot);
-    if (!gate.trackReady || slot.state !== 'ready' || !slot.buffer) {
-      throw new Error(`Track ${toSlot.toUpperCase()} is not ready with matching bytes on every device.`);
+    const gate = hostTransitionGate(toSlot);
+    if (!gate.ready) {
+      throw new Error(`Track ${toSlot.toUpperCase()} is not ready on the host.`);
     }
 
     const positionSeconds = Number(ui.startPosition.value || 0);
@@ -2107,7 +2151,11 @@
   }
 
   function stopLocalSourceImmediately() {
-    for (const source of state.liveSources) {
+    const sources = new Set(state.liveSources);
+    if (state.currentSource) sources.add(state.currentSource);
+    if (state.armedTransition?.source) sources.add(state.armedTransition.source);
+
+    for (const source of sources) {
       try {
         source.stop();
       } catch (_) {}
@@ -2123,6 +2171,7 @@
     state.activeSlot = null;
     state.playbackState = 'idle';
     stopPositionTimer();
+    return sources.size;
   }
 
   function scheduleExplicitReconnect(generation, reason) {

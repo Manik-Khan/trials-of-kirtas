@@ -29,7 +29,8 @@ The Wave 3 real-function smoke remains at `tests/smoke-bardic-wave3.mjs` and rep
 - `candidates/README-wave4.md` — staged field gates for late join, network recovery, visibility,
   screen lock, and three-or-more-device transitions.
 - `tests/smoke-bardic-wave4.mjs` — real-function anchor/recovery plus Wave 3 regression smoke;
-  currently 43/43 checks, including wake-lock acquisition/release.
+  currently 50/50 checks, including wake-lock acquisition/release, host-authoritative transitions,
+  and stale-source recovery cleanup.
 
 Wave 4 is not frozen or production-ready until those real-device gates pass.
 

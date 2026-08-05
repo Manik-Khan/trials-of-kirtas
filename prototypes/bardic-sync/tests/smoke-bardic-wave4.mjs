@@ -100,6 +100,8 @@ const exposed = inlineScript.replace(
     ui,
     monoEpochMs,
     roomGate,
+    hostTransitionGate,
+    updateControls,
     currentHostPlaybackAnchor,
     anchorPositionAt,
     recoveryReadiness,
@@ -111,6 +113,7 @@ const exposed = inlineScript.replace(
     scheduleSourceFadeOut,
     scheduleTransition,
     scheduleTrackStop,
+    stopLocalSourceImmediately,
     loadTrack,
   };\n  loadSettings();`
 );
@@ -169,10 +172,15 @@ class FakeGain {
 }
 
 class FakeSource {
-  constructor() { this.started = null; this.stopped = null; this.onended = null; }
+  constructor() {
+    this.started = null;
+    this.stopped = null;
+    this.stopCalls = [];
+    this.onended = null;
+  }
   connect(target) { this.connected = target; return target; }
   start(time, position) { this.started = { time, position }; }
-  stop(time) { this.stopped = time; }
+  stop(time) { this.stopped = time; this.stopCalls.push(time); }
 }
 
 const createdSources = [];
@@ -204,10 +212,23 @@ api.state.slots.b = {
   duration: 90, error: null, loadGeneration: 1,
 };
 
-api.ui.role.value = 'listener';
-api.ui.leadMs.value = '4000';
 api.state.connected = true;
 api.state.subscribed = true;
+assert(api.hostTransitionGate('b').ready === true, 'a verified host with local Track B bytes may transition');
+api.state.devices.get('listener').audioVerified = false;
+api.state.devices.get('listener').slots.b = { state: 'waiting-audio', trackId: 'b-1', hash: null };
+const hostOnlyGate = api.hostTransitionGate('b');
+assert(hostOnlyGate.ready === true, 'an unavailable listener does not block a host-ready transition');
+assert(hostOnlyGate.catchingUpListeners.length === 1, 'the unavailable listener is narrated as catching up');
+api.ui.targetSlot.value = 'b';
+api.updateControls();
+assert(api.ui.transitionBtn.disabled === false, 'the host transition control remains enabled while a listener catches up');
+assert(api.ui.roomGateBadge.textContent.includes('will catch up'), 'the room badge explains why the host may continue');
+api.state.devices.get('listener').audioVerified = true;
+api.state.devices.get('listener').slots.b = readySlot('b-1', 'hash-b');
+
+api.ui.role.value = 'listener';
+api.ui.leadMs.value = '4000';
 api.state.estimate = { offsetMs: 0, bestRttMs: 20, jitterMs: 1 };
 api.state.hostAnchor = {
   playId: 'host-play-1',
@@ -241,9 +262,27 @@ api.state.hostAnchor.receivedAt = Date.now() - 36000;
 assert(api.recoveryReadiness().ready === false, 'a stale host anchor blocks late join');
 api.state.hostAnchor.receivedAt = Date.now();
 
+const staleCurrentSource = new FakeSource();
+const staleArmedSource = new FakeSource();
+api.state.currentSource = staleCurrentSource;
+api.state.currentGain = new FakeGain(1);
+api.state.armedTransition = { source: staleArmedSource, transitionId: 'stale-armed' };
+api.state.liveSources.add(staleCurrentSource);
+api.state.liveSources.add(staleArmedSource);
+api.state.playbackState = 'playing';
+api.state.activeSlot = 'b';
+
 await api.joinHostPlayback('smoke');
 assert(api.state.playbackState === 'transitioning', 'late join arms one future local source');
 assert(createdSources.length === 1 && createdSources[0].started.position > 38, 'late join starts from the predicted in-progress position');
+assert(
+  staleCurrentSource.stopCalls.length === 1 && staleArmedSource.stopCalls.length === 1,
+  'recovery stops both current and armed stale sources before joining'
+);
+assert(
+  api.state.liveSources.size === 1 && api.state.liveSources.has(createdSources[0]),
+  'recovery retains only the newly scheduled host source'
+);
 const joinTimer = timerCallbacks.shift();
 joinTimer();
 assert(api.state.currentHostPlayId === 'host-play-1', 'late join retains the host play identity');

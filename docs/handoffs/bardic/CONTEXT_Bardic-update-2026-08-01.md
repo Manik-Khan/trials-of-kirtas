@@ -204,8 +204,9 @@ Operational invariants:
 - The host is the sole clock authority.
 - Commands carry future host timestamps; arrival time is never playback time.
 - Track identity is the byte fingerprint, not title or URL alone.
-- Every connected playback device must be `VERIFIED` and `READY` with the same fingerprint for
-  the safe first implementation.
+- A listener may schedule only after it is `VERIFIED` and `READY` with the host's fingerprint.
+  The host does not wait for an unavailable listener; it switches locally after Broadcast
+  acknowledgement and publishes the new anchor for that listener to catch up.
 - The host schedules locally only after Broadcast acknowledgement.
 - Keep current and pending buffers, plus at most one queued buffer. Do not decode the whole
   library into memory.
@@ -313,13 +314,19 @@ On return, the same one-shot future scheduling path is used. Automatic recovery 
 a manual join button and explicit narrated blockers. No seeking or playback-rate correction was
 reintroduced.
 
+Host authority is independent of listener readiness in the resilience candidate. Once the host
+has verified audio and decoded the target bytes, it may start or switch even when a listener is
+sleeping, unverified, or still loading. The host publishes the new anchor and the UI identifies
+listeners that will catch up. Recovery treats local playback state as untrusted: it stops every
+current or armed music source before scheduling only the host's current track.
+
 The candidate also requests a Screen Wake Lock while connected when the user leaves the option
 enabled. This prevents ordinary inactivity sleep while the page remains visible when supported;
 it cannot override manual locking, leaving Safari, or a browser/OS decision to release the lock.
 
 Automated and local-browser gates:
 
-- Wave 4 real-function smoke: 43/43;
+- Wave 4 real-function smoke: 50/50;
 - page starts without browser console errors;
 - listener and host recovery controls/states render and switch correctly.
 
@@ -334,7 +341,11 @@ Field evidence on 2026-08-04:
   or room acoustics;
 - leaving Safari or locking the phone suspended Web Audio but retained/recovered the room
   connection;
-- after the required user audio gesture, the phone automatically rejoined in sync.
+- after the required user audio gesture, the phone automatically rejoined in sync;
+- Track A→phone lock→host Track B→return/verify→Track B recovery passed in sync;
+- one earlier recovery briefly played both A and B, but the overlap did not reproduce. The
+  candidate now purges every current or armed source before recovery, so that exact sequence
+  remains a focused field confirmation rather than a closed bug.
 
 Field evidence is still required for Screen Wake Lock through the phone's normal auto-lock
 interval, network loss, a true third device, and three-or-more-device transitions. Do not freeze

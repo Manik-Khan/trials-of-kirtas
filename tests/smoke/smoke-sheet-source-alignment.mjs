@@ -41,11 +41,11 @@ const float = readFileSync(new URL('../../combat-sheet-float.js', import.meta.ur
 const forge = readFileSync(new URL('../../forge/index.html', import.meta.url), 'utf8');
 const fmtMatch = party.match(/    function fmtCt\(t\) \{[\s\S]*?^    \}/m);
 const partyFmtCt = fmtMatch ? Function(fmtMatch[0] + '\nreturn fmtCt;')() : null;
-ok('Party imports the full-sheet render shape', party.includes("import { toRenderShape } from './sheet-mount.js?v=src1'"));
+ok('Party imports the full-sheet render shape', party.includes("import { toRenderShape } from './sheet-mount.js?v=src2'"));
 ok('Party receives full character-row realtime updates', party.includes("['vitals','inventory','equipment','currency','bio','notes']"));
 const armorInclude = party.indexOf('<script src="armor-ac.js?v=um1"></script>');
 const slotsInclude = party.indexOf('<script src="equip-slots.js?v=cc2"></script>');
-const projectionImport = party.indexOf("import { toRenderShape } from './sheet-mount.js?v=src1'");
+const projectionImport = party.indexOf("import { toRenderShape } from './sheet-mount.js?v=src2'");
 const forgePartyCardMatch = forge.match(/  function partyCard\(c\)\{[\s\S]*?^  \}/m);
 const forgePartyCard = forgePartyCardMatch
   ? Function('window', forgePartyCardMatch[0] + '\nreturn partyCard;')({

@@ -1,7 +1,8 @@
 # Bardic room resilience — Wave 4 candidate
 
-Status: **late-join and iPhone lock-return recovery passed on 2026-08-04; wake-lock, network, and
-true multi-device field gates remain.**
+Status: **late-join and iPhone lock-return recovery passed on 2026-08-04; host-authority and
+single-source recovery hardening await field confirmation. Wake-lock, network, and true
+multi-device gates remain.**
 
 This standalone page begins from the frozen Wave 3 proof. It does not modify Waves 1–3 or any
 production Bardic file.
@@ -16,6 +17,10 @@ production Bardic file.
   restart or seek command.
 - A returning listener discards stale clock samples after a meaningful visibility or network
   interruption and uses the same future-scheduled join path.
+- A host with verified local bytes may start or switch tracks without waiting for sleeping,
+  unverified, or still-loading listeners. The UI names listeners that will catch up.
+- Recovery stops every current or armed local music source before scheduling the host's current
+  track. It never crossfades from playback state that survived an interruption.
 - Automatic recovery is enabled by default; a manual **Join current host playback** button remains
   available when every safety gate is ready.
 - A checked **Keep this screen awake while connected** option requests the Screen Wake Lock API,
@@ -84,6 +89,12 @@ Realtime connection available on return. The phone required the explicit local-a
 then automatically rejoined the host in sync. Continuous locked-screen Web Audio is therefore not
 a browser guarantee.
 
+M also tested Track A playing, locked the listener, switched the host to Track B, returned, and
+verified audio. The listener joined Track B in sync. One earlier attempt briefly produced both A
+and B on the listener, but that overlap did not reproduce. The candidate now removes that race by
+purging every current or armed local source before a recovery join; repeat this exact sequence to
+confirm the invariant audibly.
+
 ### Automatic-sleep mitigation
 
 1. Leave **Keep this screen awake while connected** checked.
@@ -104,8 +115,11 @@ With three or more active devices if available:
 2. Hard-cut to B.
 3. Crossfade back to A at 500 ms.
 4. Stop synchronized.
-5. Confirm an unverified late device blocks a new room-wide transition and clearly says why.
-6. Confirm a device with no heartbeat for 35 seconds ages out and no longer blocks the room.
+5. Interrupt or leave one listener unverified, then confirm the host can switch tracks and the
+   room badge names that listener as catching up.
+6. Restore and verify that listener; confirm it joins only the host's current track, with no stale
+   track underneath it.
+7. Confirm a device with no heartbeat for 35 seconds ages out of the room display.
 
 ## What to report
 
@@ -120,20 +134,22 @@ For each join or recovery, report:
 - remained blocked, including the recovery badge text;
 - or required another audio gesture.
 - screen wake lock unavailable, denied, released, or active.
+- any overlap where an interrupted listener plays both the old and current host tracks.
 
 Copy the newest event-log lines if a recovery fails or repeats.
 
 ## Validation completed here
 
 ```text
-Wave 4 real-function smoke: 43/43
+Wave 4 real-function smoke: 50/50
 Browser startup: clean
 Host/listener recovery UI states: pass
 ```
 
-The smoke executes the actual embedded clock, anchor, scheduling, transition, stop, and failed-load
-functions with fake Web Audio. Real audible recovery, browser suspension behavior, and more than
-two devices remain field evidence rather than automated claims.
+The smoke executes the actual embedded clock, anchor, scheduling, transition, stop, failed-load,
+host-authority, and stale-source cleanup functions with fake Web Audio. Real audible recovery,
+browser suspension behavior, and more than two devices remain field evidence rather than
+automated claims.
 
 ## Credential rule
 
