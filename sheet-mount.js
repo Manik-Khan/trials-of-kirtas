@@ -15,7 +15,8 @@
 // window.CharacterData) and never auto-runs.
 // ---------------------------------------------------------------------------
 
-import { wireInspiration } from './sheet-actions.js?v=cp1';
+import './trance-proficiencies.js?v=tp2';
+import { wireInspiration } from './sheet-actions.js?v=tp4';
 import { assembleActions } from './weapon-actions.js';
 import { applyFeatureCorrections, applySpellCorrections } from './sheet-corrections.js?v=cp1';
 import { mountSheetProgression } from './sheet-progression.js?v=facets1';
@@ -392,19 +393,36 @@ function renderSheet(root, char){
   setF('darkvision', senses.darkvision?(senses.darkvision+' ft'):'\u2014');
   setF('passivePerception', s.passivePerception);
   setF('passiveInsight', s.passiveInsight);
-  var profs=s.proficiencies||{};
+  var profs=s.proficiencies||{}, baseProfs=s.baseProficiencies||profs;
+  var temp=(s.temporaryProficiencies&&s.temporaryProficiencies.selections)||[];
   function profText(v){
     if(v==null) return '\u2014';
     var text=Array.isArray(v)?v.filter(Boolean).join(' \u00B7 '):String(v);
     return text||'\u2014';
   }
+  function profTextWithTemp(type, effective){
+    var base=baseProfs[type];
+    var kind=type.replace(/s$/,'');
+    var tempNames=temp.filter(function(p){return p.kind===kind;}).map(function(p){return p.name;});
+    if(base==null){
+      base=Array.isArray(effective)?effective.filter(function(name){return tempNames.indexOf(name)===-1;}):effective;
+    }
+    var rows=Array.isArray(base)?base.filter(Boolean).slice():(base?String(base).split(',').map(function(x){return x.trim();}).filter(Boolean):[]);
+    temp.filter(function(p){return p.kind===kind;}).forEach(function(p){rows.push(p.name+' (Trance)');});
+    return profText(rows);
+  }
   var skillProfs=profs.skills;
   if(skillProfs==null) skillProfs=(s.skills||[]).filter(function(sk){ return sk.prof; }).map(function(sk){ return sk.name; });
-  setF('skillProficiencies', profText(skillProfs));
+  setF('skillProficiencies', profTextWithTemp('skills', skillProfs));
   setF('languages', profText(profs.languages!=null?profs.languages:s.languages));
-  setF('toolProficiencies', profText(profs.tools));
-  setF('weaponProficiencies', profText(profs.weapons));
+  setF('toolProficiencies', profTextWithTemp('tools', profs.tools));
+  setF('weaponProficiencies', profTextWithTemp('weapons', profs.weapons));
   setF('armorProficiencies', profText(profs.armor));
+  var tranceRow=root.querySelector('[data-trance-prof-row]');
+  if(tranceRow){
+    tranceRow.hidden=!s.restProficiencies;
+    setF('temporaryProficiencies', temp.length?temp.map(function(p){return p.name;}).join(' \u00B7 '):'Choose during Long Rest');
+  }
   setStatus(root, v);
   var notes=(char.notes!=null?char.notes:s.notes);
   var ntEl=root.querySelector('[data-notes]');
@@ -612,6 +630,8 @@ function renderActionResult(root, hist){
 }
 function toRenderShape(cd){
   cd=cd||{}; var s=Object.assign({}, cd.structural||{}), v=Object.assign({}, cd.vitals||{});
+  var TP=(typeof globalThis!=='undefined'&&globalThis.TranceProficiencies)?globalThis.TranceProficiencies:null;
+  if(TP&&TP.apply) s=TP.apply(s,v);
   s.skills=normSkills(s.skills);
   if(s.passiveInsight==null){ var ins=s.skills.filter(function(x){return x.name==='Insight';})[0]; if(ins) s.passiveInsight=10+(ins.bonus||0); }
   if(!s.spellcasting) s.spellcasting=buildSpellcasting(s, v);
@@ -1022,6 +1042,7 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
         <div class="lrow"><span>Tools</span><b data-f="toolProficiencies">—</b></div>
         <div class="lrow"><span>Weapons</span><b data-f="weaponProficiencies">—</b></div>
         <div class="lrow"><span>Armor</span><b data-f="armorProficiencies">—</b></div>
+        <div class="lrow" data-trance-prof-row hidden><span>Trance Picks</span><b data-f="temporaryProficiencies">Choose during Long Rest</b></div>
       </div>
       <div class="lblock">
         <div class="lhead">Resources <span class="lhint">tap to spend</span></div>

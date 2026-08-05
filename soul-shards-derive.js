@@ -37,6 +37,14 @@
     }
     return null;
   }
+  function tranceApi(deps) {
+    if (deps && deps.trance) return deps.trance;
+    if (typeof window !== 'undefined' && window.TranceProficiencies) return window.TranceProficiencies;
+    if (typeof require === 'function') {
+      try { return require('./trance-proficiencies.js'); } catch (_err) {}
+    }
+    return null;
+  }
   function joinEntries(e) {
     function clean(s) {
       return String(s == null ? '' : s).replace(/\{@\w+\s+([^}]*)\}/g, function (_, body) { return body.split('|')[0]; }).replace(/\{@\w+\}/g, '');
@@ -363,6 +371,9 @@
       spellcasting: spellcasting,
       classFeatures: classFeatures
     };
+    var trance = tranceApi(deps);
+    var restProficiencies = trance && trance.specFromRace ? trance.specFromRace(race, input.subraceName) : null;
+    if (restProficiencies) structural.restProficiencies = restProficiencies;
     // Save the exact grants this build assembled. Future Forge onboarding
     // compares this manifest to the effective sheet, so a lost class, subclass,
     // race, or feat row is caught without teaching Forge every class table.

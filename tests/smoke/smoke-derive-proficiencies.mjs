@@ -14,6 +14,7 @@ function loadCjs(path) {
 const Engine = loadCjs('../../soul-shards-engine.js');
 const SC = loadCjs('../../soul-shards-spellcasting.js');
 const Derive = loadCjs('../../soul-shards-derive.js');
+const Trance = loadCjs('../../trance-proficiencies.js');
 win.SoulShardsEngine = Engine; win.SoulShardsSpellcasting = SC;
 
 const WIZ = {
@@ -28,12 +29,13 @@ const WIZ = {
 const out = Derive.deriveStructural({
   name: 'The Wiz', abilities: { str: 10, dex: 14, con: 14, int: 18, wis: 12, cha: 10 },
   classes: [{ model: WIZ, level: 3 }],
+  race: { name:'Astral Elf', source:'AAG', speed:{walk:30}, traits:[], subraces:[] },
   proficiencies: {
     skills: ['Arcana', 'History', 'Investigation', 'Perception'],
     languages: ['Common', 'Elvish', 'Draconic', 'Infernal'],
     tools: [], weapons: ['Daggers', 'Quarterstaffs'], armor: []
   }
-}, { engine: Engine, spellcasting: SC });
+}, { engine: Engine, spellcasting: SC, trance: Trance });
 const s = out.structural;
 const sk = n => s.skills.find(x => x.name === n);
 
@@ -51,6 +53,7 @@ ok('passiveInsight = 11 (10 + Insight +1, not proficient)', s.passiveInsight ===
 ok('structural.proficiencies.languages carried', Array.isArray(s.proficiencies.languages) && s.proficiencies.languages.includes('Draconic'));
 ok('structural.proficiencies.skills mirrors proficient skills', s.proficiencies.skills.includes('Arcana') && s.proficiencies.skills.length === 4);
 ok('structural.proficiencies.weapons carried', s.proficiencies.weapons.includes('Daggers'));
+ok('Astral Elf derive stamps its two long-rest proficiency choices', s.restProficiencies && s.restProficiencies.id === 'astral-trance' && s.restProficiencies.choices.length === 2);
 
 // _incomplete must no longer flag skills / passives / proficiencies, but still flags actions + spells
 ok('_incomplete no longer flags skills[]', !out._incomplete.some(x => /^skills\[\]/.test(x)));

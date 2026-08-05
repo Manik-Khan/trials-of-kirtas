@@ -53,7 +53,7 @@ ok('Zariel Tiefling does not regain a hard-coded Hellish Rebuke reaction', !(for
 ok('Forge uses projected features too', !(forge.tabs.actions || []).some(tile => tile.label === 'Flurry of Blows'));
 
 const party = fs.readFileSync(path.join(__dirname, '..', '..', 'party.html'), 'utf8');
-ok('party imports the full-sheet projection door', party.includes("import { toRenderShape } from './sheet-mount.js?v=src3'"));
+ok('party imports the full-sheet projection door', party.includes("import { toRenderShape } from './sheet-mount.js?v=src10'"));
 ok('party no longer reads structural.spells', !party.includes('structural.spells'));
 
 console.log('smoke-character-sheet-projection: ' + pass + ' passed, ' + fail + ' failed');

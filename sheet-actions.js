@@ -31,6 +31,11 @@
 import { assembleActions, meleeWeaponOptions } from './weapon-actions.js';
 import { spellDetailHTML, feedSummary } from './spell-detail.js';
 import { addFeatureCorrection, addSpellCorrection, addSuppressionCorrection, classNamesOf, closeCorrection, correctionLedger, spellExists } from './sheet-corrections.js?v=cp1';
+import './trance-proficiencies.js?v=tp2';
+
+function trance() {
+  return (typeof globalThis !== 'undefined' && globalThis.TranceProficiencies) ? globalThis.TranceProficiencies : null;
+}
 
 // ── ResourceDerive resolver (browser global, set by resource-derive.js) ──
 function rd() {
@@ -70,7 +75,7 @@ export function longRegainCount(structural) {
 }
 
 // PURE: the vitals AFTER a rest. Never mutates the input.
-export function planRest(kind, structural, vitals) {
+export function planRest(kind, structural, vitals, tranceSelections) {
   structural = structural || {};
   var v = JSON.parse(JSON.stringify(vitals || {}));
   var R = rd();
@@ -82,6 +87,8 @@ export function planRest(kind, structural, vitals) {
     var cap = Math.max(1, Math.floor((hd.total || 0) / 2));
     var got = regainHitDice(hd, v.hitDiceSpent || {}, cap);
     v.hitDiceSpent = got.spent;
+    var TP = trance(), spec = TP && TP.specFromStructural ? TP.specFromStructural(structural) : null;
+    if (spec && tranceSelections !== undefined) v = TP.withSelections(v, spec, tranceSelections, structural);
     return { vitals: v, summary: { kind: 'long', hp: max, hdRegained: got.regained } };
   }
   var pip = v.pipState || (v.pipState = {});
@@ -274,9 +281,14 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     (doc.body || root).appendChild(pop);
     if (anchor && anchor.getBoundingClientRect) {
       const r = anchor.getBoundingClientRect();
+      const view = doc.defaultView;
       pop.style.position = 'fixed';
       pop.style.left = Math.round(r.left) + 'px';
       pop.style.top = Math.round(r.bottom + 6) + 'px';
+      const pr = pop.getBoundingClientRect();
+      const vw = (view && view.innerWidth) || 0, vh = (view && view.innerHeight) || 0;
+      if (vw) pop.style.left = Math.round(Math.max(8, Math.min(r.left, vw - pr.width - 8))) + 'px';
+      if (vh) pop.style.top = Math.round(Math.max(8, Math.min(r.bottom + 6, vh - pr.height - 8))) + 'px';
     }
     pops.push(pop);
     raf(() => pop.classList.add('in'));
@@ -288,23 +300,48 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     if (saving || !doc) return;
     const label = kind === 'long' ? 'Long rest' : 'Short rest';
     const n = longRegainCount(structural);
+    const TP = trance();
+    const tranceSpec = kind === 'long' && TP && TP.specFromStructural ? TP.specFromStructural(structural) : null;
+    const tranceState = tranceSpec ? tranceSpec.choices.map(function (choice) {
+      var current = TP.currentSelections(vitals, tranceSpec, structural).filter(function (pick) { return pick.id === choice.id; })[0];
+      return current ? Object.assign({}, current) : { id:choice.id, kind:choice.kinds[0], name:'' };
+    }) : [];
     const lines = kind === 'long'
-      ? ['Restore all HP', 'Clear temp HP & concentration' + (mageArmorActive(vitals) ? ' \u00B7 end Mage Armor' : ''), 'Restore every resource & spell slot', 'Regain ' + n + ' hit ' + (n === 1 ? 'die' : 'dice')]
+      ? ['Restore all HP', 'Clear temp HP & concentration' + (mageArmorActive(vitals) ? ' \u00B7 end Mage Armor' : ''), 'Restore every resource & spell slot', 'Regain ' + n + ' hit ' + (n === 1 ? 'die' : 'dice')].concat(tranceSpec ? ['Replace your temporary ' + tranceSpec.source + ' proficiencies'] : [])
       : ['Restore short-rest resources', 'Leaves spell slots & HP untouched'];
-    const pop = mkPop('sa-confirm');
+    const pop = mkPop('sa-confirm' + (tranceSpec ? ' sa-trance-rest' : ''));
     pop.innerHTML = '<div class="sa-pop-t">' + esc(label) + '?</div>'
       + '<ul class="sa-pop-l">' + lines.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>'
+      + (tranceSpec ? '<div class="sa-trance"><div class="sa-trance-t">' + esc(tranceSpec.source) + ' choices</div><div class="sa-trance-note">These replace your current picks until the next long rest.</div><div data-trance-choices></div></div>' : '')
       + '<div class="sa-pop-act"><button class="sa-btn ghost" data-no type="button">Cancel</button>'
       + '<button class="sa-btn go" data-yes type="button">Confirm</button></div>';
+    const yes = pop.querySelector('[data-yes]');
+    function paintTranceChoices() {
+      if (!tranceSpec) return;
+      const host = pop.querySelector('[data-trance-choices]');
+      host.innerHTML = tranceSpec.choices.map(function (choice, i) {
+        var state = tranceState[i];
+        var kindPick = choice.kinds.length > 1
+          ? '<select data-trance-kind="' + i + '" aria-label="' + esc(choice.label) + ' type">' + choice.kinds.map(function (k) { return '<option value="' + k + '"' + (state.kind === k ? ' selected' : '') + '>' + (k === 'weapon' ? 'Weapon' : (k === 'tool' ? 'Tool' : 'Skill')) + '</option>'; }).join('') + '</select>'
+          : '<span class="sa-trance-kind">' + esc(choice.label) + '</span>';
+        var opts = TP.optionsForKind(tranceSpec, i, state.kind, structural, tranceState);
+        var names = '<option value="">Choose ' + state.kind + '\u2026</option>' + opts.map(function (name) { return '<option value="' + esc(name) + '"' + (state.name === name ? ' selected' : '') + '>' + esc(name) + '</option>'; }).join('');
+        return '<label class="sa-trance-row"><span>Choice ' + (i + 1) + '</span><span class="sa-trance-picks' + (choice.kinds.length === 1 ? ' one' : '') + '">' + kindPick + '<select data-trance-name="' + i + '" aria-label="' + esc(choice.label) + '">' + names + '</select></span></label>';
+      }).join('');
+      host.querySelectorAll('[data-trance-kind]').forEach(function (sel) { sel.addEventListener('change', function () { var i=+sel.getAttribute('data-trance-kind'); tranceState[i].kind=sel.value; tranceState[i].name=''; paintTranceChoices(); }); });
+      host.querySelectorAll('[data-trance-name]').forEach(function (sel) { sel.addEventListener('change', function () { var i=+sel.getAttribute('data-trance-name'); tranceState[i].name=sel.value; paintTranceChoices(); }); });
+      yes.disabled = tranceState.some(function (pick) { return !pick.name; });
+    }
+    paintTranceChoices();
     mountPop(pop, kind === 'long' ? root.querySelector('[data-rest="long"]') : root.querySelector('[data-rest="short"]'));
     pop.querySelector('[data-no]').addEventListener('click', (e) => { e.stopPropagation(); closePops(); });
-    pop.querySelector('[data-yes]').addEventListener('click', (e) => { e.stopPropagation(); closePops(); applyRest(kind, label); });
+    yes.addEventListener('click', (e) => { e.stopPropagation(); if (yes.disabled) return; closePops(); applyRest(kind, label, tranceSpec ? tranceState : undefined); });
   }
 
-  async function applyRest(kind, label) {
+  async function applyRest(kind, label, tranceSelections) {
     if (saving) return;
     const snapshot = JSON.parse(JSON.stringify(vitals));   // pre-rest state for undo
-    const plan = planRest(kind, structural, vitals);
+    const plan = planRest(kind, structural, vitals, tranceSelections);
     const prev = vitals;
     vitals = plan.vitals; busy(true); refresh(); showStat('saving', 'resting\u2026', false);
     try {
@@ -1690,14 +1727,15 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   // resolve against the SAME list or weapon-derived rows (ids wpn-* / cant-*) silently
   // no-op — they aren't in structural.actions. (That was the quarterstaff-won't-post /
   // dead-duplicate-longsword bug.) assembleActions is the one source of truth.
+  function actionStructural() { var TP=trance(); return TP&&TP.apply?TP.apply(structural,vitals):structural; }
   function allActions() {
-    try { return assembleActions(inventory, structural); }
+    try { return assembleActions(inventory, actionStructural()); }
     catch (_) { return structural.actions || []; }
   }
   function actionById(id) { var as = allActions(); for (var i = 0; i < as.length; i++) if ((as[i].id || as[i].label) === id) return as[i]; return null; }
   function actionByLabel(name) { var as = allActions(), n = String(name == null ? '' : name).trim().toLowerCase(); if (!n) return null; for (var i = 0; i < as.length; i++) if (String(as[i].label || '').trim().toLowerCase() === n) return as[i]; return null; }
   function deriveAction(a) {
-    var api = sheetApi(), m = api.deriveActionMods ? api.deriveActionMods(a, structural) : { hitMod: +a.hitMod || 0, dmgMod: +a.dmgMod || 0 };
+    var api = sheetApi(), m = api.deriveActionMods ? api.deriveActionMods(a, actionStructural()) : { hitMod: +a.hitMod || 0, dmgMod: +a.dmgMod || 0 };
     var o = Object.assign({}, a); o.hitMod = m.hitMod; o.dmgMod = m.dmgMod;
     if (!o.critDice && o.dmgDice) { var mm = String(o.dmgDice).match(/(\d+)d(\d+)/); if (mm) o.critDice = (2 * parseInt(mm[1], 10)) + 'd' + mm[2]; }
     return o;
@@ -1771,9 +1809,9 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   function aeList() { return root.querySelector('[data-list="actions"]'); }
   function aeRowEl(id) { var l = aeList(); if (!l) return null; var rows = l.querySelectorAll('.act[data-act]'); for (var i = 0; i < rows.length; i++) if (rows[i].getAttribute('data-act') === id) return rows[i]; return null; }
   // pristine (pre-override) action, for diffing a minimal override on save
-  function aeBaseAction(id) { var s2 = Object.assign({}, structural); delete s2.actionOverrides; var list = assembleActions(inventory, s2, { includeHidden: true }); for (var i = 0; i < list.length; i++) if ((list[i].id || list[i].label) === id) return list[i]; return null; }
+  function aeBaseAction(id) { var s2 = Object.assign({}, actionStructural()); delete s2.actionOverrides; var list = assembleActions(inventory, s2, { includeHidden: true }); for (var i = 0; i < list.length; i++) if ((list[i].id || list[i].label) === id) return list[i]; return null; }
   // effective (current, override-applied) action, for seeding the editor
-  function aeEffAction(id) { var list = assembleActions(inventory, structural, { includeHidden: true }); for (var i = 0; i < list.length; i++) if ((list[i].id || list[i].label) === id) return list[i]; return null; }
+  function aeEffAction(id) { var list = assembleActions(inventory, actionStructural(), { includeHidden: true }); for (var i = 0; i < list.length; i++) if ((list[i].id || list[i].label) === id) return list[i]; return null; }
 
   function toggleAeMode() { aeMode = !aeMode; if (!aeMode) { aeOpenId = null; aeDraft = null; aeArmedDel = null; } decorateActionEditor(); }
   function openAeEditor(id) {
@@ -1922,7 +1960,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   }
   // effective hidden + the action's default-hidden, read off the assembled list
   function aeEffHidden(id) {
-    var list = assembleActions(inventory, structural, { includeHidden: true });
+    var list = assembleActions(inventory, actionStructural(), { includeHidden: true });
     for (var i = 0; i < list.length; i++) if ((list[i].id || list[i].label) === id) return { hidden: !!list[i]._hidden, def: !!list[i].defaultHidden };
     return { hidden: false, def: false };
   }
@@ -1992,7 +2030,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   function openSwapMenu(curId, anchor) {
     if (!aeEditable || !doc) return;
     closePops();
-    var all = []; try { all = assembleActions(inventory, structural, { includeHidden: true }) || []; } catch (_) {}
+    var all = []; try { all = assembleActions(inventory, actionStructural(), { includeHidden: true }) || []; } catch (_) {}
     var cur = null; for (var i = 0; i < all.length; i++) if ((all[i].id || all[i].label) === curId) { cur = all[i]; break; }
     var curG = cur ? swapGroupOf(cur.type) : 'attack';
     var hidden = all.filter(function (a) { return a._hidden && swapGroupOf(a.type) === curG && (a.id || a.label) !== curId; });

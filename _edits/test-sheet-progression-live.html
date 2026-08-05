@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>ToK · Live Sheet Progression Field Test</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;800&family=EB+Garamond:wght@400;500;600&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../sheet-mount.css?v=sup2">
+  <link rel="stylesheet" href="../sheet-mount.css?v=tp2">
   <link rel="stylesheet" href="../combat-sheet-float.css?v=touch1">
   <style>html,body{margin:0;min-height:100%;background:#182826}body{overflow-x:hidden}</style>
 </head>
@@ -19,13 +19,13 @@
   <script src="../gear-manager.js"></script>
   <script src="../soul-shards-data.js"></script>
   <script type="module">
-    import { mountSheet } from '../sheet-mount.js?v=src5';
+    import { mountSheet } from '../sheet-mount.js?v=src10';
     const row = {
       key:'liadan', name:'Líadan Luchóg',
       structural:{
         name:'Líadan Luchóg', race:'Astral Elf', level:6, alignment:'Neutral Good',
         classes:[{name:'Bard',level:5,subclass:'College of Lore',starting:true},{name:'Cleric',level:1,subclass:'Life Domain'}],
-        _build:{classes:[{n:'Bard',level:5,starting:true},{n:'Cleric',level:1}]}, proficiencyBonus:3,
+        _build:{species:{n:'Astral Elf',s:'AAG'},classes:[{n:'Bard',level:5,starting:true},{n:'Cleric',level:1}]}, proficiencyBonus:3,
         abilities:{str:{score:8,mod:-1},dex:{score:16,mod:3},con:{score:14,mod:2},int:{score:12,mod:1},wis:{score:15,mod:2},cha:{score:18,mod:4}},
         saves:{str:{bonus:-1},dex:{bonus:3},con:{bonus:2},int:{bonus:1},wis:{bonus:5,proficient:true},cha:{bonus:7,proficient:true}},
         skills:[{name:'Performance',attr:'cha',bonus:7,prof:true},{name:'Persuasion',attr:'cha',bonus:7,prof:true},{name:'Perception',attr:'wis',bonus:5,prof:true}],
@@ -35,7 +35,7 @@
         soulFacets:{schema:1,items:[{id:'facet-5',level:5,classSummary:'Bard 4 / Cleric 1',createdAt:'2026-07-08T12:00:00.000Z',label:'Prior session',counts:{features:4,spells:7},signature:'field-test',snapshot:{schema:1,structural:{},vitals:{},inventory:[],equipment:{},currency:{}}}]},
         soulLineage:{fragments:[{characterKey:'second-reality',name:'Second Reality Fragment',campaign:'The Second Reality',status:'Essence salvaged'}],refractions:[{name:'Borrowed Resolve'}]}
       },
-      vitals:{hp:45,hpTemp:0,conditions:[],pipState:{}}, inventory:[{name:'Rapier',detail:'1d8 piercing'}], equipment:{}, currency:{gp:17}, notes:''
+      vitals:{hp:45,hpTemp:0,conditions:[],pipState:{},temporaryProficiencies:{version:1,specId:'astral-trance',source:'Astral Trance',selections:[{id:'skill',kind:'skill',name:'Arcana'},{id:'memory',kind:'tool',name:"Thieves' Tools"}]}}, inventory:[{name:'Rapier',detail:'1d8 piercing'}], equipment:{}, currency:{gp:17}, notes:''
     };
     const clone = value => JSON.parse(JSON.stringify(value));
     const CD = { loadCharacter:async()=>clone(row), canEdit:async()=>true, save:async(_key,patch)=>Object.assign(clone(row),patch) };

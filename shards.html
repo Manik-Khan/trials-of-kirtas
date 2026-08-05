@@ -623,7 +623,8 @@
 <script src="soul-shards-spellcasting.js?v=sf1"></script>
 <script src="armor-ac.js?v=um1"></script>
 <script src="character-readiness.js?v=cr1"></script>
-<script src="soul-shards-derive.js?v=ves1"></script>
+<script src="trance-proficiencies.js?v=tp2"></script>
+<script src="soul-shards-derive.js?v=tp1"></script>
 <script src="character-data.js?v=cd2"></script>
 <script src="homebrew-races.js?v=sf1"></script>
 <script src="soul-shards-persona.js?v=sf1"></script>
@@ -1514,6 +1515,7 @@ var BODIES = {
   review: function(){
     var c = chosenClass();
     var mode = casterMode(c);
+    var editing = !!draft._editKey;
     var subLine = draft.subclass
       ? draft.subclass.n
       : (c && c.subAt && draft.level < c.subAt ? 'locked until level ' + c.subAt : '\u2014');
@@ -1537,11 +1539,11 @@ var BODIES = {
       '</div>' +
       '<div class="fx-target" id="fx-target">' +
         '<div class="fx-tline">' +
-          '<label class="fx-radio"><input type="radio" name="fxmode" value="new" checked> Create new character</label>' +
-          '<label class="fx-radio"><input type="radio" name="fxmode" value="existing"> Update existing</label>' +
+          '<label class="fx-radio"><input type="radio" name="fxmode" value="new"' + (editing ? ' disabled' : ' checked') + '> Create new character' + (editing ? ' (detach first)' : '') + '</label>' +
+          '<label class="fx-radio"><input type="radio" name="fxmode" value="existing"' + (editing ? ' checked' : '') + '> Update existing</label>' +
         '</div>' +
-        '<select id="fx-existing" class="fx-sel" disabled><option value="">\u2014 pick a character \u2014</option></select>' +
-        '<div id="fx-status" class="fx-status"></div>' +
+        '<select id="fx-existing" class="fx-sel" disabled><option value="' + (editing ? escHtml(draft._editKey) : '') + '">' + (editing ? escHtml(draft._editName || draft._editKey) : '\u2014 pick a character \u2014') + '</option></select>' +
+        '<div id="fx-status" class="fx-status" role="status" aria-live="polite"></div>' +
       '</div>' +
       '<div id="forge-out"></div>' +
       '<div class="ph-note"><b>Forge Character</b> derives the assembled <b>structural</b> and <b>writes</b> it to the characters table \u2014 a fresh row, or an update to the character you pick. Fields still listed under <b>_incomplete</b> (skills, AC, items) fill in as those steps land.</div>';
@@ -4238,16 +4240,23 @@ function mountReview(){
   forgePreview();                                  // show the assembled structural
   var radios = document.getElementsByName('fxmode');
   var sel = q('#fx-existing');
-  function syncMode(){ if (sel) sel.disabled = (forgeMode() !== 'existing'); }
+  function syncMode(){ if (sel) sel.disabled = !!draft._editKey || forgeMode() !== 'existing'; }
   Array.prototype.forEach.call(radios, function(r){ r.addEventListener('change', syncMode); });
   syncMode();
+  // Reforge already has an authoritative target. Show that immediately; the
+  // asynchronous roster load only enriches the menu and cannot decide the save path.
+  if (draft._editKey && sel) sel.value = draft._editKey;
   if (sel && typeof CharacterData !== 'undefined' && CharacterData.loadParty){
     CharacterData.loadParty().then(function(list){
       sel.innerHTML = ['<option value="">\u2014 pick a character \u2014</option>'].concat((list || []).map(function(ch){
         return '<option value="' + escHtml(ch.key) + '">' + escHtml(ch.name) + (ch.deleteMarked ? ' (marked for deletion)' : '') + '</option>';
       })).join('');
-      // loaded a character to reforge → default to updating it
-      if (draft._editKey && (list || []).some(function(ch){ return ch.key === draft._editKey; })){
+      // Keep the loaded target visible even when permissions/filtering omit it
+      // from the refreshed roster. forgeCommit pins this same key in all cases.
+      if (draft._editKey){
+        if (!(list || []).some(function(ch){ return ch.key === draft._editKey; })){
+          sel.insertAdjacentHTML('beforeend', '<option value="' + escHtml(draft._editKey) + '">' + escHtml(draft._editName || draft._editKey) + ' (loaded target)</option>');
+        }
         sel.value = draft._editKey;
         var ex = Array.prototype.filter.call(radios, function(r){ return r.value === 'existing'; })[0];
         if (ex){ ex.checked = true; }
@@ -4295,9 +4304,10 @@ function forgeCommit(){
   if (typeof CharacterData === 'undefined'){ fxStatus('err', 'Character data module not loaded.'); return; }
   var mode = forgeMode();
   var existingKey = (q('#fx-existing') || {}).value || '';
-  // Level Up is always pinned to the loaded character, even if the review roster
-  // failed to populate. It must never fall through to "Create new character."
-  if (draft._levelUp && draft._editKey){ mode = 'existing'; existingKey = draft._editKey; }
+  // Loading a character is the explicit Reforge/Level Up target selection. Pin
+  // every loaded build to that key even if the roster is late or unavailable;
+  // Detach is the only action that returns this builder to Create-new mode.
+  if (draft._editKey){ mode = 'existing'; existingKey = draft._editKey; }
   if (mode === 'existing' && !existingKey){ fxStatus('err', 'Pick which character to update.'); return; }
   if (typeof SoulShardsData === 'undefined' || typeof SoulShardsEngine === 'undefined'){ fxStatus('err', 'Engine modules not loaded.'); return; }
   var levelUp = draft._levelUp && draft._levelUp.characterKey === existingKey ? Object.assign({}, draft._levelUp) : null;
@@ -4381,11 +4391,9 @@ function forgeCommit(){
           var hpNote = hpClamped ? (' Current HP was above the new max, so it was set to ' + newMaxHp + '.') : '';
           fxStatus('ok', levelUp
             ? ('Level Up complete \u2014 ' + who + ' is now ' + levelUp.className + ' ' + levelUp.toClassLevel + '. Level ' + levelUp.fromLevel + ' was preserved in Facets of the Shard.')
-            : ((filled
-              ? ('Updated ' + who + ' \u2014 starting gear added (inventory was empty). Current resources kept.')
-              : choiceRepair.changed
-                ? ('Updated ' + who + ' \u2014 exact starting-item choices repaired (all other gear kept).')
-                : ('Updated ' + who + '. The sheet now reads from this build (current HP / resources / gear kept).')) + hpNote));
+            : ('Reforge complete \u2014 updated ' + who + ' in place (' + existingKey + '). Character ID and current resources were retained.'
+              + (filled ? ' Starting gear was added because the inventory was empty.' : '')
+              + (choiceRepair.changed ? ' Exact starting-item choices were repaired; all other gear was kept.' : '') + hpNote));
           delete draft._levelUp;
           draft._editKey = existingKey; draft._editName = who; draft._editSource = 'saved'; saveDraft(); renderEditStrip();
         });
@@ -4443,7 +4451,7 @@ function renderStep(){
   var back = q('#back'), next = q('#next');
   back.disabled = pos <= 0;
   if (pos >= act.length - 1){
-    next.textContent = 'Forge Character';
+    next.textContent = draft._editKey ? (draft._levelUp ? 'Complete Level Up' : 'Reforge Character') : 'Forge Character';
     next.disabled = false;
     next.title = 'Derive the structural block and write it to the characters table';
   } else {

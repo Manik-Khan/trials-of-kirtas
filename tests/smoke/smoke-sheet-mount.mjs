@@ -36,7 +36,7 @@ const ROW = {
     spells: { cantrip:[{name:'Eldritch Blast',castingTime:'1 action'}], '1':[{name:'Hex',castingTime:'1 bonus'}] },
     features: [ {name:'Pact Magic',source:'class:Warlock',desc:'Short-rest pact slots.'}, {name:'Hex Warrior',source:'subclass:The Hexblade',desc:'CHA for a bonded weapon.'}, {name:'Fey Ancestry',source:'race:Astral Elf',desc:'Advantage vs charm.'} ]
   },
-  vitals: { hp:18, hpTemp:4, hpBonus:0, concentration:'Hex', conditions:[], inspiration:true, pipState:{pactSlots:0,sorc_1:0} },
+  vitals: { hp:18, hpTemp:4, hpBonus:0, concentration:'Hex', conditions:[], inspiration:true, pipState:{pactSlots:0,sorc_1:0}, temporaryProficiencies:{version:1,specId:'astral-trance',source:'Astral Trance',selections:[{id:'skill',kind:'skill',name:'Stealth'},{id:'memory',kind:'tool',name:"Thieves' Tools"}]} },
   notes: 'Patron stirs near the rift.'
 };
 
@@ -69,6 +69,9 @@ function mockCD({ canEdit = true } = {}) {
   ok(slot.querySelectorAll('[data-list="features"] .feat').length === ROW.structural.features.length, 'all features rendered');
   ok(slot.querySelector('[data-f="skillProficiencies"]').textContent.includes('Arcana'), 'skill proficiencies render in Senses & Lore');
   ok(slot.querySelector('[data-f="toolProficiencies"]').textContent.includes("Navigator's Tools"), 'tool proficiencies render in Senses & Lore');
+  ok(slot.querySelector('[data-f="toolProficiencies"]').textContent.includes("Thieves' Tools (Trance)"), 'temporary Trance tool is labeled beside permanent tools');
+  ok(slot.querySelector('[data-f="skillProficiencies"]').textContent.includes('Stealth (Trance)'), 'temporary Trance skill is labeled beside permanent skills');
+  ok(!slot.querySelector('[data-trance-prof-row]').hidden && /Stealth/.test(slot.querySelector('[data-f="temporaryProficiencies"]').textContent), 'Trance choice row narrates the current long-rest picks');
   ok(slot.querySelector('[data-f="weaponProficiencies"]').textContent.includes('Martial'), 'weapon proficiencies render in Senses & Lore');
   ok(slot.querySelector('[data-f="armorProficiencies"]').textContent.includes('Medium') && slot.querySelector('[data-f="armorProficiencies"]').textContent.includes('Shield'), 'armor proficiencies render in Senses & Lore');
   ok(/t-race/.test(slot.querySelector('[data-list="features"]').innerHTML), 'feature origin stamp drives a race tag class');
