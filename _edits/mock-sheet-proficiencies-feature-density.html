@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trials of Kirtas — Proficiencies + Feature Density Mock</title>
+<style>
+  :root{--ground:#142321;--panel:rgba(8,17,15,.88);--panel2:#0b1513;--cream:#ece2cd;--cream-hi:#fff8e8;--dim:#b8ad95;--faint:#817a6b;--gold:#e7c279;--teal:#60c8c3;--red:#e0584a;--purple:#ab92dd;--hair:rgba(236,226,205,.14);--frame:rgba(199,154,74,.38)}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;padding:28px;background:radial-gradient(circle at 18% 18%,rgba(108,91,127,.32),transparent 35%),radial-gradient(circle at 82% 8%,rgba(64,114,119,.26),transparent 32%),linear-gradient(145deg,#211b18,#13221f 56%,#09110f);color:var(--cream);font-family:Georgia,"Times New Roman",serif}
+  button,input,select{font:inherit}
+  button{cursor:pointer}
+  .page{max-width:1320px;margin:auto}
+  .mock-note{display:flex;justify-content:space-between;gap:18px;align-items:end;margin-bottom:18px}
+  .eyebrow{font:700 10px/1.2 Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase;color:var(--red)}
+  h1{margin:7px 0 4px;font-size:38px;line-height:1}
+  .lede{margin:0;color:var(--dim);font-size:15px;font-style:italic}
+  .mock-chip{padding:8px 10px;border:1px solid var(--frame);color:var(--gold);font:700 9px/1 Arial,sans-serif;letter-spacing:.15em;text-transform:uppercase;white-space:nowrap}
+  .sheet{display:grid;grid-template-columns:minmax(310px,.78fr) minmax(0,1.72fr);gap:18px}
+  .panel{background:linear-gradient(155deg,rgba(11,24,21,.95),rgba(6,14,13,.96));border:1px solid var(--frame);box-shadow:0 20px 55px rgba(0,0,0,.34)}
+  .panel-head{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:15px 17px;border-bottom:1px solid var(--frame)}
+  .panel-head h2{font-size:22px;margin:0}
+  .panel-head span{color:var(--faint);font:700 9px/1.2 Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase}
+  .persona{display:flex;gap:7px;padding:13px 16px;border-bottom:1px solid var(--hair)}
+  .persona button{flex:1;border:1px solid var(--hair);background:#0c1514;color:var(--dim);padding:8px 7px;font:700 9px/1.2 Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase}
+  .persona button.on{border-color:var(--teal);color:var(--teal);background:rgba(96,200,195,.08)}
+  .lore{padding:5px 16px 13px}
+  .lrow{display:grid;grid-template-columns:94px minmax(0,1fr);gap:12px;align-items:start;padding:11px 0;border-bottom:1px solid var(--hair)}
+  .lrow>span{padding-top:2px;color:var(--faint);font:700 9px/1.35 Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase}
+  .lrow b{font-size:14px;line-height:1.35}
+  .lrow.trance{grid-template-columns:94px minmax(0,1fr) auto;border-bottom:0;padding-top:13px}
+  .trance-values{color:var(--teal)}
+  .edit{align-self:center;border:1px solid rgba(96,200,195,.48);background:transparent;color:var(--teal);padding:6px 8px;font:700 9px/1 Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase}
+  .editor{margin:0 13px 15px;padding:13px;background:rgba(96,200,195,.055);border:1px solid rgba(96,200,195,.32)}
+  .editor[hidden]{display:none}
+  .edit-title{display:flex;justify-content:space-between;gap:10px;margin-bottom:4px}
+  .edit-title b{font-size:16px;color:var(--cream-hi)}
+  .rule{margin:0 0 11px;color:var(--dim);font-size:12.5px;line-height:1.42;font-style:italic}
+  .choice{padding:10px 0;border-top:1px solid var(--hair)}
+  .choice-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;color:var(--gold);font:700 9px/1.2 Arial,sans-serif;letter-spacing:.11em;text-transform:uppercase}
+  .linked{color:var(--teal);font-size:8px}
+  .pick-grid{display:grid;grid-template-columns:110px minmax(0,1fr);gap:7px}
+  .pick-grid.one{grid-template-columns:1fr}
+  select,input{width:100%;min-width:0;padding:8px;border:1px solid rgba(96,200,195,.36);border-radius:0;background:#091210;color:var(--cream);font:600 11px/1.2 Arial,sans-serif}
+  .writein{margin-top:7px}
+  .writein[hidden]{display:none}
+  .math-note{min-height:15px;margin-top:5px;color:var(--faint);font-size:11px;line-height:1.3}
+  .edit-actions{display:flex;justify-content:flex-end;gap:7px;margin-top:11px}
+  .btn{border:1px solid var(--frame);background:transparent;color:var(--dim);padding:8px 10px;font:700 9px/1 Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase}
+  .btn.go{border-color:var(--gold);background:var(--gold);color:#171107}
+  .saved{min-height:18px;padding:0 16px 13px;color:var(--teal);font:700 9px/1.3 Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase}
+
+  .feature-panel{padding-bottom:16px}
+  .feature-tools{display:flex;gap:7px}
+  .feature-tools button{border:1px solid var(--hair);background:transparent;color:var(--dim);padding:6px 8px;font:700 8px/1 Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase}
+  .feature-tools button:hover,.feature-tools button:focus{border-color:var(--gold);color:var(--gold)}
+  .features{columns:2;column-gap:14px;padding:14px}
+  .feat{display:block;break-inside:avoid;margin:0 0 10px;border:1px solid rgba(236,226,205,.18);background:rgba(8,17,15,.68)}
+  .feat-head{width:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 11px;border:0;background:transparent;color:inherit;text-align:left}
+  .tag{min-width:72px;padding:3px 7px;text-align:center;color:#14201e;font:700 8.5px/1 Arial,sans-serif;letter-spacing:.07em;text-transform:uppercase}
+  .t-class{background:var(--gold)}.t-sub{background:var(--teal)}.t-race{background:var(--red);color:var(--cream-hi)}.t-feat{background:var(--purple)}
+  .name{font-size:16px;font-weight:700;line-height:1.15;color:var(--cream-hi)}
+  .chev{width:18px;height:18px;display:grid;place-items:center;color:var(--gold);font:700 14px/1 Arial,sans-serif;transition:transform .15s}
+  .feat.open .chev{transform:rotate(90deg)}
+  .feat-body{padding:0 12px 11px 93px}
+  .feat:not(.open) .feat-body{display:none}
+  .desc{color:var(--dim);font-size:14px;line-height:1.45;white-space:pre-line}
+  .desc.long{max-height:142px;overflow-y:auto;padding-right:9px;scrollbar-color:var(--teal) rgba(255,255,255,.05);scrollbar-width:thin}
+  .desc.long::-webkit-scrollbar{width:7px}.desc.long::-webkit-scrollbar-track{background:rgba(255,255,255,.05)}.desc.long::-webkit-scrollbar-thumb{background:rgba(96,200,195,.62)}
+  .scroll-hint{display:none;margin-top:7px;color:var(--teal);font:700 8px/1 Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase}
+  .feat.open.has-overflow .scroll-hint{display:block}
+  .density-note{margin:0 14px;padding:10px 12px;border-left:2px solid var(--gold);background:rgba(231,194,121,.055);color:var(--dim);font-size:12px;line-height:1.4}
+  .density-note b{color:var(--gold)}
+  @media(max-width:900px){body{padding:16px}.sheet{grid-template-columns:1fr}.features{columns:1}.mock-note{align-items:start}.mock-chip{display:none}}
+  @media(max-width:520px){.panel-head{align-items:flex-start;flex-direction:column}.feature-tools{align-self:stretch}.feature-tools button{flex:1}.pick-grid{grid-template-columns:1fr}.feat-body{padding-left:12px}.lrow.trance{grid-template-columns:82px minmax(0,1fr) auto}}
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="mock-note">
+    <div>
+      <div class="eyebrow">Standalone approval mock · no character writes</div>
+      <h1>Proficiencies + Feature Density</h1>
+      <p class="lede">Current choices stay visible; deeper rules stay available without owning the whole page.</p>
+    </div>
+    <div class="mock-chip">Mock only · production untouched</div>
+  </header>
+
+  <section class="sheet">
+    <article class="panel">
+      <header class="panel-head"><h2>Senses &amp; Lore</h2><span>Proficiencies live here</span></header>
+      <div class="persona" aria-label="Preview character">
+        <button class="on" type="button" data-persona="ves">Vesperian · Shadar-kai</button>
+        <button type="button" data-persona="cos">Cosmere · Astral Elf</button>
+      </div>
+      <div class="lore">
+        <div class="lrow"><span>Skills</span><b id="skills">Acrobatics · Arcana · Athletics · Perception</b></div>
+        <div class="lrow"><span>Languages</span><b>Common · Elvish · Draconic</b></div>
+        <div class="lrow"><span>Tools</span><b id="tools">Disguise Kit · Thieves' Tools (Trance)</b></div>
+        <div class="lrow"><span>Weapons</span><b id="weapons">Simple · Martial</b></div>
+        <div class="lrow"><span>Armor</span><b>Light · Medium · Heavy · Shields</b></div>
+        <div class="lrow trance"><span>Trance picks</span><b class="trance-values" id="summary">Thieves' Tools · Smith's Tools</b><button class="edit" id="edit" type="button" aria-expanded="false">Edit</button></div>
+      </div>
+      <div class="editor" id="editor" hidden>
+        <div class="edit-title"><b id="trait">Trance</b><span class="linked">Current sheet state</span></div>
+        <p class="rule" id="rule">Set the two temporary weapon or tool proficiencies retained until the next long rest.</p>
+        <div id="choices"></div>
+        <div class="edit-actions"><button class="btn" id="cancel" type="button">Cancel</button><button class="btn go" id="save" type="button">Set current picks</button></div>
+      </div>
+      <div class="saved" id="saved" role="status" aria-live="polite"></div>
+    </article>
+
+    <article class="panel feature-panel">
+      <header class="panel-head">
+        <div><h2>Features</h2><span>&amp; traits</span></div>
+        <div class="feature-tools"><button type="button" id="collapse">Collapse all</button><button type="button" id="expand">Expand all</button></div>
+      </header>
+      <div class="features" id="features">
+        <article class="feat open">
+          <button class="feat-head" type="button" aria-expanded="true"><span class="tag t-class">Fighter</span><span class="name">Action Surge</span><span class="chev">›</span></button>
+          <div class="feat-body"><div class="desc">Push beyond your normal limits and take one additional action. Once used, finish a short or long rest before using it again.</div><div class="scroll-hint">Scroll for full description</div></div>
+        </article>
+        <article class="feat">
+          <button class="feat-head" type="button" aria-expanded="false"><span class="tag t-class">Fighter</span><span class="name">Martial Archetype</span><span class="chev">›</span></button>
+          <div class="feat-body"><div class="desc">At 3rd level, choose an archetype that you strive to emulate in your combat styles and techniques.</div><div class="scroll-hint">Scroll for full description</div></div>
+        </article>
+        <article class="feat open">
+          <button class="feat-head" type="button" aria-expanded="true"><span class="tag t-sub">Eldritch Knight</span><span class="name">Spellcasting</span><span class="chev">›</span></button>
+          <div class="feat-body"><div class="desc long">When you reach 3rd level, you augment your martial prowess with the ability to cast spells. You learn two cantrips of your choice from the wizard spell list.
+
+The Eldritch Knight Spellcasting table shows how many spell slots you have to cast your wizard spells of 1st level and higher. To cast one of these spells, expend a slot of the spell's level or higher. You regain all expended spell slots when you finish a long rest.
+
+You know three 1st-level wizard spells of your choice, two of which must come from the abjuration and evocation spells on the wizard spell list. Whenever you gain a level in this class, you can replace one wizard spell you know with another eligible spell.</div><div class="scroll-hint">Scrollable description · full text retained</div></div>
+        </article>
+        <article class="feat">
+          <button class="feat-head" type="button" aria-expanded="false"><span class="tag t-race">Shadar-kai</span><span class="name">Blessing of the Raven Queen</span><span class="chev">›</span></button>
+          <div class="feat-body"><div class="desc long">As a bonus action, magically teleport up to 30 feet to an unoccupied space you can see. You can use this trait a number of times equal to your proficiency bonus, regaining all expended uses when you finish a long rest.
+
+Starting at 3rd level, you also gain resistance to all damage when you teleport using this trait. The resistance lasts until the start of your next turn. During that time, you appear ghostly and translucent.</div><div class="scroll-hint">Scrollable description · full text retained</div></div>
+        </article>
+        <article class="feat">
+          <button class="feat-head" type="button" aria-expanded="false"><span class="tag t-race">Shadar-kai</span><span class="name">Necrotic Resistance</span><span class="chev">›</span></button>
+          <div class="feat-body"><div class="desc">You have resistance to necrotic damage.</div><div class="scroll-hint">Scroll for full description</div></div>
+        </article>
+        <article class="feat">
+          <button class="feat-head" type="button" aria-expanded="false"><span class="tag t-feat">Feat</span><span class="name">War Caster</span><span class="chev">›</span></button>
+          <div class="feat-body"><div class="desc long">You have advantage on Constitution saving throws made to maintain concentration on a spell when you take damage.
+
+You can perform the somatic components of spells even when you have weapons or a shield in one or both hands. When a hostile creature's movement provokes an opportunity attack from you, you can use your reaction to cast a spell at the creature instead of making an opportunity attack.</div><div class="scroll-hint">Scrollable description · full text retained</div></div>
+        </article>
+      </div>
+      <p class="density-note"><b>Proposed rule:</b> every card can collapse. Expanded descriptions only become scrollable when their rendered height exceeds about seven lines—short rules never get a needless scrollbar.</p>
+    </article>
+  </section>
+</main>
+<script>
+var data={
+  ves:{trait:'Trance',rule:'Set the two temporary weapon or tool proficiencies retained until the next long rest.',choices:[{label:'Choice 1 · weapon or tool',kinds:['weapon','tool'],kind:'tool',name:"Thieves' Tools"},{label:'Choice 2 · weapon or tool',kinds:['weapon','tool'],kind:'tool',name:"Smith's Tools"}]},
+  cos:{trait:'Astral Trance',rule:'Set one temporary skill and one temporary weapon or tool proficiency retained until the next long rest.',choices:[{label:'Choice 1 · skill',kinds:['skill'],kind:'skill',name:'History'},{label:'Choice 2 · weapon or tool',kinds:['weapon','tool'],kind:'tool',name:"Navigator's Tools"}]}
+};
+var pools={
+  skill:['Acrobatics','Animal Handling','Arcana','Athletics','Deception','History','Insight','Intimidation','Investigation','Medicine','Nature','Perception','Performance','Persuasion','Religion','Sleight of Hand','Stealth','Survival'],
+  weapon:['Battleaxe','Dagger','Hand Crossbow','Longbow','Longsword','Rapier','Shortbow','Shortsword','Warhammer'],
+  tool:["Alchemist's Supplies","Carpenter's Tools",'Disguise Kit','Forgery Kit','Herbalism Kit',"Navigator's Tools","Smith's Tools","Thieves' Tools",'Vehicles (Land)','Vehicles (Water)']
+};
+var current='ves',draft=[];
+var edit=document.getElementById('edit'),editor=document.getElementById('editor'),choices=document.getElementById('choices'),summary=document.getElementById('summary'),saved=document.getElementById('saved');
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function optionList(kind,name){return ['<option value="">Choose '+kind+'…</option>'].concat(pools[kind].map(function(n){return '<option value="'+esc(n)+'"'+(n===name?' selected':'')+'>'+esc(n)+'</option>'})).concat(['<option value="__custom__">Write in…</option>']).join('')}
+function renderChoices(){
+  choices.innerHTML=draft.map(function(p,i){
+    var kindSelect=p.kinds.length>1?'<select data-kind="'+i+'" aria-label="'+esc(p.label)+' type">'+p.kinds.map(function(k){return '<option value="'+k+'"'+(k===p.kind?' selected':'')+'>'+k[0].toUpperCase()+k.slice(1)+'</option>'}).join('')+'</select>':'';
+    var catalog=p.custom?'__custom__':p.name;
+    var value='<select data-value="'+i+'" aria-label="'+esc(p.label)+'">'+optionList(p.kind,catalog)+'</select>';
+    var custom='<input class="writein" data-custom="'+i+'"'+(p.custom?'':' hidden')+' value="'+(p.custom?esc(p.name):'')+'" placeholder="Write in '+p.kind+' proficiency" aria-label="Custom '+p.kind+' proficiency">';
+    var note=p.custom?'Manual '+p.kind+' proficiency · standard skill math requires a named skill from the dropdown':(p.kind==='skill'&&p.name?'Math linked · proficiency bonus applies to '+esc(p.name):p.name?'Rules linked · recognized '+p.kind+' proficiency':'Choose a proficiency');
+    return '<div class="choice"><div class="choice-head"><span>'+esc(p.label)+'</span><span class="linked">'+(p.custom?'Manual entry':'Dropdown automation')+'</span></div><div class="pick-grid'+(kindSelect?'':' one')+'">'+kindSelect+value+'</div>'+custom+'<div class="math-note">'+note+'</div></div>';
+  }).join('');
+  choices.querySelectorAll('[data-kind]').forEach(function(el){el.onchange=function(){var i=+el.dataset.kind;draft[i].kind=el.value;draft[i].name='';draft[i].custom=false;renderChoices()}});
+  choices.querySelectorAll('[data-value]').forEach(function(el){el.onchange=function(){var i=+el.dataset.value;if(el.value==='__custom__'){draft[i].custom=true;draft[i].name=''}else{draft[i].custom=false;draft[i].name=el.value}renderChoices();if(draft[i].custom){var input=choices.querySelector('[data-custom="'+i+'"]');if(input)input.focus()}}});
+  choices.querySelectorAll('[data-custom]').forEach(function(el){el.oninput=function(){draft[+el.dataset.custom].name=el.value}});
+}
+function openEditor(){
+  draft=data[current].choices.map(function(p){return Object.assign({custom:false},p)});
+  document.getElementById('trait').textContent=data[current].trait;
+  document.getElementById('rule').textContent=data[current].rule;
+  renderChoices();editor.hidden=false;edit.textContent='Close';edit.setAttribute('aria-expanded','true');saved.textContent='';
+}
+function closeEditor(){editor.hidden=true;edit.textContent='Edit';edit.setAttribute('aria-expanded','false')}
+function paintProficiencies(){
+  var picks=data[current].choices;
+  var skillBase=current==='cos'?['Arcana','Deception','Perception']:['Acrobatics','Arcana','Athletics','Perception'];
+  var toolBase=current==='cos'?[]:['Disguise Kit'];
+  var weaponBase=current==='cos'?['Simple']:['Simple','Martial'];
+  picks.forEach(function(p){
+    var label=p.name+' (Trance'+(p.custom?' · manual':'')+')';
+    if(p.kind==='skill')skillBase.push(label);
+    if(p.kind==='tool')toolBase.push(label);
+    if(p.kind==='weapon')weaponBase.push(label);
+  });
+  document.getElementById('skills').textContent=skillBase.join(' · ');
+  document.getElementById('tools').textContent=toolBase.length?toolBase.join(' · '):'—';
+  document.getElementById('weapons').textContent=weaponBase.join(' · ');
+  summary.textContent=picks.map(function(p){return p.name+(p.custom?' (manual)':'')}).join(' · ');
+}
+edit.onclick=function(){editor.hidden?openEditor():closeEditor()};
+document.getElementById('cancel').onclick=closeEditor;
+document.getElementById('save').onclick=function(){
+  var clean=draft.map(function(p){return Object.assign({},p,{name:String(p.name||'').trim()})});
+  if(clean.some(function(p){return !p.name})){saved.textContent='Finish every Trance choice before saving.';return}
+  data[current].choices=clean;paintProficiencies();
+  saved.textContent='Current Trance proficiencies updated · linked choices will drive sheet math';
+  closeEditor();
+};
+document.querySelectorAll('[data-persona]').forEach(function(button){button.onclick=function(){
+  current=button.dataset.persona;document.querySelectorAll('[data-persona]').forEach(function(b){b.classList.toggle('on',b===button)});
+  paintProficiencies();
+  closeEditor();saved.textContent='';
+}});
+function setFeatureOpen(card,open){card.classList.toggle('open',open);var b=card.querySelector('.feat-head');b.setAttribute('aria-expanded',open?'true':'false')}
+document.querySelectorAll('.feat').forEach(function(card){
+  var desc=card.querySelector('.desc');
+  if(desc.classList.contains('long'))card.classList.add('has-overflow');
+  card.querySelector('.feat-head').onclick=function(){setFeatureOpen(card,!card.classList.contains('open'))};
+});
+document.getElementById('collapse').onclick=function(){document.querySelectorAll('.feat').forEach(function(c){setFeatureOpen(c,false)})};
+document.getElementById('expand').onclick=function(){document.querySelectorAll('.feat').forEach(function(c){setFeatureOpen(c,true)})};
+</script>
+</body>
+</html>
