@@ -1426,6 +1426,38 @@ proofs. Production promotion must begin with the exact `forge-blueprint/v1`
 document and the already-approved renderer; legacy `F` may receive the compiled
 tactical output, but it may not author or reshape the Blueprint scene.
 
+### Guarded Map Foundry production promotion · 2026-08-07
+
+Baseline `8eb7cfa` was clean before this slice. The approved Blueprint authority
+and modular renderer now have production-owned assets instead of running from
+`_edits/`:
+
+- `forge/forge-blueprint.js` is the dual-export `forge-blueprint/v1` document,
+  producer, editor, handoff, and tactical compiler authority;
+- `forge/map-foundry.html`, `forge/map-foundry.css`, and
+  `forge/map-foundry.js` are the approved Map Foundry/Scrawl/Build/modular-board
+  surface, with no dependency on `_edits/` or the legacy generator;
+- `forge/index.html?foundry=1` enters that production Foundry. A live `session`
+  query and `?legacy=1` remain on the existing Workshop until fight/reconnect
+  pass;
+- the compiled tactical map records both `meta.blueprintId` and
+  `meta.blueprintFingerprint`, matching the exact verified handoff document.
+
+The production smoke passes **16/16**. Together with Blueprint/Diorama,
+creation, image-combat handoff, render truth, multi-surface occupancy, surface
+compatibility, engine, map bridge, tactics, line of sight/cover, placement, and
+flora, this field slice is **409/409** across 13 focused suites. Browser testing
+entered through the real guarded `forge/index.html` URL, rendered the modular
+board with zero warnings/errors, armed all 14 Build controls, opened Blank as a
+genuinely empty grid, drew the first room, changed the compiler gate to
+`first room drawn · connected`, and rendered that exact room in 3D.
+
+This does **not** change the default Forge entry. Populate/Play on the Foundry
+surface are still presentation gates, not the existing character/session
+runtime. The next slice must persist the exact Blueprint and connect its already
+compiled tactical field to a disposable fight, then prove save/reload and
+reconnect before the default can move.
+
 The remaining gates are:
 
 1. **Passed August 1.** M approved the stable surface identity and the first
@@ -1495,18 +1527,18 @@ Do not remove the query guard or migrate live rules in the compatibility step.
 
 ## Immediate execution order
 
-1. Resynchronize from `AGENTS.md`, `CONTEXT.md`, `CONTEXT_Forge.md`, this
-   handoff, current `HEAD`, and the working tree.
-2. Promote the settled `forge-blueprint/v1` schema/compiler into a UI-free,
-   dual-export production module without coupling it to the legacy generator.
-3. Build one guarded end-to-end production path that loads an exact approved
-   Blueprint, renders it with the approved modular diorama renderer, and emits
-   the existing tactical field contract for characters and combat. The same
-   Blueprint identity and fingerprint must survive all three steps.
-4. Move Generate, Templates, and Blank onto exact Blueprint producers with
-   stable sub-seeds and fingerprints, then promote the approved Scrawl/Build
-   tools against that same document. Do not substitute a legacy-generated `F`
-   field anywhere in this path.
+1. **Passed August 7.** Resynchronized from the canonical docs, baseline
+   `8eb7cfa`, and a clean working tree.
+2. **Passed August 7.** Promoted the settled `forge-blueprint/v1`
+   schema/compiler as `forge/forge-blueprint.js`, without legacy-generator
+   coupling.
+3. **Passed August 7 for the guarded authoring/render/compiler path.**
+   `?foundry=1` loads an exact Blueprint, renders it with the approved modular
+   diorama, and emits the current tactical field with matching Blueprint ID and
+   fingerprint. Character/session consumption remains the next gate.
+4. **Passed August 7 for the guarded candidate.** Seeded generation, Templates,
+   Blank, Scrawl, and Build all edit the same Blueprint document. Do not
+   substitute a legacy-generated `F` field anywhere in this path.
 5. Persist the exact Blueprint and renderer choice through snapshots/session
    restore, then test characters, discovery, bridges, water, biomes, an actual
    fight, and reconnect before changing the default Forge entry.
@@ -1528,6 +1560,8 @@ while this visual architecture is being settled.
 ## Deployment discipline
 
 M reviews, commits, and pushes. Codex does not push. Current slice stamps:
+`forge-blueprint.js?v=bp1`, `map-foundry.css?v=mf1`,
+`map-foundry.js?v=mf1`,
 `forge-deployment.js?v=fd3`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa6`, and

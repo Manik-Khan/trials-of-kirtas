@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>The Forge — Trials of Kirtas</title>
+<script>
+/* Guarded Map Foundry field path. Live multiplayer sessions and an explicit
+   legacy request remain on the current Workshop until fight/reconnect pass. */
+(function () {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get("foundry") !== "1" || params.has("session") || params.get("legacy") === "1") return;
+  var handoff = window.location.hash || "";
+  window.location.replace("map-foundry.html" + handoff);
+})();
+</script>
 <!-- Phase 2f.4: structural-bridge authority + Workshop diagnostics visibility -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
