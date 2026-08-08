@@ -1,11 +1,11 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const Structure = require("../../_edits/mock-forge-image-structure-review-core.js");
+const Structure = require("../forge-image-structure-review.js");
 
-const html = fs.readFileSync(path.join(__dirname, "../../_edits/mock-forge-image-structure-review.html"), "utf8");
-const css = fs.readFileSync(path.join(__dirname, "../../_edits/mock-forge-image-structure-review.css"), "utf8");
-const js = fs.readFileSync(path.join(__dirname, "../../_edits/mock-forge-image-structure-review.js"), "utf8");
+const html = fs.readFileSync(path.join(__dirname, "../import.html"), "utf8");
+const css = fs.readFileSync(path.join(__dirname, "../import.css"), "utf8");
+const js = fs.readFileSync(path.join(__dirname, "../import.js"), "utf8");
 let passed = 0;
 function ok(name, value) {
   assert.ok(value, name);
@@ -107,14 +107,16 @@ ok("the live preview is code-native and carries the honest boundary",
   && /Renderer study only/.test(html)
   && !/three(?:\.min)?\.js/i.test(html + js));
 ok("all structure-review assets carry current cache stamps",
-  html.includes("mock-forge-image-structure-review.css?v=sr12")
-  && html.includes("mock-forge-image-structure-review-core.js?v=sr12")
-  && html.includes("mock-forge-image-structure-review.js?v=sr12")
-  && html.includes("mock-forge-image-importer-core.js?v=ii3"));
-ok("reviewed structures retain a local pixel palette and can enter the combat proof",
+  html.includes("import.css?v=fi1")
+  && html.includes("forge-image-structure-review.js?v=fis1")
+  && html.includes("import.js?v=fi1")
+  && html.includes("forge-image-importer.js?v=fii1")
+  && html.includes("forge-image-blueprint.js?v=fib1"));
+ok("reviewed structures retain a local pixel palette and can enter Forge Combat",
   typeof Structure.paletteForCells === "function"
   && /id="openCombatProof"/.test(html)
-  && /forge-image-combat-handoff\/v1/.test(js)
+  && /Blueprint\.createHandoff/.test(js)
+  && /ImageBlueprint\.reviewToBlueprint/.test(js)
   && /palette: Structure\.paletteForCells/.test(js));
 ok("the preview joins region cells and explains elevation instead of drawing per-cell tent spikes",
   /function joinedPrism/.test(js) && /function heightRuler/.test(js) && /function heightLabel/.test(js)

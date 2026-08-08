@@ -28,6 +28,10 @@ const ui = {};
   "areaBoundaryNote", "areaMergeTarget", "splitArea", "mergeArea",
   "metricCalls", "metricTriangles", "metricTextures", "metricFrame", "metricChunks", "metricCells",
   "workflowStatus", "seedInput", "seedTopology", "createSeeded", "analyzeSample", "createBlank",
+  "openMapCreation", "mapCreationDialog", "closeMapCreation", "creationBrief", "creationSeed",
+  "creationTopology", "creationSize", "creationDensity", "creationVerticality", "createDirections", "newDirections",
+  "creationCandidateDeck", "openImageImport", "creationBlankSize", "stageBlankMap",
+  "creationSelection", "creationSelectionDetail", "confirmMapChoice",
   "sourceReceipt", "sourceReceiptDetail", "reviewFindings", "toggleUnderlay", "acceptAllFindings",
   "pinnedReveal", "pinnedBuild", "pinnedUndo", "pinnedRedo", "browseMode", "buildMode", "buildModeInline", "modeNarration",
   "undoAction", "redoAction", "compareHold", "gridToggle", "gridCellPx", "gridOriginX", "gridOriginY",
@@ -93,6 +97,14 @@ const state = {
   handoff: null
 };
 let importedUnderlayImage = null;
+const creation = {
+  method: "generate",
+  candidates: [],
+  draft: null,
+  draftKind: null,
+  draftLabel: "",
+  draftDetail: ""
+};
 
 function escapeHtml(value) {
   return String(value == null ? "" : value).replace(/[&<>"']/g, (character) => ({
@@ -314,13 +326,14 @@ const fontBowlGeometry = new THREE.TorusGeometry(0.25, 0.09, 8, 16);
 const candleGeometry = new THREE.CylinderGeometry(0.025, 0.03, 0.23, 7);
 const flameGeometry = new THREE.ConeGeometry(0.035, 0.11, 7);
 const selectionAxisGeometry = new THREE.BoxGeometry(0.72, 0.025, 0.07);
+const importVolumeGeometry = new THREE.BoxGeometry(1, 1, 1);
 [
   floorGeometry, wallGeometryNS, wallGeometryEW, cutGeometryNS, cutGeometryEW,
   lowWallGeometryNS, lowWallGeometryEW, doorGeometryNS, doorGeometryEW,
   pillarGeometry, rubbleGeometry, crateGeometry, brazierGeometry, poolGeometry, tokenGeometry,
   stoneBlockNS, stoneBlockEW, stoneCapNS, stoneCapEW, pewSeatGeometry, pewBackGeometry,
   altarBaseGeometry, altarSlabGeometry, reliquaryGeometry, statueBodyGeometry, statueHeadGeometry,
-  fontBaseGeometry, fontBowlGeometry, candleGeometry, flameGeometry, selectionAxisGeometry
+  fontBaseGeometry, fontBowlGeometry, candleGeometry, flameGeometry, selectionAxisGeometry, importVolumeGeometry
 ].forEach((geometry) => { geometry.userData = { shared: true }; });
 
 function boundaryEdges(c, r) {
@@ -354,7 +367,7 @@ function architectureSets(bounds) {
     const info = cellInfo(c, r);
     if (!isAuthoringVisible(info)) continue;
     const y = rise(info.elevationFt);
-    boundaryEdges(c, r).forEach((side) => {
+    (state.blueprint.source?.structureReview ? [] : boundaryEdges(c, r)).forEach((side) => {
       if (explicitArchitectureBoundaryAt(c, r, side)) return;
       const near = side === "s" || side === "e";
       const record = { c, r, side, y };
@@ -498,6 +511,64 @@ function addFinishedProp(group, item) {
   }
 }
 
+function importedStructureMeshes(group, bounds) {
+  const review = state.blueprint.source?.structureReview;
+  if (!review?.regions) return;
+  const makeMaterial = (region, extra = {}) => new THREE.MeshStandardMaterial({
+    color: region.palette?.primary || ({ water: 0x397f91, tree: 0x648150, bridge: 0xc08b4f, stairs: 0xb9ad8b }[region.type] || 0x8c735e),
+    roughness: region.type === "water" ? 0.28 : 0.86,
+    transparent: region.type === "water",
+    opacity: region.type === "water" ? 0.72 : 1,
+    ...extra
+  });
+  const addVolume = (region, c, r, width, baseFt, topFt, depth = .94) => {
+    const height = Math.max(.04, rise(topFt - baseFt));
+    const mesh = addSharedMesh(group, importVolumeGeometry, makeMaterial(region),
+      new THREE.Vector3(worldX(c + (width - 1) / 2), rise(baseFt) + height / 2 + .06, worldZ(r)), null,
+      { x: width * .94, y: height, z: depth });
+    mesh.userData.ownedMaterial = true;
+  };
+  review.regions.filter((region) => region.source === "dm-authored").forEach((region) => {
+    const rows = {};
+    region.cells.forEach((cell) => {
+      if (cell[0] < bounds.minC || cell[0] >= bounds.maxC || cell[1] < bounds.minR || cell[1] >= bounds.maxR) return;
+      (rows[cell[1]] || (rows[cell[1]] = [])).push(cell[0]);
+    });
+    Object.keys(rows).forEach((rowKey) => {
+      const r = Number(rowKey), columns = rows[rowKey].sort((a, b) => a - b), runs = [];
+      columns.forEach((c) => {
+        const last = runs[runs.length - 1];
+        if (last && c === last.end + 1) last.end = c;
+        else runs.push({ start: c, end: c });
+      });
+      runs.forEach((run) => {
+        const width = run.end - run.start + 1, baseFt = Number(region.baseFt) || 0, topFt = Math.max(baseFt, Number(region.topFt) || 0);
+        if (["building", "wall", "tent"].includes(region.type)) addVolume(region, run.start, r, width, baseFt, topFt);
+        else if (["roof", "bridge"].includes(region.type)) {
+          if (region.supportMode !== "posts") addVolume(region, run.start, r, width, baseFt, topFt);
+          else {
+            [run.start, run.end].forEach((c) => addVolume(region, c, r, 1, baseFt, Math.max(baseFt + 1, topFt), .16));
+          }
+          addVolume(region, run.start, r, width, Math.max(baseFt, topFt - .45), topFt);
+        } else if (region.type === "water") addVolume(region, run.start, r, width, 0, .12);
+        else if (region.type === "stairs") region.cells.filter((cell) => cell[1] === r && cell[0] >= run.start && cell[0] <= run.end).forEach((cell) => {
+          const elevation = state.map.h[BP.idx(state.map.cols, cell[0], cell[1])];
+          addVolume(region, cell[0], cell[1], 1, Math.max(0, elevation - .22), elevation);
+        });
+      });
+    });
+    if (region.type === "tree") region.cells.forEach((cell) => {
+      if (cell[0] < bounds.minC || cell[0] >= bounds.maxC || cell[1] < bounds.minR || cell[1] >= bounds.maxR) return;
+      const height = Math.max(5, Number(region.topFt) || 15), trunk = addSharedMesh(group, pillarGeometry, makeMaterial(region, { color: 0x5b4634 }),
+        new THREE.Vector3(worldX(cell[0]), rise(height) * .28, worldZ(cell[1])), null, { x: .5, y: Math.max(.8, rise(height) / 1.55 * .55), z: .5 });
+      trunk.userData.ownedMaterial = true;
+      const crown = addSharedMesh(group, rubbleGeometry, makeMaterial(region),
+        new THREE.Vector3(worldX(cell[0]), rise(height) * .72, worldZ(cell[1])), null, { x: 1.55, y: 1.3, z: 1.55 });
+      crown.userData.ownedMaterial = true;
+    });
+  });
+}
+
 function buildChunk(chunkC, chunkR, animate = false) {
   const chunkKey = chunkC + "," + chunkR;
   const old = state.chunks.get(chunkKey);
@@ -541,6 +612,7 @@ function buildChunk(chunkC, chunkR, animate = false) {
   addInstances(group, doorGeometryEW, mats.wood, sets.doorsEW.filter((value) => value.kind === "door"), (m, value) => wallTransform(m, value, 1.22, 0.46));
   addInstances(group, stoneBlockNS, mats.wallTop, doorFrameCourses(sets.doorsNS, "ns"), (m, value) => m.makeTranslation(value.x, value.y, value.z));
   addInstances(group, stoneBlockEW, mats.wallTop, doorFrameCourses(sets.doorsEW, "ew"), (m, value) => m.makeTranslation(value.x, value.y, value.z));
+  importedStructureMeshes(group, bounds);
 
   const chunkProps = (state.blueprint.props || []).filter((item) => {
     const info = cellInfo(item.c, item.r);
@@ -1541,6 +1613,123 @@ function openBlankBuild(size = "medium") {
   ui.layoutToolGuidance.innerHTML = "<strong>Room:</strong> This grid is genuinely empty. Drag the first room; the tactical field will remain unavailable until playable floor exists.";
   ui.chunkStatus.textContent = "first room required";
   ui.chunkStatus.className = "status bad";
+}
+function drawCreationPreview(canvas, blueprint) {
+  const context = canvas.getContext("2d"), width = canvas.width, height = canvas.height;
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = "#0b1110";
+  context.fillRect(0, 0, width, height);
+  let map;
+  try { map = BP.compile(blueprint, {}); } catch (error) { return; }
+  const scale = Math.min((width - 12) / map.cols, (height - 12) / map.rows);
+  const left = (width - map.cols * scale) / 2, top = (height - map.rows * scale) / 2;
+  const colors = { nave: "#9b927f", cloister: "#657660", crypt: "#687174", timber: "#7c6248", water: "#467783" };
+  for (let r = 0; r < map.rows; r++) for (let c = 0; c < map.cols; c++) {
+    const index = BP.idx(map.cols, c, r), cell = map.meta.regions[index];
+    context.fillStyle = map.wall[index] ? "#202725" : colors[cell?.material] || "#8a816f";
+    context.fillRect(left + c * scale, top + r * scale, Math.max(1, scale - .45), Math.max(1, scale - .45));
+    if (!map.wall[index] && map.h[index] > 0) {
+      context.fillStyle = "rgba(218,187,112," + Math.min(.72, .24 + map.h[index] / 40) + ")";
+      context.fillRect(left + c * scale, top + r * scale, Math.max(1, scale - .45), Math.max(1, scale - .45));
+    }
+  }
+}
+function stageCreation(blueprint, label, detail) {
+  creation.draft = BP.copy(blueprint);
+  creation.draftKind = blueprint.source?.kind || "fixture";
+  creation.draftLabel = label || blueprint.name;
+  creation.draftDetail = detail || blueprint.topology;
+  ui.creationSelection.textContent = creation.draftLabel;
+  ui.creationSelectionDetail.textContent = creation.draftDetail + " · current battlefield unchanged";
+  ui.confirmMapChoice.disabled = false;
+}
+function renderCreationCandidates() {
+  ui.creationCandidateDeck.replaceChildren();
+  creation.candidates.forEach((blueprint, index) => {
+    const button = document.createElement("button"), canvas = document.createElement("canvas"), copy = document.createElement("span");
+    canvas.width = 240; canvas.height = 112;
+    const label = blueprint.topology === "linear procession" ? "Processional" : blueprint.topology === "loop / hub" ? "Loop / hub" : "Branching";
+    button.type = "button";
+    button.className = creation.draft && BP.fingerprint(creation.draft) === BP.fingerprint(blueprint) ? "active" : "";
+    copy.innerHTML = "<b>" + label + " direction</b><small>" + blueprint.spaces.length + " rooms · " + BP.structuralFingerprint(blueprint).replace("struct-", "") + "</small>";
+    button.append(canvas, copy);
+    button.addEventListener("click", () => {
+      stageCreation(blueprint, label + " direction", "Seed " + blueprint.source.seed + " · candidate " + (index + 1));
+      renderCreationCandidates();
+    });
+    ui.creationCandidateDeck.appendChild(button);
+    drawCreationPreview(canvas, blueprint);
+  });
+}
+function makeCreationCandidates(nextSeed = false) {
+  if (nextSeed) ui.creationSeed.value = String((Number(ui.creationSeed.value) || 0) + 1);
+  const options = {
+    seed: Number(ui.creationSeed.value) || 0,
+    topology: ui.creationTopology.value,
+    size: ui.creationSize.value,
+    density: Number(ui.creationDensity.value),
+    verticality: ui.creationVerticality.value
+  };
+  creation.candidates = [0, 1, 2].map((candidate) => {
+    const blueprint = BP.produceSeeded({ ...options, candidate });
+    blueprint.source.authoredNote = ui.creationBrief.value.trim();
+    return blueprint;
+  });
+  const fingerprints = creation.candidates.map(BP.structuralFingerprint);
+  if (new Set(fingerprints).size !== 3) throw new Error("Generated directions were not structurally distinct.");
+  stageCreation(creation.candidates[0], "Generated direction 1", "Seed " + options.seed + " · choose any of the three");
+  renderCreationCandidates();
+}
+function renderCreationTemplates() {
+  document.querySelectorAll("[data-creation-template]").forEach((button) => {
+    const key = button.dataset.creationTemplate;
+    drawCreationPreview(button.querySelector("canvas"), BP.FIXTURES[key]);
+    button.classList.toggle("active", creation.draftKind === "fixture" && creation.draft?.source?.fixtureKey === key);
+  });
+}
+function setCreationMethod(method) {
+  creation.method = ["generate", "template", "import", "blank"].includes(method) ? method : "generate";
+  document.querySelectorAll("[data-creation-method]").forEach((button) => button.classList.toggle("active", button.dataset.creationMethod === creation.method));
+  document.querySelectorAll("[data-creation-panel]").forEach((panel) => {
+    const active = panel.dataset.creationPanel === creation.method;
+    panel.hidden = !active; panel.classList.toggle("active", active);
+  });
+  if (creation.method === "template") renderCreationTemplates();
+}
+function openMapCreation() {
+  ui.mapCreationDialog.hidden = false;
+  document.body.classList.add("creation-open");
+  setCreationMethod(creation.method);
+  if (!creation.candidates.length) makeCreationCandidates();
+}
+function closeMapCreation() {
+  ui.mapCreationDialog.hidden = true;
+  document.body.classList.remove("creation-open");
+}
+function storeCurrentMapForImport() {
+  const key = "forge-combat-return:" + Date.now();
+  try {
+    const handoff = BP.createHandoff(state.blueprint, {
+      armed: state.mode === "build", tool: state.layoutTool, edits: BP.copy(state.edits)
+    });
+    sessionStorage.setItem(key, JSON.stringify(handoff));
+  } catch (error) {
+    ui.creationSelection.textContent = "The current map could not be held for return.";
+    ui.creationSelectionDetail.textContent = error?.message || "Browser storage is unavailable.";
+    return;
+  }
+  window.location.href = "import.html#return=" + encodeURIComponent(key);
+}
+function confirmCreatedMap() {
+  if (!creation.draft) return;
+  const chosen = BP.copy(creation.draft), blank = chosen.source?.kind === "blank";
+  closeMapCreation();
+  useBlueprint(chosen);
+  if (blank) {
+    setMapTab("layout"); setView("blueprint"); setMode("build"); setLayoutTool("room");
+    ui.layoutToolGuidance.innerHTML = "<strong>Room:</strong> This grid is genuinely empty. Drag the first room; the tactical field will remain unavailable until playable floor exists.";
+    ui.chunkStatus.textContent = "first room required"; ui.chunkStatus.className = "status bad";
+  }
 }
 function chooseSource(kind) {
   document.querySelectorAll("[data-source-choice]").forEach((button) => button.classList.toggle("active", button.dataset.sourceChoice === kind));
@@ -2936,6 +3125,13 @@ document.querySelectorAll("[data-workflow]").forEach((button) => button.addEvent
 document.querySelectorAll("[data-open-workflow]").forEach((button) => button.addEventListener("click", () => setWorkflow(button.dataset.openWorkflow)));
 document.querySelectorAll("[data-continue]").forEach((button) => button.addEventListener("click", () => setWorkflow(button.dataset.continue)));
 document.querySelectorAll("[data-source-choice]").forEach((button) => button.addEventListener("click", () => chooseSource(button.dataset.sourceChoice)));
+document.querySelectorAll("[data-creation-method]").forEach((button) => button.addEventListener("click", () => setCreationMethod(button.dataset.creationMethod)));
+document.querySelectorAll("[data-creation-template]").forEach((button) => button.addEventListener("click", () => {
+  const key = button.dataset.creationTemplate;
+  const blueprint = BP.withSource(BP.FIXTURES[key], "fixture", { fixtureKey: key });
+  stageCreation(blueprint, blueprint.name, blueprint.topology + " template");
+  renderCreationTemplates();
+}));
 document.querySelectorAll("[data-theme]").forEach((button) => button.addEventListener("click", () => applyThemePreset(button.dataset.theme)));
 document.querySelectorAll("[data-map-tab]").forEach((button) => button.addEventListener("click", () => setMapTab(button.dataset.mapTab)));
 document.querySelectorAll("[data-layout-tool]").forEach((button) => button.addEventListener("click", () => activateLayoutTool(button.dataset.layoutTool)));
@@ -2959,6 +3155,17 @@ document.querySelectorAll("[data-quick-map]").forEach((button) => button.addEven
   if (button.dataset.quickMap === "blank") openBlankBuild();
   else loadFixture(button.dataset.quickMap);
 }));
+ui.openMapCreation.addEventListener("click", openMapCreation);
+ui.closeMapCreation.addEventListener("click", closeMapCreation);
+ui.mapCreationDialog.addEventListener("click", (event) => { if (event.target === ui.mapCreationDialog) closeMapCreation(); });
+ui.createDirections.addEventListener("click", () => makeCreationCandidates(false));
+ui.newDirections.addEventListener("click", () => makeCreationCandidates(true));
+ui.openImageImport.addEventListener("click", storeCurrentMapForImport);
+ui.stageBlankMap.addEventListener("click", () => {
+  const blueprint = BP.produceBlank({ size: ui.creationBlankSize.value });
+  stageCreation(blueprint, "Blank " + ui.creationBlankSize.value + " battlefield", blueprint.grid.cols + " × " + blueprint.grid.rows + " · zero rooms");
+});
+ui.confirmMapChoice.addEventListener("click", confirmCreatedMap);
 document.querySelectorAll("[data-presentation]").forEach((button) => button.addEventListener("click", () => {
   const mode = button.dataset.presentation;
   document.querySelectorAll("[data-presentation]").forEach((item) => item.classList.toggle("active", item === button));
@@ -3227,6 +3434,10 @@ ui.compareHold.addEventListener("pointerdown", (event) => {
   ui.compareHold.addEventListener(name, () => setComparison(false));
 });
 document.addEventListener("keydown", (event) => {
+  if (!ui.mapCreationDialog.hidden) {
+    if (event.key === "Escape") { event.preventDefault(); closeMapCreation(); }
+    return;
+  }
   const target = event.target;
   const editing = target && (target.matches?.("input,select,textarea") || target.isContentEditable);
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z" && !editing) {
@@ -3266,9 +3477,17 @@ document.addEventListener("visibilitychange", () => {
 });
 
 function incomingHandoff() {
-  const marker = "#handoff=";
-  if (!window.location.hash.startsWith(marker)) return null;
-  const decoded = BP.decodeHandoff(window.location.hash.slice(marker.length));
+  const directMarker = "#handoff=", storedMarker = "#import=";
+  let payload = null;
+  if (window.location.hash.startsWith(directMarker)) payload = window.location.hash.slice(directMarker.length);
+  else if (window.location.hash.startsWith(storedMarker)) {
+    const key = decodeURIComponent(window.location.hash.slice(storedMarker.length));
+    const stored = sessionStorage.getItem(key);
+    if (!stored) throw new Error("The local map handoff expired. Return to Map and choose the source again.");
+    payload = encodeURIComponent(stored);
+  }
+  if (!payload) return null;
+  const decoded = BP.decodeHandoff(payload);
   if (!decoded.ok) throw new Error(decoded.error);
   return decoded.handoff;
 }
@@ -3313,6 +3532,10 @@ try {
   const handoff = incomingHandoff();
   if (handoff) {
     useBlueprint(handoff.blueprint, handoff);
+    if (handoff.build?.edits) {
+      state.edits = BP.copy(handoff.build.edits);
+      refreshDocument(); rebuildAll();
+    }
     setMapTab("layout");
     if (handoff.build?.armed) {
       setView("blueprint");

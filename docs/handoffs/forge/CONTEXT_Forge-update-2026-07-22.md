@@ -1278,6 +1278,9 @@ playable two-level authority.
 
 ### Image Structure Review proof · 2026-07-31
 
+Historical proof record; the August 8 production promotion below supersedes
+this file-ownership boundary while retaining the approved interaction design.
+
 Initial implementation baseline: `7f0160c`; the persistent multi-structure
 iteration refreshed against `6b06df9` on `main` after M absorbed the first proof.
 The height-first simplification synchronized against clean baseline `a68063f`.
@@ -1502,6 +1505,38 @@ live `session` URLs, Workshop developer flags, and `?legacy=1` remain on the leg
 renderer. The next slice is exact Blueprint/fight snapshot persistence followed by
 shared-session restore and two-device reconnect.
 
+### Forge map creation and local image import · 2026-08-08
+
+Baseline `570094b` was clean before this slice. The normal Map workspace now
+opens one replacement dialog with Generate, Templates, Import, and Blank:
+
+- Generate creates three pairwise-distinct graph-first candidates. Seed plus
+  candidate reproduces the exact Blueprint; New directions advances the seed.
+- Templates remain editable Blueprint copies. Blank remains a zero-room grid
+  and enters Build with Room armed.
+- A staged choice does not replace the current battlefield until Use this map.
+- Import holds the exact current Blueprint and Build edits in session storage,
+  opens `forge/import.html`, and restores that handoff unchanged on Cancel.
+- The production importer accepts a real local JPEG/PNG/WebP, supports Auto,
+  one-square calibration with a distant correction point, or no printed grid,
+  and retains zoom, grid visibility, Brush, Lasso, Eraser, Pointer, height,
+  type, and appearance review.
+- Local pixel analysis remains broad evidence. Only `dm-authored` regions enter
+  the normal `forge-blueprint/v1` handoff. Their sampled palette, semantic type,
+  support, and height reach the modular renderer and tactical compiler.
+- Building roofs marked walkable become the current elevated tactical surface.
+  True simultaneous roof/street or bridge/ground occupancy remains the later
+  `surfaceId` combat contract; the importer labels that boundary.
+
+Focused automated gates cover structural candidate diversity, deterministic
+identity, unchanged handoff, importer correction, confirmed-region authority,
+height compilation, and production routing: **142/142** across the four changed
+surfaces. Blueprint, image-combat, render-truth, surface, local-fight,
+deployment, engine, map-bridge, tactics, LoS/cover, placement, and flora
+regressions pass **430/430** across 14 additional suites. Browser automation
+remains blocked for local `file://`; the city and ungridded-camp manual replay
+is still required before calling the visual field gate passed.
+
 The remaining gates are:
 
 1. **Passed August 1.** M approved the stable surface identity and the first
@@ -1581,9 +1616,10 @@ Do not remove the query guard or migrate live rules in the compatibility step.
    Combat loads an exact Blueprint, renders it with the approved modular
    diorama, and emits the current tactical field with matching Blueprint ID and
    fingerprint. Character/session consumption remains the next gate.
-4. **Passed August 7 for the guarded candidate.** Seeded generation, Templates,
-   Blank, Scrawl, and Build all edit the same Blueprint document. Do not
-   substitute a legacy-generated `F` field anywhere in this path.
+4. **Passed August 8 in production code; visual replay remains open.** Seeded
+   generation, Templates, Import, Blank, Scrawl, and Build all converge on the
+   same Blueprint document. Do not substitute a legacy-generated `F` field
+   anywhere in this path.
 5. **Passed August 8 for a disposable local fight.** Real selected Campaign
    Characters deploy and run movement, range, LoS/cover, attack, HP, and turns
    on the exact Blueprint field without writing the Blueprint or sheets. The
@@ -1593,9 +1629,10 @@ Do not remove the query guard or migrate live rules in the compatibility step.
    and `?legacy=1` remain on the legacy renderer.
 7. Persist the exact Blueprint, renderer choice, deployment, and local fight
    snapshot; then prove shared-session restore and two-device reconnect.
-8. Port the reviewed image importer only after grid calibration, lasso, eraser,
-   structure type/variant, height, and correction receipt create an editable
-   Blueprint from a real local image. Local color proposals remain evidence,
+8. **Implemented August 8; field gate open.** Replay the production importer on
+   the licensed gridded city and ungridded camp maps. Confirm calibration,
+   lasso/brush/eraser, structure type/variant/height, local palette, cancel
+   restore, and exact accepted handoff. Local color proposals remain evidence,
    never semantic authority.
 9. Continue `?surfaces=1` live-unit position, occupancy, connector movement,
    deployment, and replay only at non-overlapping seams. It converges with the
@@ -1611,8 +1648,12 @@ while this visual architecture is being settled.
 ## Deployment discipline
 
 M reviews, commits, and pushes. Codex does not push. Current slice stamps:
-`forge-blueprint.js?v=bp2`, `combat.css?v=fc1`,
-`combat.js?v=fc1`, `forge-combat-local.js?v=fcl1`,
+`forge-blueprint.js?v=bp3`, `combat.css?v=fc2`,
+`combat.js?v=fc2`, `forge-combat-local.js?v=fcl1`,
+`forge-image-importer.js?v=fii1`,
+`forge-image-structure-review.js?v=fis1`,
+`forge-image-blueprint.js?v=fib1`, `import.css?v=fi1`, and
+`import.js?v=fi1`,
 `forge-deployment.js?v=fd3`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa6`, and

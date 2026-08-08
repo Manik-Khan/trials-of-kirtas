@@ -18,9 +18,9 @@ function ok(name, value) {
 
 ok("production Blueprint exports the approved schema", BP.SCHEMA === "forge-blueprint/v1");
 ok("production Combat loads cache-stamped production assets",
-  combatHtml.includes('href="combat.css?v=fc1"')
-  && combatHtml.includes('src="forge-blueprint.js?v=bp2"')
-  && combatHtml.includes('src="combat.js?v=fc1"')
+  combatHtml.includes('href="combat.css?v=fc2"')
+  && combatHtml.includes('src="forge-blueprint.js?v=bp3"')
+  && combatHtml.includes('src="combat.js?v=fc2"')
   && combatHtml.includes('src="forge-combat-local.js?v=fcl1"')
   && !combatHtml.includes("_edits/") && !combatHtml.includes("mock-forge"));
 ok("production renderer consumes the production Blueprint authority",
@@ -37,6 +37,17 @@ ok("Combat identifies local combat as guarded while reconnect remains gated",
 ok("the visible workflow names Map, Characters, and Combat",
   [">Map</button>", ">Characters</button>", ">Combat</button>"].every((label) => combatHtml.includes(label))
   && combatHtml.includes("Choose characters →"));
+ok("Map exposes one confirmed replacement flow with all four source choices",
+  combatHtml.includes('id="openMapCreation"')
+  && ["generate", "template", "import", "blank"].every((method) => combatHtml.includes('data-creation-method="' + method + '"'))
+  && combatHtml.includes('id="confirmMapChoice" disabled'));
+ok("generation offers three structural directions and exact-map staging",
+  combatJs.includes("[0, 1, 2].map((candidate)")
+  && combatJs.includes("new Set(fingerprints).size !== 3")
+  && combatJs.includes("stageCreation(creation.candidates[0]"));
+ok("real image import leaves Combat through a stored exact return handoff",
+  combatJs.includes('window.location.href = "import.html#return="')
+  && combatJs.includes("BP.createHandoff(state.blueprint"));
 
 const seededA = BP.produceSeeded({ seed: 1847, topology: "auto" });
 const seededB = BP.produceSeeded({ seed: 1847, topology: "auto" });

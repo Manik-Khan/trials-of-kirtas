@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Import a Map · The Forge</title>
+  <link rel="stylesheet" href="import.css?v=fi1">
+</head>
+<body>
+<header class="topbar">
+  <div><span>Battle Forge · local image import</span><h1>Structure Review</h1></div>
+  <div class="contract"><small>Draft annotation</small><strong>forge-structure-review/v1</strong></div>
+</header>
+
+<main>
+  <aside class="tool-panel">
+    <section>
+      <span class="eyebrow">01 · Artwork</span>
+      <h2>Bring the local map forward.</h2>
+      <p>The source stays in this browser. Local pixels propose regions; they never become tactical authority without review.</p>
+      <label class="file-drop" for="imageFile">
+        <b>Choose local image</b><span>JPEG, PNG, or WebP</span>
+        <input id="imageFile" type="file" accept="image/jpeg,image/png,image/webp">
+      </label>
+      <div class="receipt" id="sourceReceipt"><strong>No source selected</strong><span>Nothing has been interpreted.</span></div>
+    </section>
+
+    <section id="scalePanel" class="disabled">
+      <span class="eyebrow">02 · Grid</span>
+      <h2>Establish one five-foot square.</h2>
+      <div class="segmented" aria-label="Grid calibration">
+        <button type="button" id="autoGrid">Auto</button>
+        <button type="button" id="drawGridCell">Calibrate</button>
+        <button type="button" id="noGrid">No grid</button>
+      </div>
+      <div class="grid-note" id="gridNote">Choose artwork first.</div>
+      <div class="grid-coverage" id="gridCoverage">Grid coverage appears here.</div>
+      <div class="calibration" id="griddedControls">
+        <label>Cell size <span><input id="gridCellPx" type="number" min="4" value="70"> px</span></label>
+        <label>X origin <span><input id="gridOriginX" type="number" value="0"> px</span></label>
+        <label>Y origin <span><input id="gridOriginY" type="number" value="0"> px</span></label>
+      </div>
+      <div class="calibration" id="ungriddedControls" hidden>
+        <label>Map width <span><input id="targetColumns" type="number" min="12" max="80" value="35"> squares</span></label>
+      </div>
+      <button type="button" class="wide" id="verifyGrid" hidden>Check a distant intersection</button>
+      <button type="button" class="primary wide" id="proposeRegions">Find broad areas</button>
+    </section>
+
+    <section id="selectionPanel" class="disabled">
+      <span class="eyebrow">03 · Draw</span>
+      <h2>Mark the map without leaving it.</h2>
+      <p>Brush draws straight grid rectangles. Lasso follows irregular artwork. Right-click anywhere on the map to change tools.</p>
+      <div class="draw-tools" aria-label="Artwork tools">
+        <button type="button" class="active" data-draw-tool="pointer" title="V · Pointer">↖<span>Pointer</span></button>
+        <button type="button" data-draw-tool="brush" title="B · Grid brush">▦<span>Brush</span></button>
+        <button type="button" data-draw-tool="lasso" title="L · Lasso">⌁<span>Lasso</span></button>
+        <button type="button" data-draw-tool="eraser" title="E · Eraser">⌫<span>Eraser</span></button>
+        <button type="button" data-draw-tool="pan" title="H · Hand">✋<span>Pan</span></button>
+      </div>
+      <button type="button" class="armed-kit wide" id="armedKit"><i id="pendingSwatch"></i><span><small>Armed drawing</small><b id="pendingMeaning">Building · Timber house</b></span><em>right-click</em></button>
+      <div class="draw-height" aria-label="Height for the next structure">
+        <button type="button" id="drawHeightDown" aria-label="Lower drawing height by 5 feet">− 5</button>
+        <span><small>Draw height</small><b id="drawHeightValue">15 ft</b></span>
+        <button type="button" id="drawHeightUp" aria-label="Raise drawing height by 5 feet">+ 5</button>
+      </div>
+      <div class="history-tools">
+        <button type="button" id="undoDraw" disabled>↶ Undo</button>
+        <button type="button" id="redoDraw" disabled>↷ Redo</button>
+      </div>
+    </section>
+  </aside>
+
+  <section class="workspace">
+    <div class="workspace-head">
+      <div><span class="eyebrow">Artwork evidence</span><h2 id="artTitle">No artwork loaded</h2></div>
+      <div class="layer-switch" aria-label="Workspace view">
+        <button type="button" class="active" data-view="artwork">Artwork + regions</button>
+        <button type="button" data-view="preview">Height preview</button>
+        <button type="button" data-view="split">Split</button>
+      </div>
+      <div class="view-controls" aria-label="Artwork view controls">
+        <button type="button" id="zoomOut" title="Zoom out">−</button>
+        <button type="button" id="zoomFit" title="Fit artwork"><span id="zoomValue">Fit</span></button>
+        <button type="button" id="zoomIn" title="Zoom in">＋</button>
+        <button type="button" id="toggleGrid" title="Show or hide grid"># Grid on</button>
+      </div>
+    </div>
+    <div class="view-grid artwork-only" id="viewGrid">
+      <div class="art-view" id="artView">
+        <div class="empty-state" id="emptyState"><b>Your battle map appears here.</b><span>Load a local image, establish its grid, and ask for region proposals.</span></div>
+        <div class="canvas-stack" id="canvasStack" hidden>
+          <canvas id="sourceCanvas" aria-label="Local battle-map artwork"></canvas>
+          <canvas id="overlayCanvas" aria-label="Semantic structure overlay"></canvas>
+        </div>
+      </div>
+      <div class="preview-view" id="previewView">
+        <canvas id="previewCanvas" width="960" height="620" aria-label="Code-native height and structure preview"></canvas>
+        <div class="preview-legend">
+          <span><i class="ground"></i> Ground remains below</span>
+          <span><i class="surface"></i> Walkable raised surface</span>
+          <span><i class="volume"></i> Solid or soft volume</span>
+          <span><i class="connector"></i> Access connector</span>
+        </div>
+        <p>Renderer study only. Above/below occupancy is proposed here but is not current combat authority.</p>
+      </div>
+    </div>
+    <div class="status" id="status">Waiting for local artwork.</div>
+  </section>
+
+  <aside class="review-panel">
+    <section>
+      <div class="authored-head first"><span class="eyebrow">Structures</span><b id="authoredCount">0</b></div>
+      <h2>What you have drawn.</h2>
+      <p>Automatic hints stay on the artwork. Only your saved structures rise in Height Preview.</p>
+      <div class="authored-list" id="authoredList"><p>No DM-authored structures yet.</p></div>
+    </section>
+
+    <section id="selectedPanel" class="disabled">
+      <span class="eyebrow">Selected structure</span>
+      <h2 id="regionName">Nothing selected</h2>
+      <p id="regionReceipt">Select a structure on the artwork, list, or Height Preview.</p>
+      <div class="selected-height" aria-label="Change selected structure height">
+        <button type="button" id="selectedHeightDown">− 5</button>
+        <span><small>Height</small><b id="selectedHeightValue">—</b></span>
+        <button type="button" id="selectedHeightUp">+ 5</button>
+      </div>
+      <div class="height-receipt" id="heightReceipt">Choose a structure to compare its height with the rest of the scene.</div>
+    </section>
+
+    <section>
+      <span class="eyebrow">04 · Continue</span>
+      <h2>Bring the reviewed map to the table.</h2>
+      <p>The artwork palette and only your confirmed structure marks cross this boundary.</p>
+      <button type="button" class="primary wide" id="openCombatProof" disabled>Use this map in the Forge</button>
+      <button type="button" class="wide" id="cancelImport">Return without replacing the map</button>
+      <p class="boundary">Local import: no artwork upload, session, or character-sheet write.</p>
+    </section>
+
+    <section>
+      <details class="technical-receipt">
+        <summary>Technical receipt</summary>
+        <h2 id="sceneName">No structure review</h2>
+        <dl class="metrics">
+          <div><dt>Grid</dt><dd id="metricGrid">—</dd></div>
+          <div><dt>Regions</dt><dd id="metricRegions">—</dd></div>
+          <div><dt>Surfaces</dt><dd id="metricSurfaces">—</dd></div>
+          <div><dt>Connectors</dt><dd id="metricConnectors">—</dd></div>
+        </dl>
+        <div class="type-summary" id="typeSummary"><p>Local proposals will be grouped here.</p></div>
+        <div class="surface-receipt" id="surfaceReceipt"><p>No surfaces or volumes compiled.</p></div>
+        <pre id="reviewJson">{}</pre>
+      </details>
+      <p class="boundary">Only DM-confirmed structures become Forge rules. Simultaneous bridge-deck and ground occupancy remains a later combat gate.</p>
+    </section>
+  </aside>
+</main>
+
+<div class="type-palette" id="typePalette" hidden role="dialog" aria-label="Map tools">
+  <div class="type-palette-head"><span>Map tools</span><button type="button" id="closeTypePalette" aria-label="Close">×</button></div>
+  <div class="palette-tools" id="typePaletteTools">
+    <button type="button" data-palette-tool="pointer">V <span>Pointer</span></button>
+    <button type="button" data-palette-tool="brush">B <span>Brush</span></button>
+    <button type="button" data-palette-tool="lasso">L <span>Lasso</span></button>
+    <button type="button" data-palette-tool="eraser">E <span>Eraser</span></button>
+    <button type="button" data-palette-tool="pan">H <span>Pan</span></button>
+    <button type="button" data-palette-tool="zoom">Z <span>Zoom</span></button>
+  </div>
+  <div id="drawPalette">
+    <div class="type-palette-kinds" id="typePaletteKinds"></div>
+    <div class="type-palette-variants" id="typePaletteVariants"></div>
+    <div class="palette-height" aria-label="Drawing height">
+      <button type="button" id="paletteHeightDown">− 5</button>
+      <span><small>Height</small><b id="paletteHeightValue">15 ft</b></span>
+      <button type="button" id="paletteHeightUp">+ 5</button>
+    </div>
+  </div>
+  <div class="eraser-palette" id="eraserPalette" hidden>
+    <small>Eraser size</small>
+    <div><button type="button" data-eraser-size="1">1 × 1</button><button type="button" data-eraser-size="3">3 × 3</button><button type="button" data-eraser-size="5">5 × 5</button></div>
+    <p>Drag over the grid. If a structure is selected, only that structure is trimmed.</p>
+  </div>
+  <div class="pointer-palette" id="pointerPalette" hidden>
+    <button type="button" id="paletteDeleteSelected">Delete selected surface</button>
+    <p>Click a surface, then press Delete or Backspace.</p>
+  </div>
+  <div class="zoom-palette" id="zoomPalette" hidden>
+    <p>Click the map to zoom in. Shift-click to zoom out. Press F to fit.</p>
+  </div>
+  <p class="shortcut-legend">V pointer · B brush · L lasso · E erase · H pan · Z zoom · [ ] size · F fit</p>
+</div>
+
+<div class="height-popover" id="heightPopover" hidden role="dialog" aria-label="Change structure height">
+  <div class="height-popover-head"><span id="heightPopoverName">Structure</span><button type="button" id="closeHeightPopover" aria-label="Close">×</button></div>
+  <div class="palette-height">
+    <button type="button" id="previewHeightDown">− 5</button>
+    <span><small>Height</small><b id="previewHeightValue">15 ft</b></span>
+    <button type="button" id="previewHeightUp">+ 5</button>
+  </div>
+</div>
+
+<div class="fatal" id="fatal" role="alert"></div>
+<script src="forge-image-importer.js?v=fii1"></script>
+<script src="forge-image-structure-review.js?v=fis1"></script>
+<script src="forge-blueprint.js?v=bp3"></script>
+<script src="forge-image-blueprint.js?v=fib1"></script>
+<script src="import.js?v=fi1"></script>
+</body>
+</html>

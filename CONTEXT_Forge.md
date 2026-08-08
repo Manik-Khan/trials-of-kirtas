@@ -1012,7 +1012,10 @@ real placement. **These are decisions, not hypotheses.**
 4. Export the current tactical field shape and run the focused contract smoke.
 5. Field-test all quality modes on M's laptop and obtain visual approval.
 
-### Current local proof review before production promotion
+### Historical local proof review before production promotion
+
+This checklist is retained as field history; the August 8 production promotion
+below supersedes its routing boundary.
 
 1. M field-tests the local deterministic generator's visible variety and exact
    seed replay.
@@ -1023,6 +1026,9 @@ real placement. **These are decisions, not hypotheses.**
    artwork interpreter described below.
 
 ### Standalone local artwork interpreter candidate · July 30
+
+Historical proof record; the production-owned authority is described in the
+promoted Structure Review section below.
 
 `_edits/mock-forge-image-importer.html` is a no-network, mock-first proof that
 loads a real local JPEG, PNG, or WebP and emits the existing
@@ -1077,13 +1083,15 @@ pathfinding keyed by surface, and explicit connectors between surfaces.
 Rendering a raised deck before that rules seam would be visually impressive
 but tactically false.
 
-### Standalone image Structure Review candidate · July 30
+### Image Structure Review authority · July 30, promoted August 8
 
-`_edits/mock-forge-image-structure-review.html` is the isolated next research
-slice; it does not change the importer, Build, production Forge, or combat. Its
-dual-export core groups local pixel evidence into reviewable semantic regions
-and compiles the reviewed facts into a draft
-`forge-surface-proposal/v1` receipt:
+The approved isolated Structure Review is now production-owned by
+`forge/import.html`, `forge/forge-image-importer.js`,
+`forge/forge-image-structure-review.js`, `forge/forge-image-blueprint.js`, and
+`forge/import.js`. Its dual-export authorities group local pixel evidence into
+reviewable semantic regions, retain the detailed `forge-surface-proposal/v1`
+receipt, and convert only DM-authored regions into the normal
+`forge-blueprint/v1` handoff:
 
 - ground remains an independent base walk surface;
 - buildings and walls carry solid base/top volumes;

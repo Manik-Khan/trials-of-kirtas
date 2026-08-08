@@ -615,6 +615,15 @@
       if (!cell) return;
       map.wall[i] = false; map.occ[i] = 0; map.h[i] = Number(cell.elevationFt) || 0;
     });
+    var interpretedHeights = blueprint.source && blueprint.source.interpretation
+      && blueprint.source.interpretation.heightCells || [];
+    interpretedHeights.forEach(function (cell) {
+      var c = Number(cell && cell.c), r = Number(cell && cell.r), heightFt = Number(cell && cell.heightFt);
+      if (!Number.isInteger(c) || !Number.isInteger(r) || !Number.isFinite(heightFt)
+        || c < 0 || r < 0 || c >= cols || r >= rows) return;
+      var i = idx(cols, c, r);
+      if (regions[i]) map.h[i] = Math.max(0, heightFt);
+    });
     var interpretedBlocked = blueprint.source && blueprint.source.interpretation
       && blueprint.source.interpretation.blockedCells || [];
     interpretedBlocked.forEach(function (cell) {
@@ -662,6 +671,7 @@
       if (shape && def.heightFt > map.occ[i]) { map.occ[i] = def.heightFt; map.coverShape[i] = shape; }
     });
     map.meta.architecture = appliedArchitecture;
+    map.meta.structureReview = copy(blueprint.source && blueprint.source.structureReview || null);
     map.meta.edgeBlockers = appliedArchitecture.filter(function (item) { return !!normalizeEdge(item.edge); }).map(function (item) {
       var def = KIT[item.kind] || {}, edge = normalizeEdge(item.edge);
       var step = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] }[edge];

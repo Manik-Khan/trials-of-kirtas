@@ -58,16 +58,19 @@ zero rooms into Build with Room armed; the browser field run drew the first
 room, narrated the connected field, and undid back to zero rooms without
 leaving the flow.
 
-**Import correction and new proof:** the creation screen's Import door remains
-a clearly labeled future-workflow preview backed by one hardcoded fixture; it
-is not the importer. A separate standalone local candidate now exists at
-`_edits/mock-forge-image-importer.html`. It reads a real user-selected
+**Forge map creation and local import:** production Combat now opens one
+confirmed replacement flow with Generate, Templates, Import, and Blank.
+Generate produces three structurally distinct deterministic candidates; a
+selected candidate, Template, or genuinely empty Blank map does not replace the
+current battlefield until the DM presses Use this map. Import opens
+`forge/import.html`. It reads a real user-selected
 JPEG/PNG/WebP entirely in the browser, proposes grid/scale, materials,
-walkability, connected regions, and fire features, lets the DM repaint
-materials or walkability per square, and sends that exact reviewed Blueprint
-into Build. The licensed source image is not copied into the repository or
-embedded in the Blueprint; Build restores only a private downsampled browser
-underlay.
+and broad structural evidence, then lets the DM calibrate or omit the grid and
+author structures with Pointer/Brush/Lasso/Eraser/Pan. Only those confirmed
+marks become a `forge-blueprint/v1` handoff. The licensed source image is not
+copied into the repository or embedded in the Blueprint; Combat restores only
+a private downsampled session underlay. Cancelling import returns the exact
+current Blueprint and Build edits.
 
 The two July 30 field maps proved intentionally different paths. Auto found a
 confident but wrong two-square harmonic on the gridded city source; the new
@@ -79,9 +82,9 @@ This is a color/texture/line interpretation proof, not semantic vision: roofs,
 tents, stages, walls, trees, and ruins are not yet reconstructed as reliable
 modular objects.
 
-An isolated Structure Review proof now exercises that missing semantic layer at
-`_edits/mock-forge-image-structure-review.html`. Local evidence supplies broad
-area hints only. A compact Pointer/Brush/Lasso/Eraser/Pan toolbar owns the
+The promoted Structure Review workflow preserves the approved isolated proof:
+local evidence supplies broad area hints only. A compact
+Pointer/Brush/Lasso/Eraser/Pan toolbar owns the
 drawing flow. Brush drags straight grid-aligned rectangles; Lasso follows
 irregular artwork. Right-click anywhere on the map opens a progressive tool
 menu, then shows only drawing facts, eraser size, selection deletion, or zoom
@@ -101,9 +104,10 @@ preview; automatic broad-area hints remain flat artwork evidence instead of
 becoming false towers. Clicking a preview structure opens an immediate
 −5/current/+5 height control with no Apply step. The underlying receipt still
 retains walkability, access, support, and separate ground/raised-surface facts.
-This is
-intentional DM-authored review authority, not semantic certainty or live
-two-level combat authority.
+This is intentional DM-authored review authority, not semantic certainty.
+Walkable roofs, decks, stairs, and bridges enter the current tactical height
+field, but simultaneous roof/street or bridge/ground occupancy in one column
+still belongs to the versioned multi-surface combat seam.
 
 Grid calibration is now part of that same proof. The generated overlay can be
 hidden, artwork can be zoomed and panned, drawing one printed square establishes

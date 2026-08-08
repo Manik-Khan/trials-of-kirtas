@@ -52,9 +52,21 @@ unfinished job, tracked in `CONTEXT_Forge.md` §3.
 - **tactics-geometry.js** — the combat rules module (movement, cliffs, LoS,
   cover, ranges). The **canonical source of truth** for this file.
   Global: `window.TacticsGeo`.
+- **forge-blueprint.js** — the production `forge-blueprint/v1` document,
+  graph-first producer, direct-edit, exact-handoff, and tactical compiler
+  authority. Global: `window.ForgeBlueprint`.
+- **forge-image-importer.js** and **forge-image-structure-review.js** — local
+  pixel evidence and DM-authored image review. Pixel proposals never become
+  semantic rules authority by themselves.
+- **forge-image-blueprint.js** — converts only confirmed image-review regions
+  into the normal Blueprint handoff, including palette and tactical height.
+- **`combat.html` / `combat.js`** — the modular Blueprint renderer, Build tools,
+  real character selection, and disposable local Combat surface.
+- **`import.html` / `import.js`** — the production local artwork calibration and
+  structure-review surface.
 
-All eight are dual-export (browser `window.*` **and** Node `module.exports`), so
-the Node test harness and the browser game share the exact same code.
+The pure runtime authorities are dual-exported (browser `window.*` **and** Node
+`module.exports`), so the Node test harness and browser share the same code.
 
 ## The map document
 
@@ -120,7 +132,14 @@ future intent-owned `bridge-crossing` archetype.
 
 ## Canonical product surface
 
-- **`forge/index.html`** — the canonical **The Forge** implementation, served at `/forge/`.
+- **`forge/index.html`** — the canonical **The Forge** router, served at
+  `/forge/`. Normal non-session entry opens `combat.html`; live session URLs,
+  Workshop developer views, and `?legacy=1` remain on the legacy renderer.
+- **`forge/combat.html`** — the current Map → Characters → Combat product
+  surface. Map offers confirmed Generate, Templates, local Import, and Blank
+  doors without replacing the current Blueprint before confirmation.
+- **`forge/import.html`** — the local-only artwork importer and Structure Review;
+  source pixels remain in browser storage.
 - **`forge/topography-test-mock.html`** — compatibility redirect only. It preserves query/hash parameters so existing session and join links continue to work.
 - **Workshop** is the pre-session authoring mode; **Table** is the persistent shared encounter mode.
 - Workshop is organized as **Encounter → Battlefield → Deployment → Advanced**.
@@ -134,7 +153,9 @@ Historical mocks remain useful as design and port references, but none is a seco
 
 | file | current role |
 |---|---|
-| `index.html` | canonical 3D Forge product surface |
+| `index.html` | canonical Forge router |
+| `combat.html` | Blueprint Build, characters, and local Combat product surface |
+| `import.html` | local artwork calibration and DM Structure Review |
 | `topography-test-mock.html` | query-preserving legacy redirect |
 | `battle-tactics-geo-mock.html` | flat combat/feel reference |
 | `battle-forge-mock.html` | generator/token-art reference |

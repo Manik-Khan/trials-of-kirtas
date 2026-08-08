@@ -1,7 +1,7 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
-const Importer = require("../../_edits/mock-forge-image-importer-core.js");
+const Importer = require("../forge-image-importer.js");
 const BP = require("../../_edits/mock-forge-blueprint-diorama-core.js");
 
 const html = fs.readFileSync(path.join(__dirname, "../../_edits/mock-forge-image-importer.html"), "utf8");
@@ -47,7 +47,7 @@ ok("review includes material repaint and walkability correction",
   /id="materialBrushes"/.test(html)
   && /data-walkable="true"/.test(html)
   && /data-walkable="false"/.test(html));
-ok("the proof uses the current cache stamps",
+ok("the historical analysis proof retains its approved cache stamps",
   html.includes("mock-forge-image-importer.css?v=ii3")
   && html.includes("mock-forge-image-importer-core.js?v=ii3")
   && html.includes("mock-forge-image-importer.js?v=ii3")
@@ -145,7 +145,7 @@ ok("interpretation compiles to the approved Blueprint schema",
   blueprint.schema === BP.SCHEMA && blueprint.version === 1);
 ok("source receipt identifies a local pixel interpretation",
   blueprint.source.kind === "imported"
-  && blueprint.source.interpretation.engine === "local-pixel-proof/v1");
+  && blueprint.source.interpretation.engine === "local-pixel-analysis/v1");
 ok("Blueprint carries material, walkability, grid, and connectivity findings",
   ["grid", "materials", "walkability", "connectivity"].every((id) =>
     blueprint.source.review.some((finding) => finding.id === id)));
