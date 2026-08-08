@@ -1559,6 +1559,42 @@ importer, image-combat, render-truth, surfaces, deployment, engine, map-bridge,
 LoS/cover, placement, and flora suites pass **402/402**. Browser visual replay
 of the new stair meshes remains the final field gate.
 
+### Portal-owned stair architecture proof · 2026-08-08
+
+M's next field screenshot proved that the connectivity correction was
+mathematically successful but architecturally arbitrary: post-layout repair
+stairs could occupy open rooms, terminate against walls, or reach platforms
+without a usable entrance. Baseline `b4ee02c` was clean before this isolated
+proof. Production `forge/forge-blueprint.js`, `forge/combat.js`, and their
+current generated maps remain untouched.
+
+`_edits/mock-forge-portal-stairs.html` and its cache-stamped companions now
+prove the replacement build order:
+
+1. graph edges choose unused, facing room-perimeter portals;
+2. the high portal reserves a straight runway long enough for every 5-ft tier;
+3. a cardinal corridor routes from the low portal to that runway without
+   crossing unrelated rooms;
+4. explicit low/high landings inherit the connected room elevations; and
+5. room walls are generated last, with the two owned portal edges omitted.
+
+The same scene drives a plan and an isometric height preview. Selecting one
+route isolates its two entrances, corridor, stair cells, and landings. A map
+with no legal portal/runway is rejected with a reason; the proof contains no
+visible post-layout repair stair. Three structurally different directions
+pass the same contract and are fully reachable under 5-ft tactical movement.
+
+The focused proof passes **16/16** known answers; the existing
+Blueprint/Diorama and creation proofs remain **86/86** and **28/28**, for
+**130/130** relevant checks. All three new JavaScript files pass
+`node --check`, and `git diff --check` is clean. The app browser's security
+policy rejected local `file://` automation, so this slice does not claim a
+visual browser pass. M's field gate is to open the mock, inspect all three
+directions and several isolated routes, and confirm that every stair reads as
+an intentional approach to an actual wall opening. Only after that approval
+should this planner replace `stairPath()` and the visible repair loop in the
+production Blueprint generator.
+
 The remaining gates are:
 
 1. **Passed August 1.** M approved the stable surface identity and the first

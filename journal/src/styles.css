@@ -836,6 +836,7 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
 
 /* ── mentions + pagelinks (both surfaces) ── */
 .tok-mention { cursor: default; white-space: nowrap; font-weight: 600; }
+.character-link { color: var(--sh-ink); border-bottom: 2px solid var(--sh-accent); }
 .npc-link { color: var(--sh-ink); border-bottom: 1px dotted var(--sh-accent); }
 .location-link { color: var(--sh-place); border-bottom: 1px dotted currentColor; }
 .npc-unresolved { color: var(--sh-ink-faint); border-bottom: 2px dotted var(--sh-hairline); }

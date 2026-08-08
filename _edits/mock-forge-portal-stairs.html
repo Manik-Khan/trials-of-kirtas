@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Forge · Portal-owned stairs proof</title>
+  <link rel="stylesheet" href="mock-forge-portal-stairs.css?v=ps1">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <span class="eyebrow">Battle Forge · isolated architecture proof</span>
+      <h1>Connections become architecture.</h1>
+    </div>
+    <div class="receipt" id="receipt">Building…</div>
+  </header>
+
+  <main>
+    <aside class="rail">
+      <section>
+        <span class="step">01 · DIRECTION</span>
+        <h2>Choose a route.</h2>
+        <div class="directions" id="directions"></div>
+        <p class="quiet">Every connection chooses real room entrances before corridors, stairs, or walls exist.</p>
+      </section>
+      <section>
+        <span class="step">02 · READ</span>
+        <h2>One route at a time.</h2>
+        <div class="routes" id="routes"></div>
+      </section>
+      <section class="rule-card">
+        <span class="step">THE BUILD ORDER</span>
+        <ol>
+          <li>Facing entrances</li>
+          <li>Corridor route</li>
+          <li>Low and high landings</li>
+          <li>Stair runway</li>
+          <li>Walls around the openings</li>
+        </ol>
+      </section>
+    </aside>
+
+    <section class="stage">
+      <div class="stage-head">
+        <div>
+          <span class="eyebrow">ARCHITECTURE RECEIPT</span>
+          <h2 id="sceneTitle">—</h2>
+        </div>
+        <button type="button" id="showAll">Show every route</button>
+      </div>
+      <div class="views">
+        <figure>
+          <figcaption><b>Plan</b><span>Entrances, routes, landings, and walls</span></figcaption>
+          <canvas id="plan" width="900" height="660"></canvas>
+        </figure>
+        <figure>
+          <figcaption><b>Height preview</b><span>The same cells, raised into the board</span></figcaption>
+          <canvas id="height" width="900" height="660"></canvas>
+        </figure>
+      </div>
+      <div class="legend">
+        <span><i class="room"></i>Room</span><span><i class="route"></i>Owned route</span>
+        <span><i class="stair"></i>Stair runway</span><span><i class="portal"></i>Open portal</span>
+        <span><i class="wall"></i>Wall generated last</span>
+      </div>
+    </section>
+
+    <aside class="audit">
+      <span class="step">03 · PROOF</span>
+      <h2>No decorative repairs.</h2>
+      <div class="audit-grid" id="auditGrid"></div>
+      <div class="selected" id="selectedDetail"></div>
+      <div class="callout">
+        <b>If a stair cannot fit, the map is rejected.</b>
+        <p>The generator may try another arrangement. It may not place a visible “repair stair” in an arbitrary open square.</p>
+      </div>
+    </aside>
+  </main>
+
+  <script src="mock-forge-portal-stairs-core.js?v=ps1"></script>
+  <script src="mock-forge-portal-stairs.js?v=ps1"></script>
+</body>
+</html>

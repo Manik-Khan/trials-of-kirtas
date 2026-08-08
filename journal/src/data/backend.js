@@ -82,19 +82,25 @@ export async function bootJournal() {
   const toArr = (obj, type) => Object.entries(obj || {})
     .map(([k, v]) => ({ id: k, label: v.name || k, type, hint: v.role || v.type || '' }))
 
-  const [rows, entities, session, accents, myAppearance, commentCounts] = await Promise.all([
+  const [rows, entities, characters, session, accents, myAppearance, commentCounts] = await Promise.all([
     store.loadPages(),
     store.loadEntities({
       canonNPCs: toArr(canon.npcs, 'npc'),
       canonLocations: toArr(canon.locations, 'location'),
     }),
+    store.loadCharacters(),
     store.getCurrentSession(),
     store.loadSeatAccents().catch(() => ({})),   // non-fatal: fallback palette
     store.loadMyAppearance().catch(() => ({})),  // non-fatal: default look
     store.loadOpenCommentCounts().catch(() => ({})), // non-fatal: badges hide
   ])
 
-  entityStore.hydrate(entities)
+  const sameCharacter = npc => characters.some(ch => {
+    const slug = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    const ni = slug(npc.id), nn = slug(npc.label), ci = slug(ch.id), cn = slug(ch.label)
+    return ni === ci || nn === cn || (ni && ci.startsWith(ni + '-'))
+  })
+  entityStore.hydrate({ ...entities, characters, npcs: entities.npcs.filter(npc => !sameCharacter(npc)) })
   entityStore.persist = stub => store.addEntity(stub)
 
   const liveVault = makeLiveVault({

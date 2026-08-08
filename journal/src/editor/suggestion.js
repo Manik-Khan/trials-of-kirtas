@@ -16,10 +16,11 @@ export function makeEntitySuggestion({ onCreateEntity } = {}) {
   char: '@',
   allowSpaces: true, // multi-word queries: "@Lord Rey…"
 
-  items: ({ query }) => buildItems(query, entityStore.npcs(), entityStore.locations(), entityStore.aliases()),
+  items: ({ query }) => buildItems(query, entityStore.characters(), entityStore.npcs(), entityStore.locations(), entityStore.aliases()),
 
-  // Choosing "new NPC / new location" creates the entity right away —
-  // same immediacy as [[new page]]; the node inserts already-resolved.
+  // Choosing "new NPC / new location" creates the candidate right away.
+  // It stays visibly unresolved until staff confirms it. Characters are
+  // already canonical and never enter this creation path.
   command: ({ editor, range, props }) => {
     const r = resolveMentionInsert(props, entityStore)
     if (r.created) onCreateEntity?.({ id: r.id, type: r.type, label: r.label })

@@ -65,10 +65,10 @@ export const MentionList = forwardRef(function MentionList(props, ref) {
         onMouseEnter={() => setSelected(i)}
         onClick={() => choose(i)}
       >
-        <span className="jm-dd-icon">{item.type === 'npc' ? '👤' : item.type === 'location' ? '📍' : '📄'}</span>
+        <span className="jm-dd-icon">{item.type === 'character' ? '◆' : item.type === 'npc' ? '👤' : item.type === 'location' ? '📍' : '📄'}</span>
         <span className="jm-dd-name">
           {item.label}
-          {!item.resolved && <em className="jm-dd-new"> — new {item.type === 'npc' ? 'NPC' : item.type === 'location' ? 'location' : 'page'}</em>}
+          {!item.resolved && <em className="jm-dd-new"> — {item.origin === 'journal' ? 'awaiting confirmation' : `new ${item.type === 'npc' ? 'NPC' : item.type === 'location' ? 'location' : 'page'}`}</em>}
         </span>
         {item.hint && <span className="jm-dd-hint">{item.hint}</span>}
       </button>,

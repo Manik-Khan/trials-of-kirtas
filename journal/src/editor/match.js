@@ -7,7 +7,7 @@
 export const slug = s =>
   s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
-export function buildItems(query, NPCS, LOCATIONS, aliases = {}) {
+export function buildItems(query, CHARACTERS, NPCS, LOCATIONS, aliases = {}) {
   const q = query.toLowerCase().trim()
   const sq = slug(query)
   // aliases: `${type}:${aliasId}` → canonicalId. An entity also matches when
@@ -19,12 +19,14 @@ export function buildItems(query, NPCS, LOCATIONS, aliases = {}) {
   const match = e => !q || e.label.toLowerCase().includes(q) || e.id.includes(q)
     || (sq && e.id.includes(sq)) || aliasHit(e)
 
+  const characters = CHARACTERS.filter(match).slice(0, 5)
+    .map(e => ({ ...e, resolved: true, section: 'Player characters' }))
   const npcs = NPCS.filter(match).slice(0, 5)
-    .map(e => ({ ...e, resolved: true, section: 'NPCs' }))
+    .map(e => ({ ...e, resolved: e.curated !== false, section: 'NPCs' }))
   const locs = LOCATIONS.filter(match).slice(0, 5)
-    .map(e => ({ ...e, resolved: true, section: 'Locations' }))
+    .map(e => ({ ...e, resolved: e.curated !== false, section: 'Locations' }))
 
-  const items = [...npcs, ...locs]
+  const items = [...characters, ...npcs, ...locs]
 
   if (!items.length && q) {
     const label = query.trim()
@@ -49,10 +51,10 @@ export function resolveMentionInsert(props, store) {
   // inserts with the canonical id AND label, and nothing is re-seeded.
   const canon = store.resolve(type, id)
   if (canon) {
-    id = canon.id; label = canon.label; resolved = true
+    id = canon.id; label = canon.label; resolved = canon.curated !== false
   } else if (!resolved) {
     created = store.add({ id, type, label })
-    resolved = true
+    resolved = false
   }
   return { id, type, label, resolved, created }
 }

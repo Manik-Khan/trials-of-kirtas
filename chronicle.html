@@ -618,7 +618,8 @@
     }
     .lightbox-close:hover { color: var(--parchment); }
     .c-entry-text strong { color: var(--parchment); }
-    .c-entry-text span:not(.npc-link):not(.location-link):not(.npc-unresolved):not(.location-unresolved) { color: inherit !important; }
+    .c-entry-text span:not(.character-link):not(.npc-link):not(.location-link):not(.npc-unresolved):not(.location-unresolved) { color: inherit !important; }
+    .c-entry-text .character-link { color: #c97886; border-bottom: 1px dotted rgba(201,120,134,0.45); cursor: default; }
     .c-entry-text .npc-link { color: var(--gold-light); border-bottom: 1px dotted var(--gold-dim); cursor: default; }
     .c-entry-text .location-link { color: #8ab4c9; border-bottom: 1px dotted rgba(138,180,201,0.4); cursor: default; }
     .c-entry-text .npc-unresolved { color: var(--aged); border-bottom: 2px dotted var(--muted); cursor: default; }
@@ -1389,6 +1390,7 @@
 <script src="tooltips.js"></script>
 <script src="characters.js"></script>
 <script src="nav.js?v=sup3"></script>
+<script src="living-codex.js?v=lc1"></script>
 <script src="battle.js"></script>
 <script src="feed-bridge.js"></script>
 <script src="feed-render.js"></script>
@@ -1404,6 +1406,7 @@ const EXPORT_URL = '/.netlify/functions/feed-export';
 let SB = null;        // shared authenticated client (from nav.js)
 let ME = null;        // viewer profile { userId, role, characterKey, ... }
 let IS_STAFF = false;
+let LIVING_CODEX = { characters: [], npcs: [], locations: [], entities: [], aliases: {} };
 
 // nav.js mounts async (session gate) — wait for it like combat.html does.
 function whenReady(cb) {
@@ -1443,9 +1446,14 @@ const PLAYERS = [
   { id:'vesperian', name:'Vesperian Vale', character:'Fighter',  color:'#5a9aaa' },
 ];
 
-// Known NPCs and locations pulled from tooltips.js data
+// Player characters come from the live character roster. NPCs and locations
+// merge static canon with discoveries remembered from Chronicle / Journal.
 // These populate the @ mention dropdown
+function getKnownCharacters() {
+  return LIVING_CODEX.characters.map(e => ({ key:e.id, name:e.label, type:'character', resolved:true }));
+}
 function getKnownNPCs() {
+  if (LIVING_CODEX.npcs.length) return LIVING_CODEX.npcs.map(e => ({ key:e.id, name:e.label, type:'npc', resolved:e.curated !== false }));
   if (typeof NPC_DATA !== 'undefined') return Object.keys(NPC_DATA).map(k => ({ key:k, name:NPC_DATA[k].name||k, type:'npc' }));
   return [
     {key:'darius',    name:'Darius',       type:'npc'},
@@ -1459,6 +1467,7 @@ function getKnownNPCs() {
   ];
 }
 function getKnownLocations() {
+  if (LIVING_CODEX.locations.length) return LIVING_CODEX.locations.map(e => ({ key:e.id, name:e.label, type:'location', resolved:e.curated !== false }));
   if (typeof LOCATION_DATA !== 'undefined') return Object.keys(LOCATION_DATA).map(k => ({ key:k, name:LOCATION_DATA[k].name||k, type:'location' }));
   return [
     {key:'tiersgard', name:'Tiersgard',  type:'location'},
@@ -1469,6 +1478,18 @@ function getKnownLocations() {
     {key:'ilora',     name:'Ilora',      type:'location'},
     {key:'numior',    name:'Numior',     type:'location'},
   ];
+}
+
+async function loadLivingCodex() {
+  try {
+    LIVING_CODEX = await LivingCodex.load(SB, {
+      npcData: typeof NPC_DATA === 'undefined' ? {} : NPC_DATA,
+      locationData: typeof LOCATION_DATA === 'undefined' ? {} : LOCATION_DATA,
+    });
+  } catch (e) {
+    console.warn('[living-codex] live names unavailable:', e.message);
+    setDrawerStatus('The shared codex could not refresh; known canon names still work.', 'error');
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1639,7 +1660,7 @@ function clearDraft() {
 function initQuill() {
   quill = new Quill('#quill-editor', {
     theme: 'snow',
-    placeholder: 'Write what happened… Use @ to mention NPCs/locations, # to add tags',
+    placeholder: 'Write what happened… Use @ to mention characters, NPCs, or locations; # to add tags',
     modules: {
       toolbar: [
         ['bold','italic','strike'],
@@ -1674,7 +1695,7 @@ function initQuill() {
       const sel = quill.getSelection();
       if (sel) {
         const fmt = quill.getFormat(sel.index, 0);
-        const mentionColors = ['#d4ac3a','#8ab4c9','#c9b48a','#7a9aaa'];
+        const mentionColors = ['#c97886','#d4ac3a','#8ab4c9','#c9b48a','#7a9aaa'];
         if (fmt.color && mentionColors.includes(fmt.color.toLowerCase())) {
           quill.format('color', false);
         }
@@ -1775,16 +1796,17 @@ function showInlineDropdown() {
   inlineFocusIdx = 0;
 
   if (inlineMode === 'mention') {
+    const chars = getKnownCharacters().filter(n=>n.name.toLowerCase().includes(inlineQuery)||n.key.includes(inlineQuery));
     const npcs  = getKnownNPCs().filter(n=>n.name.toLowerCase().includes(inlineQuery)||n.key.includes(inlineQuery));
     const locs  = getKnownLocations().filter(l=>l.name.toLowerCase().includes(inlineQuery)||l.key.includes(inlineQuery));
-    if (!npcs.length && !locs.length) {
+    if (!chars.length && !npcs.length && !locs.length) {
       // No known match — offer to insert as unresolved mention
       if (inlineQuery.length > 0) {
         const display = inlineRawQuery.charAt(0).toUpperCase() + inlineRawQuery.slice(1);
         dd.innerHTML = `
           <div class="inline-dropdown-section">Unknown — add as:</div>
-          <div class="inline-dropdown-item" onclick="insertUnresolvedMention('npc','${inlineQuery}','${display}')"><span class="inline-dropdown-icon">👤</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(unresolved NPC)</em></span></div>
-          <div class="inline-dropdown-item" onclick="insertUnresolvedMention('location','${inlineQuery}','${display}')"><span class="inline-dropdown-icon">📍</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(unresolved location)</em></span></div>`;
+          <div class="inline-dropdown-item" onclick="insertUnresolvedMention('npc','${LivingCodex.slug(inlineRawQuery)}','${display}')"><span class="inline-dropdown-icon">👤</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(new NPC)</em></span></div>
+          <div class="inline-dropdown-item" onclick="insertUnresolvedMention('location','${LivingCodex.slug(inlineRawQuery)}','${display}')"><span class="inline-dropdown-icon">📍</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(new location)</em></span></div>`;
         dd.style.display = 'block';
         const bounds = quill.getBounds(quill.getSelection()?.index||0);
         const editorRect = document.getElementById('quill-editor').getBoundingClientRect();
@@ -1811,13 +1833,17 @@ function showInlineDropdown() {
       return;
     }
     let html = '';
+    if (chars.length) {
+      html += `<div class="inline-dropdown-section">Player characters</div>`;
+      html += chars.slice(0,5).map(n=>`<div class="inline-dropdown-item" onclick="insertMention('character','${n.key}','${n.name}')"><span class="inline-dropdown-icon">◆</span><span class="inline-dropdown-name">${n.name}</span><span class="inline-dropdown-type">Character</span></div>`).join('');
+    }
     if (npcs.length) {
       html += `<div class="inline-dropdown-section">NPCs</div>`;
-      html += npcs.slice(0,5).map(n=>`<div class="inline-dropdown-item" onclick="insertMention('npc','${n.key}','${n.name}')"><span class="inline-dropdown-icon">👤</span><span class="inline-dropdown-name">${n.name}</span><span class="inline-dropdown-type">NPC</span></div>`).join('');
+      html += npcs.slice(0,5).map(n=>`<div class="inline-dropdown-item" onclick="${n.resolved ? 'insertMention' : 'insertUnresolvedMention'}('npc','${n.key}','${n.name}')"><span class="inline-dropdown-icon">👤</span><span class="inline-dropdown-name">${n.name}${n.resolved ? '' : ' <em style="color:var(--muted)">(awaiting confirmation)</em>'}</span><span class="inline-dropdown-type">NPC</span></div>`).join('');
     }
     if (locs.length) {
       html += `<div class="inline-dropdown-section">Locations</div>`;
-      html += locs.slice(0,5).map(l=>`<div class="inline-dropdown-item" onclick="insertMention('location','${l.key}','${l.name}')"><span class="inline-dropdown-icon">📍</span><span class="inline-dropdown-name">${l.name}</span><span class="inline-dropdown-type">Location</span></div>`).join('');
+      html += locs.slice(0,5).map(l=>`<div class="inline-dropdown-item" onclick="${l.resolved ? 'insertMention' : 'insertUnresolvedMention'}('location','${l.key}','${l.name}')"><span class="inline-dropdown-icon">📍</span><span class="inline-dropdown-name">${l.name}${l.resolved ? '' : ' <em style="color:var(--muted)">(awaiting confirmation)</em>'}</span><span class="inline-dropdown-type">Location</span></div>`).join('');
     }
     dd.innerHTML = html;
   } else {
@@ -1882,7 +1908,7 @@ function insertMention(type, key, name) {
   quill.deleteText(insertIdx, deleteLen);
 
   // Insert the name with color
-  const color = type === 'npc' ? '#d4ac3a' : '#8ab4c9';
+  const color = type === 'character' ? '#c97886' : type === 'npc' ? '#d4ac3a' : '#8ab4c9';
   quill.insertText(insertIdx, name, { color, bold: false });
 
   // Register mention in the reliable map
@@ -1922,6 +1948,12 @@ function insertUnresolvedMention(type, key, name) {
   quill.insertText(insertIdx, name, { color, bold: false });
 
   mentionMap[name] = { type: mentionType, key };
+  if (SB && window.LivingCodex) {
+    LivingCodex.remember(SB, { id:key, type, label:name })
+      .then(() => loadLivingCodex())
+      .then(() => setDrawerStatus(`Remembered ${name} — awaiting confirmation.`, 'success'))
+      .catch(e => setDrawerStatus(`${name} stays in this entry, but could not join the shared codex: ${e.message}`, 'error'));
+  }
 
   // Reset format state — no auto-space, text-change handler clears color
   setTimeout(() => {
@@ -1976,15 +2008,23 @@ function wrapSelection(type) {
   let color, mentionType, mentionKey;
 
   if (type === 'npc') {
+    const character = getKnownCharacters().find(n=>n.name.toLowerCase()===text.toLowerCase());
     const known = getKnownNPCs().find(n=>n.name.toLowerCase()===text.toLowerCase());
-    mentionKey  = known ? known.key : text.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
-    mentionType = known ? 'npc' : 'npc-unresolved';
-    color       = known ? '#d4ac3a' : '#c9b48a';
+    mentionKey  = character ? character.key : known ? known.key : LivingCodex.slug(text);
+    mentionType = character ? 'character' : known && known.resolved ? 'npc' : 'npc-unresolved';
+    color       = character ? '#c97886' : known && known.resolved ? '#d4ac3a' : '#c9b48a';
   } else if (type === 'location') {
     const known = getKnownLocations().find(l=>l.name.toLowerCase()===text.toLowerCase());
-    mentionKey  = known ? known.key : text.toLowerCase().replace(/[^a-z0-9]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
-    mentionType = known ? 'location' : 'location-unresolved';
-    color       = known ? '#8ab4c9' : '#7a9aaa';
+    mentionKey  = known ? known.key : LivingCodex.slug(text);
+    mentionType = known && known.resolved ? 'location' : 'location-unresolved';
+    color       = known && known.resolved ? '#8ab4c9' : '#7a9aaa';
+  }
+
+  if (mentionType.includes('unresolved') && SB) {
+    LivingCodex.remember(SB, { id:mentionKey, type, label:text.trim() })
+      .then(() => loadLivingCodex())
+      .then(() => setDrawerStatus(`Remembered ${text.trim()} — awaiting confirmation.`, 'success'))
+      .catch(e => setDrawerStatus(`${text.trim()} could not join the shared codex: ${e.message}`, 'error'));
   }
 
   // Apply color via Quill API — no innerHTML touching
@@ -2856,6 +2896,8 @@ function processEntryHTML(html) {
   });
   // Pass 1: Convert spans that were correctly tagged with data-mention-* attributes
   let out = html
+    .replace(/<span([^>]*?)data-mention-type="character"([^>]*?)data-mention-key="([^"]*)"([^>]*?)>(.*?)<\/span>/g,
+      '<span class="character-link" data-character="$3"$1$2$4>$5</span>')
     .replace(/<span([^>]*?)data-mention-type="npc"([^>]*?)data-mention-key="([^"]*)"([^>]*?)>(.*?)<\/span>/g,
       '<span class="npc-link" data-npc="$3"$1$2$4>$5</span>')
     .replace(/<span([^>]*?)data-mention-type="location"([^>]*?)data-mention-key="([^"]*)"([^>]*?)>(.*?)<\/span>/g,
@@ -3256,6 +3298,7 @@ document.addEventListener('DOMContentLoaded', () => whenReady(async () => {
   SB = window.__tok.sb;
   ME = window.__tok.ready ? await window.__tok.ready : null;
   IS_STAFF = !!(ME && (ME.role === 'overseer' || ME.role === 'dm'));
+  await loadLivingCodex();
 
   loadIdentity();
   // A stale/foreign localStorage identity (pre-auth era, or another seat on a

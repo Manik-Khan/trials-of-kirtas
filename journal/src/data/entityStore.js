@@ -4,6 +4,7 @@
 import { NPCS, LOCATIONS } from './sample.js'
 
 const pool = {
+  character: [],
   npc: NPCS.map(e => ({ ...e, origin: 'canon' })),
   location: LOCATIONS.map(e => ({ ...e, origin: 'canon' })),
 }
@@ -12,7 +13,8 @@ let aliasMap = {}  // `${type}:${aliasId}` → canonical id (written by merge_en
 
 export const entityStore = {
   persist: null, // live mode sets this: stub => Promise (fire-and-forget)
-  hydrate({ npcs, locations, aliases }) {
+  hydrate({ characters = [], npcs, locations, aliases }) {
+    pool.character = characters
     pool.npc = npcs
     pool.location = locations
     aliasMap = aliases || {}
@@ -25,6 +27,7 @@ export const entityStore = {
     const canonId = aliasMap[`${type}:${id}`]
     return canonId ? pool[type].find(e => e.id === canonId) || null : null
   },
+  characters: () => pool.character,
   npcs: () => pool.npc,
   locations: () => pool.location,
   has: (type, id) => pool[type].some(e => e.id === id),
@@ -33,7 +36,8 @@ export const entityStore = {
     // an alias means this key was merged away — never re-seed the retired stub
     if (aliasMap[`${stub.type}:${stub.id}`]) return false
     if (this.has(stub.type, stub.id)) return false
-    const entity = { id: stub.id, label: stub.label, type: stub.type, hint: 'new — from the journal', origin: 'journal' }
+    if (stub.type === 'character') return false
+    const entity = { id: stub.id, label: stub.label, type: stub.type, hint: 'new — awaiting confirmation', curated: false, resolved: false, origin: 'journal' }
     pool[stub.type].push(entity)
     created.push(entity)
     if (this.persist) Promise.resolve(this.persist(stub)).catch(e => console.error('[journal] entity persist failed:', e))

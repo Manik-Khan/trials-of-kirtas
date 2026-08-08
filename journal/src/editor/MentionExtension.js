@@ -6,7 +6,7 @@
 // colour-span. It is:
 //   • atomic  — one backspace removes the whole thing; the
 //               cursor can't land inside it
-//   • typed   — 'npc' | 'location' (extensible: quest, item…)
+//   • typed   — 'character' | 'npc' | 'location' (extensible: quest, item…)
 //   • queryable — walk doc JSON for type:'tokMention' nodes and
 //               you have every reference in the entry (backlinks)
 //
@@ -18,6 +18,7 @@
 import Mention from '@tiptap/extension-mention'
 
 const CLASS_FOR = {
+  'character':           'character-link',
   'npc':                 'npc-link',
   'location':            'location-link',
   'npc-unresolved':      'npc-unresolved',
@@ -40,7 +41,7 @@ export const TokMention = Mention.extend({
         renderHTML: attrs => ({ 'data-mention-key': attrs.id }),
       },
       type: {
-        default: 'npc', // 'npc' | 'location'
+        default: 'npc', // 'character' | 'npc' | 'location'
         parseHTML: el => (el.getAttribute('data-mention-type') || 'npc').replace('-unresolved', ''),
         renderHTML: attrs => ({}), // emitted via the combined data-mention-type below
       },

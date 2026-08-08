@@ -119,7 +119,7 @@ export function makeJournalStore({ sb, uid, characterKey }) {
     // play-created rows merge on top. Callers pass the canon arrays in.
     async loadEntities({ canonNPCs = [], canonLocations = [] } = {}) {
       const [res, al] = await Promise.all([
-        sb.from('entities').select('id, type, name, curated'),
+        sb.from('entities').select('id, type, name, descr, status, curated, role, parent_id, map_x, map_y, map_category, map_shape, map_state'),
         sb.from('entity_aliases').select('type, alias_id, canonical_id'),
       ])
       if (res.error) throw new Error(`loadEntities: ${res.error.message}`)
@@ -135,7 +135,13 @@ export function makeJournalStore({ sb, uid, characterKey }) {
         return [
           ...canon.map(e => ({ ...e, origin: 'canon' })),
           ...rows.filter(r => r.type === type && !seen.has(r.id))
-            .map(r => ({ id: r.id, label: r.name, type, hint: r.curated ? '' : 'new — from the journal', origin: 'journal' })),
+            .map(r => ({
+              id: r.id, label: r.name, type, hint: r.curated ? (r.role || r.descr || '') : 'new — awaiting confirmation',
+              descr: r.descr || '', status: r.status || 'unknown', curated: !!r.curated, resolved: !!r.curated,
+              parentId: r.parent_id || null, mapX: r.map_x == null ? null : Number(r.map_x),
+              mapY: r.map_y == null ? null : Number(r.map_y), category: r.map_category || 'town',
+              shape: r.map_shape || 'square', mapState: r.map_state || null, origin: 'journal',
+            })),
         ]
       }
       return {
@@ -143,6 +149,19 @@ export function makeJournalStore({ sb, uid, characterKey }) {
         locations: merge(canonLocations, 'location'),
         aliases,
       }
+    },
+
+    async loadCharacters() {
+      const res = await sb.from('characters').select('key, structural, delete_marked').order('key')
+      if (res.error) throw new Error(`loadCharacters: ${res.error.message}`)
+      return (res.data || []).filter(r => !r.delete_marked).map(r => {
+        const structural = r.structural || {}
+        return {
+          id: r.key, label: structural.name || r.key, type: 'character', origin: 'character',
+          curated: true, resolved: true,
+          hint: structural.classLabel || structural.race || 'Player character',
+        }
+      })
     },
 
     // ── comments (journal_comments): rows ABOUT a page, never writes TO it ──
@@ -295,7 +314,7 @@ export function makeJournalStore({ sb, uid, characterKey }) {
     // ── curation (staff) ──
     async loadCurationQueue() {
       const res = await sb.from('entities')
-        .select('id, type, name, descr, created_by, created_at')
+        .select('id, type, name, descr, role, status, parent_id, map_x, map_y, map_category, map_shape, map_state, created_by, created_at')
         .eq('curated', false)
         .order('created_at')
       if (res.error) throw new Error(`loadCurationQueue: ${res.error.message}`)
@@ -316,9 +335,9 @@ export function makeJournalStore({ sb, uid, characterKey }) {
       }
     },
 
-    async updateEntity(type, id, { name, descr }) {
+    async updateEntity(type, id, patch) {
       const res = await sb.from('entities')
-        .update({ name, descr }).eq('type', type).eq('id', id).select('id').maybeSingle()
+        .update(patch).eq('type', type).eq('id', id).select('id').maybeSingle()
       if (res.error) throw new Error(`updateEntity: ${res.error.message}`)
       return res.data
     },
