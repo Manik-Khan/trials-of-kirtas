@@ -65,6 +65,7 @@
       topology: blueprint && blueprint.topology,
       spaces: blueprint && blueprint.spaces,
       corridors: blueprint && blueprint.corridors,
+      connectors: blueprint && blueprint.connectors,
       architecture: blueprint && blueprint.architecture,
       elevationZones: blueprint && blueprint.elevationZones
     }));
@@ -364,6 +365,19 @@
     }
     return edges;
   }
+  function stairPath(from, to, fromFt, toFt) {
+    var x = from[0], y = from[1], tx = to[0], ty = to[1], cells = [], guard = 0;
+    while (guard++ < 200) {
+      cells.push({ c: x, r: y });
+      if (x === tx && y === ty) break;
+      if (x !== tx) x += x < tx ? 1 : -1;
+      else if (y !== ty) y += y < ty ? 1 : -1;
+    }
+    return cells.map(function (cell, index) {
+      var amount = cells.length <= 1 ? 1 : index / (cells.length - 1);
+      return { c: cell.c, r: cell.r, elevationFt: Math.round((fromFt + (toFt - fromFt) * amount) / 5) * 5 };
+    });
+  }
   function produceSeeded(options) {
     options = options || {};
     var seed = Number.isFinite(Number(options.seed)) ? Math.abs(Math.trunc(Number(options.seed))) : 1847;
@@ -406,7 +420,7 @@
       );
     });
     var edges = graphEdges(topology, spaces.length, random);
-    var corridors = [], modules = [];
+    var corridors = [], modules = [], connectors = [];
     edges.forEach(function (edge, index) {
       var first = spaces[edge[0]], second = spaces[edge[1]];
       var firstBounds = spaceBounds(first), secondBounds = spaceBounds(second);
@@ -421,7 +435,7 @@
           r: Math.floor((secondBounds.minY + secondBounds.maxY - 1) / 2)
         }
       };
-      corridors.push(corridor(
+      var passage = corridor(
         "generated-passage-" + (index + 1),
         "Passage " + (index + 1),
         [anchors.from.c, anchors.from.r],
@@ -430,10 +444,16 @@
         second.discoveryRegion,
         first.material,
         Math.min(first.elevationFt, second.elevationFt)
-      ));
+      );
+      corridors.push(passage);
       modules.push(architecture("door", anchors.to.c, anchors.to.r, 0, second.discoveryRegion, "oak"));
       if (first.elevationFt !== second.elevationFt) {
-        modules.push(architecture("stairs", anchors.from.c, anchors.from.r, 0, first.discoveryRegion, "stone"));
+        connectors.push({
+          id: "generated-stairs-" + (index + 1), kind: "stairs", label: "Stairs " + (index + 1),
+          state: "open", oneWay: false, widthFt: passage.width * 5,
+          discoveryRegion: second.discoveryRegion, requires: {},
+          path: stairPath(passage.from, passage.to, first.elevationFt, second.elevationFt)
+        });
       }
     });
     var regions = spaces.map(function (space) {
@@ -448,6 +468,7 @@
       spaces, corridors, modules, [], [], [], regions
     );
     out.grid = grid;
+    out.connectors = connectors;
     out.graph = {
       nodes: spaces.map(function (space) { return { id: space.id, semantic: space.label }; }),
       edges: edges.map(function (edge) { return { from: spaces[edge[0]].id, to: spaces[edge[1]].id }; })
@@ -461,12 +482,44 @@
       subSeeds: { layout: layoutSeed, height: heightSeed, semantics: semanticsSeed, decor: decorSeed }
     });
     var compiled = compile(out, {});
-    var connected = connectivity(compiled);
+    var connected = tacticalConnectivity(compiled), repairs = 0;
+    while (!connected.ok && connected.open && repairs < 64) {
+      var missing = {};
+      connected.missing.forEach(function (cellKey) { missing[cellKey] = true; });
+      var boundary = null;
+      connected.missing.some(function (cellKey) {
+        var parts = cellKey.split(",").map(Number), to = { c: parts[0], r: parts[1] };
+        return CARDINAL.some(function (step) {
+          var from = { c: to.c + step[0], r: to.r + step[1] }, fromKey = key(from.c, from.r);
+          if (from.c < 0 || from.r < 0 || from.c >= compiled.cols || from.r >= compiled.rows
+            || compiled.wall[idx(compiled.cols, from.c, from.r)] || missing[fromKey]) return false;
+          boundary = { from: from, to: to }; return true;
+        });
+      });
+      if (!boundary) break;
+      repairs++;
+      var fromIndex = idx(compiled.cols, boundary.from.c, boundary.from.r);
+      var toIndex = idx(compiled.cols, boundary.to.c, boundary.to.r);
+      out.connectors.push({
+        id: "generated-stairs-repair-" + repairs, kind: "stairs", label: "Stairs repair " + repairs,
+        state: "open", oneWay: false, widthFt: 5,
+        discoveryRegion: compiled.meta.regions[toIndex] && compiled.meta.regions[toIndex].region,
+        requires: {},
+        path: [
+          { c: boundary.from.c, r: boundary.from.r, elevationFt: compiled.h[fromIndex] },
+          { c: boundary.to.c, r: boundary.to.r, elevationFt: compiled.h[toIndex] }
+        ]
+      });
+      compiled = compile(out, {});
+      connected = tacticalConnectivity(compiled);
+    }
+    if (!connected.ok) throw new Error("Generated battlefield could not be connected across its elevation changes.");
     out.source.audit = {
       connected: connected.ok,
       reachable: connected.reachable,
       open: connected.open,
-      repaired: false
+      repaired: repairs > 0,
+      repairCount: repairs
     };
     return out;
   }
@@ -603,6 +656,7 @@
       coverShape: new Array(n).fill(null),
       spawns: copy(blueprint.spawns || []),
       props: copy(blueprint.props || []),
+      connectors: copy(blueprint.connectors || []),
       meta: {
         source: SCHEMA, blueprintId: blueprint.id, blueprintName: blueprint.name,
         blueprintFingerprint: fingerprint(blueprint),
@@ -623,6 +677,15 @@
         || c < 0 || r < 0 || c >= cols || r >= rows) return;
       var i = idx(cols, c, r);
       if (regions[i]) map.h[i] = Math.max(0, heightFt);
+    });
+    map.connectors.forEach(function (connector) {
+      (connector && connector.path || []).forEach(function (cell) {
+        var c = Number(cell && cell.c), r = Number(cell && cell.r), heightFt = Number(cell && cell.elevationFt);
+        if (!Number.isInteger(c) || !Number.isInteger(r) || !Number.isFinite(heightFt)
+          || c < 0 || r < 0 || c >= cols || r >= rows) return;
+        var i = idx(cols, c, r);
+        if (regions[i]) map.h[i] = Math.max(0, heightFt);
+      });
     });
     var interpretedBlocked = blueprint.source && blueprint.source.interpretation
       && blueprint.source.interpretation.blockedCells || [];
@@ -711,6 +774,17 @@
     (map.meta && map.meta.edgeBlockers || []).forEach(function (edge) {
       if (!normalizeEdge(edge.edge) || edge.a.c < 0 || edge.a.r < 0 || edge.a.c >= map.cols || edge.a.r >= map.rows) errors.push("invalid edge blocker " + edge.id);
     });
+    (map.connectors || []).forEach(function (connector) {
+      if (!connector || !connector.kind || !Array.isArray(connector.path) || connector.path.length < 2) {
+        errors.push("invalid connector " + (connector && connector.id || "unknown")); return;
+      }
+      connector.path.forEach(function (cell) {
+        if (!Number.isInteger(cell.c) || !Number.isInteger(cell.r) || cell.c < 0 || cell.r < 0
+          || cell.c >= map.cols || cell.r >= map.rows || map.wall[idx(map.cols, cell.c, cell.r)]) {
+          errors.push("invalid connector cell " + connector.id);
+        }
+      });
+    });
     return { ok: errors.length === 0, errors: errors };
   }
   function reachable(map, start) {
@@ -738,6 +812,41 @@
       open: open.length,
       missing: missing,
       reason: open.length ? null : "first room required"
+    };
+  }
+  function tacticalConnectivity(map) {
+    var open = [], start = null, seen = {}, queue = [], segments = {};
+    function segmentKey(a, b) { return key(a.c, a.r) + ">" + key(b.c, b.r); }
+    (map.connectors || []).forEach(function (connector) {
+      if (!connector || connector.state === "closed" || connector.state === "broken") return;
+      var requires = connector.requires || {};
+      if (requires.fly || requires.climb || requires.swim || requires.jump) return;
+      var path = connector.path || [];
+      for (var i = 1; i < path.length; i++) {
+        segments[segmentKey(path[i - 1], path[i])] = true;
+        if (!connector.oneWay) segments[segmentKey(path[i], path[i - 1])] = true;
+      }
+    });
+    for (var r = 0; r < map.rows; r++) for (var c = 0; c < map.cols; c++) {
+      if (!map.wall[idx(map.cols, c, r)]) { open.push(key(c, r)); if (!start) start = { c: c, r: r }; }
+    }
+    if (start) { queue.push(start); seen[key(start.c, start.r)] = true; }
+    while (queue.length) {
+      var at = queue.shift();
+      CARDINAL.forEach(function (step) {
+        var next = { c: at.c + step[0], r: at.r + step[1] }, nextKey = key(next.c, next.r);
+        if (next.c < 0 || next.r < 0 || next.c >= map.cols || next.r >= map.rows
+          || seen[nextKey] || map.wall[idx(map.cols, next.c, next.r)]) return;
+        var riseFt = Math.abs(map.h[idx(map.cols, next.c, next.r)] - map.h[idx(map.cols, at.c, at.r)]);
+        if (riseFt > 5 && !segments[segmentKey(at, next)]) return;
+        seen[nextKey] = true; queue.push(next);
+      });
+    }
+    var missing = open.filter(function (cellKey) { return !seen[cellKey]; });
+    return {
+      ok: open.length > 0 && missing.length === 0,
+      reachable: Object.keys(seen).length, open: open.length, missing: missing,
+      reason: !open.length ? "first room required" : missing.length ? missing.length + " elevation-isolated cells" : null
     };
   }
   function chunkFor(blueprint, c, r) {
@@ -1199,7 +1308,7 @@
     normalizeEdge: normalizeEdge, edgeRotation: edgeRotation,
     oppositeEdge: oppositeEdge, edgeReferences: edgeReferences,
     pointInPolygon: pointInPolygon, corridorCells: corridorCells, cellRegions: cellRegions,
-    compile: compile, validateMap: validateMap, reachable: reachable, connectivity: connectivity,
+    compile: compile, validateMap: validateMap, reachable: reachable, connectivity: connectivity, tacticalConnectivity: tacticalConnectivity,
     chunkFor: chunkFor, chunkCount: chunkCount, editCell: editCell, changeZone: changeZone,
     spaceBounds: spaceBounds, addRoom: addRoom, connectSpaces: connectSpaces,
     addPassage: addPassage, removePassage: removePassage, changeSpace: changeSpace,

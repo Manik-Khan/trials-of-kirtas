@@ -54,7 +54,9 @@ unfinished job, tracked in `CONTEXT_Forge.md` §3.
   Global: `window.TacticsGeo`.
 - **forge-blueprint.js** — the production `forge-blueprint/v1` document,
   graph-first producer, direct-edit, exact-handoff, and tactical compiler
-  authority. Global: `window.ForgeBlueprint`.
+  authority. Generated elevation changes carry deterministic stair connector
+  paths; `tacticalConnectivity()` audits height-aware movement rather than only
+  flat adjacency. Global: `window.ForgeBlueprint`.
 - **forge-image-importer.js** and **forge-image-structure-review.js** — local
   pixel evidence and DM-authored image review. Pixel proposals never become
   semantic rules authority by themselves.

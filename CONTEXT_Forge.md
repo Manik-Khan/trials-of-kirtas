@@ -53,6 +53,16 @@ folding duplicate shelf tiles, including Cosmere's Agonizing Blast modifier.
 Derivation exceptions remain disabled error kits rather than silent starter-kit
 substitutions.
 
+The August 8 Blueprint field correction makes generated vertical transitions
+first-class. The earlier producer emitted stair-shaped architecture markers but
+compiled no connector, rendered no steps, and audited only 2D adjacency. Seed
+1847's Vault could therefore strand a foe on its raised room while reporting
+connected. `forge-blueprint/v1` generated maps now carry deterministic stair
+connector paths and their elevation points into the tactical field;
+`BP.tacticalConnectivity()` audits actual 5-ft steps and authorized connector
+segments; Combat renders those runs and uses that audit for fight gating. The
+licensed imported-map and multi-surface field gates remain separate.
+
 M approved the standalone shared-capability architecture mock on July 24.
 `forge/forge-capabilities.js?v=fc2` is now the versioned character-side
 contract. `forge-kit-derive.js?v=b17` attaches a `forge-capability/v1` ledger

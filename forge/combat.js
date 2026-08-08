@@ -327,13 +327,15 @@ const candleGeometry = new THREE.CylinderGeometry(0.025, 0.03, 0.23, 7);
 const flameGeometry = new THREE.ConeGeometry(0.035, 0.11, 7);
 const selectionAxisGeometry = new THREE.BoxGeometry(0.72, 0.025, 0.07);
 const importVolumeGeometry = new THREE.BoxGeometry(1, 1, 1);
+const stairStepGeometry = new THREE.BoxGeometry(0.86, 0.09, 0.22);
 [
   floorGeometry, wallGeometryNS, wallGeometryEW, cutGeometryNS, cutGeometryEW,
   lowWallGeometryNS, lowWallGeometryEW, doorGeometryNS, doorGeometryEW,
   pillarGeometry, rubbleGeometry, crateGeometry, brazierGeometry, poolGeometry, tokenGeometry,
   stoneBlockNS, stoneBlockEW, stoneCapNS, stoneCapEW, pewSeatGeometry, pewBackGeometry,
   altarBaseGeometry, altarSlabGeometry, reliquaryGeometry, statueBodyGeometry, statueHeadGeometry,
-  fontBaseGeometry, fontBowlGeometry, candleGeometry, flameGeometry, selectionAxisGeometry, importVolumeGeometry
+  fontBaseGeometry, fontBowlGeometry, candleGeometry, flameGeometry, selectionAxisGeometry, importVolumeGeometry,
+  stairStepGeometry
 ].forEach((geometry) => { geometry.userData = { shared: true }; });
 
 function boundaryEdges(c, r) {
@@ -569,6 +571,34 @@ function importedStructureMeshes(group, bounds) {
   });
 }
 
+function addConnectorStairs(group, bounds) {
+  const steps = [];
+  (state.map.connectors || []).filter((connector) => connector.kind === "stairs" && connector.state !== "closed").forEach((connector) => {
+    const path = connector.path || [];
+    for (let index = 1; index < path.length; index++) {
+      const from = path[index - 1], to = path[index];
+      const fromFt = Number(from.elevationFt ?? state.map.h[BP.idx(state.map.cols, from.c, from.r)]) || 0;
+      const toFt = Number(to.elevationFt ?? state.map.h[BP.idx(state.map.cols, to.c, to.r)]) || 0;
+      if (fromFt === toFt || to.c < bounds.minC || to.c >= bounds.maxC || to.r < bounds.minR || to.r >= bounds.maxR) continue;
+      const count = Math.max(5, Math.min(12, Math.round(Math.abs(toFt - fromFt))));
+      for (let step = 0; step < count; step++) {
+        const amount = (step + 0.5) / count;
+        steps.push({
+          c: to.c, r: to.r,
+          x: worldX(from.c) + (worldX(to.c) - worldX(from.c)) * amount,
+          z: worldZ(from.r) + (worldZ(to.r) - worldZ(from.r)) * amount,
+          y: rise(fromFt + (toFt - fromFt) * amount) + 0.065,
+          rotation: from.c !== to.c ? Math.PI / 2 : 0
+        });
+      }
+    }
+  });
+  addInstances(group, stairStepGeometry, mats.wallTop, steps, (matrix, record) => {
+    matrix.makeRotationY(record.rotation);
+    matrix.setPosition(record.x, record.y, record.z);
+  });
+}
+
 function buildChunk(chunkC, chunkR, animate = false) {
   const chunkKey = chunkC + "," + chunkR;
   const old = state.chunks.get(chunkKey);
@@ -596,6 +626,7 @@ function buildChunk(chunkC, chunkR, animate = false) {
     matrix.makeScale(1, 0.3, 1);
     matrix.setPosition(worldX(record.c), -0.035, worldZ(record.r));
   });
+  addConnectorStairs(group, bounds);
   const sets = architectureSets(bounds);
   if (state.quality === "basic") {
     addInstances(group, wallGeometryNS, mats.wall, sets.wallsNS, (m, value) => wallTransform(m, value, 1.65, 0.46));
@@ -1034,7 +1065,7 @@ function updateMetrics() {
 }
 function audit() {
   const valid = BP.validateMap(state.map);
-  const connectivity = BP.connectivity(state.map);
+  const connectivity = BP.tacticalConnectivity(state.map);
   ui.contractStatus.textContent = valid.ok ? "field valid" : "field invalid";
   ui.contractStatus.className = "status " + (valid.ok ? "good" : "bad");
   ui.connectivityStatus.textContent = connectivity.ok ? "connected" : connectivity.reason || connectivity.missing.length + " isolated";
@@ -1525,7 +1556,7 @@ function loadImportedUnderlay() {
 function updateSourceReceipt() {
   const summary = sourceSummary();
   const valid = BP.validateMap(state.map);
-  const connected = BP.connectivity(state.map);
+  const connected = BP.tacticalConnectivity(state.map);
   ui.sourceReceipt.textContent = summary.title;
   ui.sourceReceiptDetail.textContent = "forge-blueprint/v1 · "
     + (connected.ok ? "connected" : connected.reason || "needs repair") + " · "
@@ -2323,7 +2354,7 @@ function prepareLocalCombat() {
   const party = selectedParty();
   if (!party.length) { updateFightGate("Choose at least one combat-ready character first.", true); return; }
   refreshDocument();
-  const connectivity = BP.connectivity(state.map);
+  const connectivity = BP.tacticalConnectivity(state.map);
   if (!connectivity.ok) { updateFightGate("The map is not yet a connected tactical field: " + connectivity.reason, true); return; }
   const deployment = LocalCombat.deployCombatants(state.map, party, BP.copy(LocalCombat.TRAINING_FOES), state.groups);
   if (!deployment.ok) { updateFightGate(deployment.errors.join(" "), true); return; }
@@ -2569,7 +2600,7 @@ function commitRoom(from, to) {
   rebuildAll();
   updateDirectUI();
   recordHistory("Room drawn");
-  const connectivity = BP.connectivity(state.map);
+  const connectivity = BP.tacticalConnectivity(state.map);
   ui.chunkStatus.textContent = connectivity.ok ? "first room drawn · connected" : connectivity.reason;
   ui.chunkStatus.className = "status " + (connectivity.ok ? "good" : "bad");
 }
@@ -3499,7 +3530,7 @@ window.__forgeCombatState = () => ({
   structuralFingerprint: BP.structuralFingerprint(state.blueprint),
   spaces: state.blueprint.spaces.length,
   corridors: state.blueprint.corridors.length,
-  connected: BP.connectivity(state.map).ok,
+  connected: BP.tacticalConnectivity(state.map).ok,
   mode: state.mode,
   tool: state.layoutTool,
   view: state.view,

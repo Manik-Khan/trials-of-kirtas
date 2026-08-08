@@ -1537,6 +1537,28 @@ regressions pass **430/430** across 14 additional suites. Browser automation
 remains blocked for local `file://`; the city and ungridded-camp manual replay
 is still required before calling the visual field gate passed.
 
+### Generated stair and tactical-connectivity correction · 2026-08-08
+
+Baseline `8557d92` was clean. M's Seed 1847 Vault field run proved that the
+map's elevation rendered, but generated stair records were neither compiled as
+connectors nor drawn, and the 2D Blueprint connectivity audit ignored height.
+The highest room was therefore split from the real movement field even while
+the receipt said connected.
+
+Generated elevation-changing passages now own deterministic `stairs`
+connectors whose cardinal paths carry explicit 5-ft elevation points. The
+compiler preserves them in `map.connectors` and applies their height path;
+`BP.tacticalConnectivity()` checks actual elevation transitions plus authorized
+connector segments. Combat uses that result for map receipts and fight gating,
+and renders visible stone step runs at each rise. On all three Seed 1847
+candidates, the real `TacticsGeo.movementReach()` field connects the highest
+room to ground; every Vault room cell reaches its lower landing within 30 feet.
+
+The changed focused suites pass **174/174** and 13 additional Blueprint,
+importer, image-combat, render-truth, surfaces, deployment, engine, map-bridge,
+LoS/cover, placement, and flora suites pass **402/402**. Browser visual replay
+of the new stair meshes remains the final field gate.
+
 The remaining gates are:
 
 1. **Passed August 1.** M approved the stable surface identity and the first
@@ -1648,8 +1670,8 @@ while this visual architecture is being settled.
 ## Deployment discipline
 
 M reviews, commits, and pushes. Codex does not push. Current slice stamps:
-`forge-blueprint.js?v=bp3`, `combat.css?v=fc2`,
-`combat.js?v=fc2`, `forge-combat-local.js?v=fcl1`,
+`forge-blueprint.js?v=bp4`, `combat.css?v=fc2`,
+`combat.js?v=fc3`, `forge-combat-local.js?v=fcl1`,
 `forge-image-importer.js?v=fii1`,
 `forge-image-structure-review.js?v=fis1`,
 `forge-image-blueprint.js?v=fib1`, `import.css?v=fi1`, and

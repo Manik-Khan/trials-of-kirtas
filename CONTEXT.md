@@ -72,6 +72,17 @@ copied into the repository or embedded in the Blueprint; Combat restores only
 a private downsampled session underlay. Cancelling import returns the exact
 current Blueprint and Build edits.
 
+**Generated stair correction:** the August 8 Seed 1847 Vault field report
+exposed a false connectivity pass: generated elevation changes carried
+decorative stair records, but no compiled connector or visible stair geometry,
+so a deployed foe could be isolated on its platform. Generated passages now
+own deterministic stair paths with explicit 5-ft elevation points. The
+compiler carries those connectors into the tactical field, Combat audits
+height-aware connectivity, Board renders the step runs, and the real movement
+rules can descend from every elevated Seed 1847 candidate room. This changes
+the canonical fingerprint of newly generated maps while preserving exact replay
+for the corrected seed/candidate pair.
+
 The two July 30 field maps proved intentionally different paths. Auto found a
 confident but wrong two-square harmonic on the gridded city source; the new
 Combat-style one-square drag established the correct 70-source-pixel phase and

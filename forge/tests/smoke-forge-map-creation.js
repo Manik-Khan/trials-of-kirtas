@@ -4,6 +4,7 @@ const path = require("path");
 
 const forgeDir = path.join(__dirname, "..");
 const BP = require(path.join(forgeDir, "forge-blueprint.js"));
+const TG = require(path.join(forgeDir, "tactics-geometry.js"));
 const ImageBlueprint = require(path.join(forgeDir, "forge-image-blueprint.js"));
 const combatHtml = fs.readFileSync(path.join(forgeDir, "combat.html"), "utf8");
 const combatJs = fs.readFileSync(path.join(forgeDir, "combat.js"), "utf8");
@@ -19,11 +20,48 @@ const options = { seed: 1847, topology: "auto", size: "medium", density: 6, vert
 const candidates = [0, 1, 2].map((candidate) => BP.produceSeeded({ ...options, candidate }));
 ok("one generation creates three structurally distinct directions",
   new Set(candidates.map(BP.structuralFingerprint)).size === 3);
-ok("every generated direction is a valid connected tactical field",
+ok("every generated direction is a valid height-connected tactical field",
   candidates.every((blueprint) => {
     const map = BP.compile(blueprint, {});
-    return BP.validateMap(map).ok && BP.connectivity(map).ok;
+    return BP.validateMap(map).ok && BP.tacticalConnectivity(map).ok;
   }));
+ok("generated elevation changes own explicit stair paths",
+  candidates.every((blueprint) => {
+    const elevations = new Set(blueprint.spaces.map((space) => space.elevationFt));
+    return elevations.size < 2 || (blueprint.connectors || []).some((connector) =>
+      connector.kind === "stairs" && connector.path.length > 1
+      && new Set(connector.path.map((cell) => cell.elevationFt)).size > 1);
+  }));
+const vaultMap = BP.compile(candidates[2], {});
+const vaultOpen = [];
+for (let r = 0; r < vaultMap.rows; r++) for (let c = 0; c < vaultMap.cols; c++) {
+  const heightFt = vaultMap.h[BP.idx(vaultMap.cols, c, r)];
+  if (!vaultMap.wall[BP.idx(vaultMap.cols, c, r)]) vaultOpen.push({ c, r, heightFt });
+}
+const vaultHigh = vaultOpen.reduce((highest, cell) => cell.heightFt > highest.heightFt ? cell : highest, vaultOpen[0]);
+const vaultReach = TG.movementReach(vaultMap, { c: vaultHigh.c, r: vaultHigh.r }, new Set(), 6);
+ok("Seed 1847 Vault can reach its lower landing in one 30-ft move",
+  Object.keys(vaultReach).some((cellKey) => {
+    const [c, r] = cellKey.split(",").map(Number);
+    return vaultMap.h[BP.idx(vaultMap.cols, c, r)] < vaultHigh.heightFt;
+  }));
+const generatedStress = [];
+for (let seed = 1; seed <= 60; seed++) {
+  const blueprint = BP.produceSeeded({
+    seed, candidate: seed % 3, topology: "auto",
+    size: ["small", "medium", "large"][seed % 3], density: 3 + seed % 7,
+    verticality: ["subtle", "meaningful", "dramatic"][seed % 3]
+  });
+  const map = BP.compile(blueprint, {}), open = [];
+  for (let r = 0; r < map.rows; r++) for (let c = 0; c < map.cols; c++) {
+    if (!map.wall[BP.idx(map.cols, c, r)]) open.push({ c, r });
+  }
+  const reachable = TG.movementReach(map, open[0], new Set(), map.cols * map.rows);
+  generatedStress.push(BP.validateMap(map).ok && BP.tacticalConnectivity(map).ok
+    && Object.keys(reachable).length === open.length - 1);
+}
+ok("60 varied generated fields are connected under the real movement rules",
+  generatedStress.every(Boolean));
 ok("the same seed and candidate reproduce the exact Blueprint",
   BP.stableStringify(candidates[1]) === BP.stableStringify(BP.produceSeeded({ ...options, candidate: 1 })));
 ok("requesting new directions changes the deterministic candidate set",
@@ -98,5 +136,9 @@ ok("the modular renderer consumes confirmed image structures without changing or
   combatJs.includes("function importedStructureMeshes")
   && combatJs.includes("if (!review?.regions) return")
   && combatJs.includes("state.blueprint.source?.structureReview ? [] : boundaryEdges"));
+ok("the production Board renders generated connector stairs",
+  combatJs.includes("function addConnectorStairs")
+  && combatJs.includes("stairStepGeometry")
+  && combatJs.includes("addConnectorStairs(group, bounds)"));
 
 console.log(`\n${passed} Forge map-creation checks passed`);
