@@ -98,4 +98,4 @@ ok("all creation-flow assets carry current cache stamps",
   && html.includes("mock-forge-blueprint-diorama-creation.js?v=cf4")
   && html.includes("mock-forge-blueprint-diorama-core.js?v=bp18"));
 
-console.log("\n" + passed + " Map Foundry creation-flow checks passed");
+console.log("\n" + passed + " Forge map-creation checks passed");

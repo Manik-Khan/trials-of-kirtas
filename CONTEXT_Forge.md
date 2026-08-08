@@ -130,7 +130,7 @@ fork into visual-only substitutes.
 
 The contract below is retained as the acceptance record for the implemented
 Blueprint/Diorama proof. Its out-of-slice boundary applied to that July 28
-build; the July 30 Map Foundry section below now owns the next isolated work.
+build; the July 30 Forge map-creation section below now owns the next isolated work.
 
 Build one new standalone, no-production-coupling mock:
 `_edits/mock-forge-blueprint-diorama.html`. It may use companion files with the
@@ -190,10 +190,10 @@ visual proof.
 
 ## LOCAL MAP-CREATION PROOF CANDIDATE · 2026-07-30
 
-M approved the Map Foundry creation experience as a separate opening section:
+M approved the Forge map-creation experience as a separate opening section:
 **Generate**, **Templates**, **Import a map**, and **Blank map** are four
 equally visible starting doors, and every door converges on the same editable
-`forge-blueprint/v1` before Map → Populate → Play. Beginner controls come
+`forge-blueprint/v1` before Map → Characters → Combat. Beginner controls come
 first; optional advanced controls expose seeds and deeper structure without
 making them prerequisites.
 

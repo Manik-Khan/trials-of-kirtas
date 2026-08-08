@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Forge Map Foundry · Trials of Kirtas</title>
+<title>Forge Combat · Trials of Kirtas</title>
 <script type="importmap">
 {
   "imports": {
@@ -13,12 +13,12 @@
   }
 }
 </script>
-<link rel="stylesheet" href="map-foundry.css?v=mf2">
+<link rel="stylesheet" href="combat.css?v=fc1">
 </head>
 <body>
 <header class="masthead">
   <div class="brand">
-    <span class="eyebrow">Battle Forge · guarded Map Foundry</span>
+    <span class="eyebrow">Battle Forge · Map + Combat</span>
     <h1>From idea to table</h1>
   </div>
   <div class="view-switch" role="group" aria-label="Blueprint view">
@@ -125,13 +125,13 @@
   <aside class="workbench">
     <section class="workbench-heading">
       <span class="kicker">Forge Blueprint / v1</span>
-      <h2>Map Foundry</h2>
+      <h2>The Forge</h2>
       <p id="workflowStatus">Choose how this battlefield begins.</p>
     </section>
     <nav class="workflow-tabs primary-workflow" aria-label="Forge workspace">
       <button type="button" class="active" data-workflow="map"><span>01</span>Map</button>
-      <button type="button" data-workflow="encounter"><span>02</span>Populate</button>
-      <button type="button" data-workflow="present"><span>03</span>Play</button>
+      <button type="button" data-workflow="encounter"><span>02</span>Characters</button>
+      <button type="button" data-workflow="present"><span>03</span>Combat</button>
     </nav>
 
     <div class="workflow-page workspace-page active" data-workflow-page="map">
@@ -157,6 +157,10 @@
             <button type="button" data-quick-map="blank">Blank</button>
           </div>
           <small>Import and generation remain starting options—not separate stages you must complete.</small>
+        </section>
+        <section class="panel next-step combat-entry">
+          <span>Battlefield ready?</span>
+          <button type="button" class="action primary" data-continue="encounter">Choose characters →</button>
         </section>
         <section class="panel direct-builder">
           <div class="section-head"><div><span class="step">01</span><h3>Direct build</h3></div><span class="status" id="directBuildStatus">Browse safe</span></div>
@@ -292,7 +296,7 @@
             <option value="warren">Branching</option>
           </select></label>
         </div>
-        <p class="hint">This guarded Foundry uses the deterministic graph-first producer. Size, density, verticality, seed, and three-candidate controls remain available here.</p>
+        <p class="hint">The Forge uses the deterministic graph-first producer. Size, density, verticality, seed, and three-candidate controls remain available here.</p>
         <button type="button" class="action primary wide" id="createSeeded">Generate Blueprint</button>
       </section>
       <section class="panel source-detail" data-source-detail="import" hidden>
@@ -415,19 +419,19 @@
     </div>
 
     <div class="workflow-page" data-workflow-page="encounter" hidden>
-      <section class="panel intro"><span class="kicker">Run the idea</span><h2>Stage what happens here.</h2><p>Creatures, discovery, and reveal order sit on the finished environment without changing its structure.</p></section>
+      <section class="panel intro"><span class="kicker">Choose the party</span><h2>Who enters the battle?</h2><p>Select campaign characters, place each side, and begin combat on this exact map.</p></section>
       <section class="panel roster-panel">
-        <div class="section-head"><div><span class="step">02</span><h3>Campaign characters</h3></div><span class="status" id="foundryRosterStatus">loading</span></div>
-        <p class="hint">Choose the real characters entering this local test. Their current HP, AC, speed, initiative, and one recorded attack come from the shared character authority.</p>
-        <div id="foundryRoster" class="foundry-roster" aria-live="polite"></div>
+        <div class="section-head"><div><span class="step">02</span><h3>Campaign characters</h3></div><span class="status" id="combatRosterStatus">loading</span></div>
+        <p class="hint">Choose the real characters entering combat. Their current HP, AC, speed, initiative, and one recorded attack come from the shared character authority.</p>
+        <div id="combatRoster" class="combat-roster" aria-live="polite"></div>
       </section>
       <section class="panel encounter-card">
         <div class="section-head"><div><span class="step">04</span><h3>Encounter groups</h3></div><span class="status good" id="spawnStatus">2 / 2 flags placed</span></div>
         <p class="hint">The existing Forge flow stays intact: choose membership and role, then place one group flag. Formation resolves around it without placing every creature by hand.</p>
         <div id="deploymentGroups" class="deployment-groups"></div>
         <p class="flag-message" id="flagMessage">Choose “Move flag” to restage a group. Browse mode remains safe for normal inspection.</p>
-        <button type="button" class="action primary wide" id="prepareFoundryFight" disabled>Prepare local test fight</button>
-        <p class="fight-gate" id="foundryFightGate">Choose at least one combat-ready character. This proof does not create a shared session or write combat results back to a sheet.</p>
+        <button type="button" class="action primary wide" id="prepareLocalCombat" disabled>Start local combat</button>
+        <p class="fight-gate" id="combatFightGate">Choose at least one combat-ready character. Local combat does not create a shared session or write results back to a sheet.</p>
       </section>
       <section class="panel">
         <div class="section-head"><div><span class="step">↳</span><h3>Discovery sequence</h3></div><span class="status" id="idleStatus">idle</span></div>
@@ -438,21 +442,21 @@
           <button type="button" class="action" id="focusHero" disabled title="Reveal the Raised Choir first">Focus Choir</button>
         </div>
       </section>
-      <section class="panel next-step"><span>Ready for players?</span><button type="button" class="action primary" data-continue="present">Choose presentation →</button></section>
+      <section class="panel next-step"><span>Party ready?</span><button type="button" class="action primary" data-continue="present">Enter combat →</button></section>
     </div>
 
     <div class="workflow-page" data-workflow-page="present" hidden>
-      <section class="panel intro"><span class="kicker">One map · several experiences</span><h2>How should this location read?</h2><p>The DM recommends a composition; players retain the practical top-down view.</p></section>
+      <section class="panel intro"><span class="kicker">Run the encounter</span><h2>Combat on the authored battlefield.</h2><p>Movement, targets, turns, and attacks use the same map and height-aware coordinates.</p></section>
       <section class="panel fight-panel">
-        <div class="section-head"><div><span class="step">03</span><h3>Local fight proof</h3></div><span class="status" id="foundryFightStatus">not prepared</span></div>
-        <p class="hint" id="foundryFightInstruction">Prepare the encounter in Populate. The fight will use this exact Blueprint field without changing the authored map.</p>
-        <div id="foundryTurn" class="foundry-turn" hidden></div>
-        <div id="foundryCombatants" class="foundry-combatants"></div>
+        <div class="section-head"><div><span class="step">03</span><h3>Combat</h3></div><span class="status" id="combatFightStatus">not prepared</span></div>
+        <p class="hint" id="combatFightInstruction">Choose characters first. Combat will use this exact Blueprint field without changing the authored map.</p>
+        <div id="combatTurn" class="combat-turn" hidden></div>
+        <div id="combatCombatants" class="combat-combatants"></div>
         <div class="fight-actions">
-          <button type="button" class="action primary" id="foundryAttack" disabled>Attack selected opponent</button>
-          <button type="button" class="action" id="foundryEndTurn" disabled>End turn</button>
+          <button type="button" class="action primary" id="combatAttack" disabled>Attack selected opponent</button>
+          <button type="button" class="action" id="combatEndTurn" disabled>End turn</button>
         </div>
-        <div id="foundryFightLog" class="foundry-fight-log" aria-live="polite"></div>
+        <div id="combatFightLog" class="combat-fight-log" aria-live="polite"></div>
       </section>
       <section class="panel presentation-list">
         <button type="button" class="presentation active" data-presentation="table"><b>◫</b><span><strong>Table</strong><small>Rotatable orthographic-style diorama</small></span></button>
@@ -471,10 +475,10 @@
         </dl>
         <details><summary>Compiler contract</summary><code>{cols, rows, h, wall, occ, coverShape, spawns, props, meta}</code></details>
       </section>
-      <section class="panel receipt"><span class="kicker">Guarded production candidate</span><strong>Blueprint, renderer, and tactical field agree.</strong><small>Local combat is under field test. Persistence, reconnect, and multiplayer remain gates before this replaces the legacy Workshop by default.</small><a href="index.html?legacy=1">Return to legacy Workshop</a></section>
+      <section class="panel receipt"><span class="kicker">Forge Combat field test</span><strong>Blueprint, renderer, and tactical field agree.</strong><small>Local combat is ready to test here. Persistence, reconnect, and multiplayer remain separate gates for shared sessions.</small><a href="index.html?legacy=1">Open legacy Workshop</a></section>
     </div>
 
-    <footer><span>Code-native sample artwork · no imported assets</span><span>Three.js r185.1 · guarded Foundry</span></footer>
+    <footer><span>Code-native sample artwork · no imported assets</span><span>Three.js r185.1 · Forge Combat</span></footer>
   </aside>
 </main>
 
@@ -487,8 +491,8 @@
 <script src="forge-deployment.js?v=fd3"></script>
 <script src="tactics-geometry.js?v=tg1"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
-<script src="forge-foundry-fight.js?v=fff1"></script>
-<script src="forge-blueprint.js?v=bp1"></script>
-<script type="module" src="map-foundry.js?v=mf2"></script>
+<script src="forge-combat-local.js?v=fcl1"></script>
+<script src="forge-blueprint.js?v=bp2"></script>
+<script type="module" src="combat.js?v=fc1"></script>
 </body>
 </html>

@@ -5,13 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>The Forge — Trials of Kirtas</title>
 <script>
-/* Guarded Map Foundry field path. Live multiplayer sessions and an explicit
-   legacy request remain on the current Workshop until fight/reconnect pass. */
+/* Forge Combat is the normal authoring entry. Live multiplayer sessions,
+   explicit legacy requests, and Workshop developer views remain here. */
 (function () {
   var params = new URLSearchParams(window.location.search);
-  if (params.get("foundry") !== "1" || params.has("session") || params.get("legacy") === "1") return;
+  var workshopFlags = ["surfaces", "render", "storybook", "parallax", "landmarks", "fxlights", "readiness", "lightmul"];
+  var keepWorkshop = params.has("session") || params.get("legacy") === "1"
+    || workshopFlags.some(function (flag) { return params.has(flag); });
+  if (keepWorkshop) return;
+  var explicitCombat = params.get("combat") === "1";
+  if (window.location.search && !explicitCombat) return;
   var handoff = window.location.hash || "";
-  window.location.replace("map-foundry.html" + handoff);
+  window.location.replace("combat.html" + handoff);
 })();
 </script>
 <!-- Phase 2f.4: structural-bridge authority + Workshop diagnostics visibility -->

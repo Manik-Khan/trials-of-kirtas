@@ -5,7 +5,7 @@ Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify 
 Walled React/Vite/TipTap corner at `journal/`.
 
 Updated: **August 1, 2026 (approved Forge Blueprint → Scrawl → modular-diorama
-proof, approved Map Foundry creation UX, validated local graph-generator →
+proof, approved Forge map-creation UX, validated local graph-generator →
 exact Build proof candidate, Forge field-report correction, approved
 reaction/cover integration, disposable Test Fight production candidate,
 shared character capability contract, and the first typed-defense/teleport
@@ -29,7 +29,7 @@ Cache-stamp every module include (`?v=`) — non-negotiable on iOS.
 
 ---
 
-## 🟡 Forge Blueprint/Diorama + Map Foundry direction approved — July 28–30
+## 🟡 Forge Blueprint/Diorama + map-creation direction approved — July 28–30
 
 M approved replacing the next “more random cubes” step with a neutral
 `forge-blueprint/v1` architecture. Drawing, later import/tracing, and the future
@@ -44,7 +44,7 @@ modular diorama; Build keeps Shape, Look, Objects, and Areas within reach; local
 room/passage/wall/ledge/door/object/area editing, authoring visibility,
 cutaway, discovery, grid, undo/redo, and quality evidence share that document.
 
-M also approved the streamlined Map Foundry creation UX as its own opening
+M also approved the streamlined Forge map-creation UX as its own opening
 section. `_edits/mock-forge-blueprint-diorama-creation.html` presents Generate,
 Templates, Import, and Blank as four equal doors that converge on
 `forge-blueprint/v1` before Build.

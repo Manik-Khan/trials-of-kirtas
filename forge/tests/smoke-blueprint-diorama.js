@@ -14,7 +14,7 @@ function ok(name, value) {
 }
 
 ok("schema is the approved forge-blueprint/v1", BP.SCHEMA === "forge-blueprint/v1");
-ok("the foundry presents one three-part Map, Populate, Play workflow",
+ok("the original proof presents one three-part Map, Populate, Play workflow",
   /data-workflow="map"/.test(proofHtml) && />Populate</.test(proofHtml) && />Play</.test(proofHtml));
 ok("Map keeps layout, appearance, objects, and reveal areas together",
   ["layout", "appearance", "objects", "areas"].every((tab) => proofHtml.includes('data-map-tab="' + tab + '"')));

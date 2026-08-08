@@ -5,11 +5,11 @@ const path = require("path");
 const root = path.join(__dirname, "..", "..");
 const forgeDir = path.join(root, "forge");
 const BP = require(path.join(forgeDir, "forge-blueprint.js"));
-const Fight = require(path.join(forgeDir, "forge-foundry-fight.js"));
+const Fight = require(path.join(forgeDir, "forge-combat-local.js"));
 const vesperian = require(path.join(root, "data", "characters", "vesperian.json"));
 const cosmere = require(path.join(root, "data", "characters", "cosmere.json"));
-const foundryHtml = fs.readFileSync(path.join(forgeDir, "map-foundry.html"), "utf8");
-const foundryJs = fs.readFileSync(path.join(forgeDir, "map-foundry.js"), "utf8");
+const combatHtml = fs.readFileSync(path.join(forgeDir, "combat.html"), "utf8");
+const combatJs = fs.readFileSync(path.join(forgeDir, "combat.js"), "utf8");
 
 let passed = 0;
 function ok(name, value) {
@@ -74,13 +74,13 @@ ok("a real named attack resolves through range, sight, cover, and combat rules",
   attack.ok && /Eldritch Blast/.test(attack.message) && attack.fight.units.find((unit) => unit.unit === "cosmere").acted);
 ok("end turn advances the local initiative loop", Fight.activeUnit(Fight.endTurn(attack.fight)).unit !== "cosmere");
 
-ok("Foundry exposes roster, placement, and local fight controls",
-  ["foundryRoster", "prepareFoundryFight", "foundryAttack", "foundryEndTurn", "foundryFightLog"]
-    .every((id) => foundryHtml.includes('id="' + id + '"')));
+ok("Combat exposes roster, placement, and local fight controls",
+  ["combatRoster", "prepareLocalCombat", "combatAttack", "combatEndTurn", "combatFightLog"]
+    .every((id) => combatHtml.includes('id="' + id + '"')));
 ok("browser integration reads characters but contains no combat write path",
-  foundryJs.includes("CharacterData.loadParty()") && foundryJs.includes("CharacterData.loadLayout()")
-  && !foundryJs.includes("CharacterData.save(") && !foundryJs.includes(".from('forge_") && !foundryJs.includes('.from("forge_'));
+  combatJs.includes("CharacterData.loadParty()") && combatJs.includes("CharacterData.loadLayout()")
+  && !combatJs.includes("CharacterData.save(") && !combatJs.includes(".from('forge_") && !combatJs.includes('.from("forge_'));
 ok("runtime tokens are rendered separately from authored Blueprint spawns",
-  foundryJs.includes("function runtimeSpawns()") && foundryJs.includes("state.fight ? FoundryFight.spawns(state.fight)"));
+  combatJs.includes("function runtimeSpawns()") && combatJs.includes("state.fight ? LocalCombat.spawns(state.fight)"));
 
-console.log("\n" + passed + " Map Foundry local-fight checks passed");
+console.log("\n" + passed + " Forge Combat local-fight checks passed");

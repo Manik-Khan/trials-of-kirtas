@@ -1,5 +1,5 @@
-/* forge-foundry-fight.js
-   Guarded local-fight seam for Map Foundry. Real character rows are projected
+/* forge-combat-local.js
+   Guarded local-fight seam for Forge Combat. Real character rows are projected
    onto the accepted Blueprint field; combat state never mutates the Blueprint. */
 (function (root, factory) {
   var Deploy = typeof module !== "undefined" && module.exports ? require("./forge-deployment.js") : root.ForgeDeployment;
@@ -8,7 +8,7 @@
   var CharacterCombat = typeof module !== "undefined" && module.exports ? require("../character-combat.js") : root.CharacterCombat;
   var api = factory(Deploy, TG, Combat, CharacterCombat);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
-  if (root) root.ForgeFoundryFight = api;
+  if (root) root.ForgeCombatLocal = api;
 })(typeof window !== "undefined" ? window : globalThis, function (Deploy, TG, Combat, CharacterCombat) {
   "use strict";
 

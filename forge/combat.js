@@ -3,9 +3,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 const BP = window.ForgeBlueprint;
 if (!BP) throw new Error("Forge Blueprint authority did not load");
-const FoundryFight = window.ForgeFoundryFight;
+const LocalCombat = window.ForgeCombatLocal;
 const PartySelection = window.ForgePartySelection;
-if (!FoundryFight || !PartySelection) throw new Error("Foundry fight authorities did not load");
+if (!LocalCombat || !PartySelection) throw new Error("Forge Combat authorities did not load");
 
 const QUALITY = Object.freeze({
   basic: { pixelRatio: 1, shadows: false, shadowSize: 512, label: "Basic" },
@@ -32,9 +32,9 @@ const ui = {};
   "pinnedReveal", "pinnedBuild", "pinnedUndo", "pinnedRedo", "browseMode", "buildMode", "buildModeInline", "modeNarration",
   "undoAction", "redoAction", "compareHold", "gridToggle", "gridCellPx", "gridOriginX", "gridOriginY",
   "applyGrid", "gridStatus", "deploymentGroups", "flagMessage", "spawnStatus",
-  "foundryRosterStatus", "foundryRoster", "prepareFoundryFight", "foundryFightGate",
-  "foundryFightStatus", "foundryFightInstruction", "foundryTurn", "foundryCombatants",
-  "foundryAttack", "foundryEndTurn", "foundryFightLog",
+  "combatRosterStatus", "combatRoster", "prepareLocalCombat", "combatFightGate",
+  "combatFightStatus", "combatFightInstruction", "combatTurn", "combatCombatants",
+  "combatAttack", "combatEndTurn", "combatFightLog",
   "buildHandles", "directBuildStatus", "directBuildMode", "layoutToolGuidance", "massBuildCallout",
   "buildBrushRail", "brushTitle", "brushContextHint", "brushExitBuild", "brushUndo", "brushRedo",
   "buildRadial", "radialUndo", "radialRedo", "radialToolLabel",
@@ -100,7 +100,7 @@ function escapeHtml(value) {
   })[character]);
 }
 function runtimeSpawns() {
-  return state.fight ? FoundryFight.spawns(state.fight) : (state.blueprint.spawns || []);
+  return state.fight ? LocalCombat.spawns(state.fight) : (state.blueprint.spawns || []);
 }
 
 const scene = new THREE.Scene();
@@ -814,7 +814,7 @@ function edgeSelectionMesh(c, r, edge, y, material) {
 function drawSelection() {
   while (selectionRoot.children.length) selectionRoot.remove(selectionRoot.children[0]);
   if (state.workflow === "present" && state.fight && !fightFinished()) {
-    const reachable = Object.keys(FoundryFight.reachableForActive(state.fight)).map((value) => {
+    const reachable = Object.keys(LocalCombat.reachableForActive(state.fight)).map((value) => {
       const parts = value.split(",").map(Number);
       return { c: parts[0], r: parts[1] };
     });
@@ -1366,7 +1366,7 @@ function setWorkflow(workflow, preserveView = false) {
   drawScrawl();
   drawArtwork();
   updateAreaInspector();
-  if (workflow === "present") renderFoundryFight();
+  if (workflow === "present") renderLocalCombat();
   requestRender();
 }
 function setMapTab(tab) {
@@ -1426,7 +1426,7 @@ function sourceSummary() {
     title: source.label + " · Untitled Battlefield",
     detail: state.blueprint.spaces.length ? "DM-drawn structure" : "Zero rooms · first room required"
   };
-  return { title: "Topology study · " + state.blueprint.name, detail: "forge-blueprint/v1 · guarded Foundry fixture" };
+  return { title: "Topology study · " + state.blueprint.name, detail: "forge-blueprint/v1 · Forge Combat fixture" };
 }
 function loadImportedUnderlay() {
   importedUnderlayImage = null;
@@ -1522,7 +1522,7 @@ function useBlueprint(blueprint, handoff = null) {
   state.groups = defaultGroups();
   renderReviewFindings();
   if (state.rosterCandidates.length) syncRosterGroups(); else renderDeploymentGroups();
-  renderFoundryFight();
+  renderLocalCombat();
   updateSourceReceipt();
   setLayoutTool("select");
   setRotation(0, false);
@@ -1716,7 +1716,7 @@ function loadFixture(key) {
   state.groups = defaultGroups();
   renderReviewFindings();
   if (state.rosterCandidates.length) syncRosterGroups(); else renderDeploymentGroups();
-  renderFoundryFight();
+  renderLocalCombat();
   setLayoutTool("select");
   setRotation(0, false);
   rebuildAll();
@@ -1991,7 +1991,7 @@ function placeGroupFlag(c, r) {
   ui.flagMessage.textContent = group.label + " placed. Formation resolved around the flag.";
   recordHistory(group.label + " flag placed");
 }
-function ensureFoundryAuth() {
+function ensureCombatAuth() {
   if (window.__tok?.sb && window.__tok?.ready) return window.__tok;
   if (!window.supabase?.createClient) throw new Error("The character service did not load.");
   const query = new URLSearchParams(window.location.search);
@@ -2011,34 +2011,34 @@ function syncRosterGroups() {
   const party = state.groups.find((group) => group.id === "party-main" || group.role === "party");
   const enemy = state.groups.find((group) => group.id === "enemy-main" || group.role === "enemy");
   if (party) party.unitIds = state.selectedPartyKeys.slice();
-  if (enemy) enemy.unitIds = FoundryFight.TRAINING_FOES.map((unit) => unit.unit);
+  if (enemy) enemy.unitIds = LocalCombat.TRAINING_FOES.map((unit) => unit.unit);
   renderDeploymentGroups();
 }
 function updateFightGate(message, bad = false) {
   const ready = selectedParty().length;
-  ui.prepareFoundryFight.disabled = !ready;
-  ui.foundryFightGate.textContent = message || (ready
+  ui.prepareLocalCombat.disabled = !ready;
+  ui.combatFightGate.textContent = message || (ready
     ? ready + " real character" + (ready === 1 ? " is" : "s are") + " ready. Three local training guards will provide the opposing side."
     : "Choose at least one combat-ready character. This proof does not create a shared session or write combat results back to a sheet.");
-  ui.foundryFightGate.className = "fight-gate " + (bad ? "bad" : ready ? "good" : "");
+  ui.combatFightGate.className = "fight-gate " + (bad ? "bad" : ready ? "good" : "");
 }
-function renderFoundryRoster() {
-  ui.foundryRoster.replaceChildren();
+function renderCombatRoster() {
+  ui.combatRoster.replaceChildren();
   const readyCount = state.rosterCandidates.filter((candidate) => candidate.projection.ok).length;
-  ui.foundryRosterStatus.textContent = readyCount + " / " + state.rosterCandidates.length + " ready";
-  ui.foundryRosterStatus.className = "status " + (readyCount ? "good" : "bad");
+  ui.combatRosterStatus.textContent = readyCount + " / " + state.rosterCandidates.length + " ready";
+  ui.combatRosterStatus.className = "status " + (readyCount ? "good" : "bad");
   if (!state.rosterCandidates.length) {
     const empty = document.createElement("div");
-    empty.className = "foundry-roster-empty";
+    empty.className = "combat-roster-empty";
     empty.textContent = "No active characters were found in the Campaign Characters folder.";
-    ui.foundryRoster.appendChild(empty);
+    ui.combatRoster.appendChild(empty);
     updateFightGate();
     return;
   }
   state.rosterCandidates.forEach((candidate) => {
     const projection = candidate.projection, selected = state.selectedPartyKeys.includes(candidate.row.key);
     const label = document.createElement("label");
-    label.className = "foundry-character" + (selected ? " selected" : "") + (projection.ok ? "" : " unready");
+    label.className = "combat-character" + (selected ? " selected" : "") + (projection.ok ? "" : " unready");
     const input = document.createElement("input");
     input.type = "checkbox"; input.checked = selected; input.disabled = !projection.ok;
     const copyBlock = document.createElement("span"), title = document.createElement("strong"), detail = document.createElement("small");
@@ -2046,7 +2046,7 @@ function renderFoundryRoster() {
     detail.textContent = projection.ok
       ? projection.unit.hp + "/" + projection.unit.hpMax + " HP · AC " + projection.unit.ac + " · " + projection.unit.speed + " ft · " + projection.unit.action.label
       : projection.reason;
-    copyBlock.append(title, detail); label.append(input, copyBlock); ui.foundryRoster.appendChild(label);
+    copyBlock.append(title, detail); label.append(input, copyBlock); ui.combatRoster.appendChild(label);
     input.addEventListener("change", () => {
       const next = new Set(state.selectedPartyKeys);
       if (input.checked) next.add(candidate.row.key); else next.delete(candidate.row.key);
@@ -2054,33 +2054,33 @@ function renderFoundryRoster() {
       if (state.fight) {
         state.fight = null; state.fightTarget = null;
         document.querySelector(".stage-shell")?.classList.remove("fight-active");
-        rebuildAll(); renderFoundryFight();
+        rebuildAll(); renderLocalCombat();
       }
-      syncRosterGroups(); renderFoundryRoster(); updateFightGate();
+      syncRosterGroups(); renderCombatRoster(); updateFightGate();
     });
   });
   updateFightGate();
 }
-async function loadFoundryRoster() {
-  ui.foundryRosterStatus.textContent = "loading";
+async function loadCombatRoster() {
+  ui.combatRosterStatus.textContent = "loading";
   try {
-    ensureFoundryAuth();
+    ensureCombatAuth();
     if (!window.CharacterData) throw new Error("Character authority is unavailable.");
     const [party, layout] = await Promise.all([window.CharacterData.loadParty(), window.CharacterData.loadLayout()]);
     const result = PartySelection.candidates(party, layout);
     if (!result.ok) throw new Error(result.reason);
-    state.rosterCandidates = result.rows.map((row) => ({ row, projection: FoundryFight.projectCharacter(row) }));
+    state.rosterCandidates = result.rows.map((row) => ({ row, projection: LocalCombat.projectCharacter(row) }));
     state.selectedPartyKeys = PartySelection.selectedKeys(result.rows, state.selectedPartyKeys);
-    syncRosterGroups(); renderFoundryRoster();
+    syncRosterGroups(); renderCombatRoster();
   } catch (error) {
     state.rosterCandidates = []; state.selectedPartyKeys = [];
-    ui.foundryRosterStatus.textContent = "unavailable";
-    ui.foundryRosterStatus.className = "status bad";
-    ui.foundryRoster.replaceChildren();
+    ui.combatRosterStatus.textContent = "unavailable";
+    ui.combatRosterStatus.className = "status bad";
+    ui.combatRoster.replaceChildren();
     const empty = document.createElement("div");
-    empty.className = "foundry-roster-empty";
-    empty.textContent = "The campaign roster could not be read: " + (error?.message || "unknown error") + " Sign in, then reload this guarded Foundry page.";
-    ui.foundryRoster.appendChild(empty);
+    empty.className = "combat-roster-empty";
+    empty.textContent = "The campaign roster could not be read: " + (error?.message || "unknown error") + " Sign in, then reload Forge Combat.";
+    ui.combatRoster.appendChild(empty);
     updateFightGate("The real roster is required before this local fight can begin.", true);
   }
 }
@@ -2088,77 +2088,77 @@ function fightFinished() {
   if (!state.fight) return false;
   return !state.fight.units.some((unit) => unit.alive && unit.side === "pc") || !state.fight.units.some((unit) => unit.alive && unit.side === "foe");
 }
-function renderFoundryFight() {
-  ui.foundryCombatants.replaceChildren(); ui.foundryFightLog.replaceChildren();
+function renderLocalCombat() {
+  ui.combatCombatants.replaceChildren(); ui.combatFightLog.replaceChildren();
   if (!state.fight) {
-    ui.foundryFightStatus.textContent = "not prepared"; ui.foundryFightStatus.className = "status";
-    ui.foundryFightInstruction.textContent = "Prepare the encounter in Populate. The fight will use this exact Blueprint field without changing the authored map.";
-    ui.foundryTurn.hidden = true; ui.foundryAttack.disabled = true; ui.foundryEndTurn.disabled = true;
+    ui.combatFightStatus.textContent = "not prepared"; ui.combatFightStatus.className = "status";
+    ui.combatFightInstruction.textContent = "Choose characters first. Combat will use this exact Blueprint field without changing the authored map.";
+    ui.combatTurn.hidden = true; ui.combatAttack.disabled = true; ui.combatEndTurn.disabled = true;
     return;
   }
-  const active = FoundryFight.activeUnit(state.fight), finished = fightFinished();
+  const active = LocalCombat.activeUnit(state.fight), finished = fightFinished();
   if (!state.fight.units.some((unit) => unit.unit === state.fightTarget && unit.alive && active && unit.side !== active.side)) state.fightTarget = null;
-  ui.foundryFightStatus.textContent = finished ? "complete" : "round " + state.fight.round;
-  ui.foundryFightStatus.className = "status good";
-  ui.foundryFightInstruction.textContent = finished
+  ui.combatFightStatus.textContent = finished ? "complete" : "round " + state.fight.round;
+  ui.combatFightStatus.className = "status good";
+  ui.combatFightInstruction.textContent = finished
     ? "This local proof is complete. No character sheet or shared session was changed."
     : "Click an open highlighted-reachable cell to move. Click an opposing token or combatant row to target it.";
-  ui.foundryTurn.hidden = false;
-  ui.foundryTurn.replaceChildren();
+  ui.combatTurn.hidden = false;
+  ui.combatTurn.replaceChildren();
   const turnName = document.createElement("strong"), turnDetail = document.createElement("small");
   turnName.textContent = finished ? "Encounter resolved" : active.name + " is active";
   turnDetail.textContent = finished ? "The authored Blueprint remains unchanged." : active.action.label + " · +" + active.action.hit + " to hit · " + active.action.dmg + " · " + active.speed + " ft";
-  ui.foundryTurn.append(turnName, turnDetail);
+  ui.combatTurn.append(turnName, turnDetail);
   state.fight.units.forEach((unit) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "foundry-combatant " + unit.side + (unit === active ? " active" : "") + (unit.unit === state.fightTarget ? " target" : "") + (unit.alive ? "" : " dead");
+    button.className = "combat-combatant " + unit.side + (unit === active ? " active" : "") + (unit.unit === state.fightTarget ? " target" : "") + (unit.alive ? "" : " dead");
     const name = document.createElement("span"), facts = document.createElement("small"), hp = document.createElement("b");
     name.textContent = unit.name; facts.textContent = "AC " + unit.ac + " · init " + unit.initiative + " · " + unit.c + "," + unit.r;
     hp.textContent = unit.hp + "/" + unit.hpMax; button.append(name, facts, hp);
     button.disabled = !unit.alive || finished;
     button.addEventListener("click", () => {
       if (!active || unit.side === active.side) return;
-      state.fightTarget = unit.unit; renderFoundryFight();
+      state.fightTarget = unit.unit; renderLocalCombat();
     });
-    ui.foundryCombatants.appendChild(button);
+    ui.combatCombatants.appendChild(button);
   });
   state.fight.log.slice(-8).forEach((entry) => {
-    const line = document.createElement("p"); line.textContent = entry; ui.foundryFightLog.appendChild(line);
+    const line = document.createElement("p"); line.textContent = entry; ui.combatFightLog.appendChild(line);
   });
-  ui.foundryFightLog.scrollTop = ui.foundryFightLog.scrollHeight;
-  ui.foundryAttack.disabled = finished || !state.fightTarget || active.acted;
-  ui.foundryEndTurn.disabled = finished;
+  ui.combatFightLog.scrollTop = ui.combatFightLog.scrollHeight;
+  ui.combatAttack.disabled = finished || !state.fightTarget || active.acted;
+  ui.combatEndTurn.disabled = finished;
 }
-function prepareFoundryFight() {
+function prepareLocalCombat() {
   const party = selectedParty();
   if (!party.length) { updateFightGate("Choose at least one combat-ready character first.", true); return; }
   refreshDocument();
   const connectivity = BP.connectivity(state.map);
   if (!connectivity.ok) { updateFightGate("The map is not yet a connected tactical field: " + connectivity.reason, true); return; }
-  const deployment = FoundryFight.deployCombatants(state.map, party, BP.copy(FoundryFight.TRAINING_FOES), state.groups);
+  const deployment = LocalCombat.deployCombatants(state.map, party, BP.copy(LocalCombat.TRAINING_FOES), state.groups);
   if (!deployment.ok) { updateFightGate(deployment.errors.join(" "), true); return; }
   const identity = { blueprintId: state.blueprint.id, fingerprint: BP.fingerprint(state.blueprint), structuralFingerprint: BP.structuralFingerprint(state.blueprint) };
-  state.fight = FoundryFight.createFight(state.map, deployment, party, BP.copy(FoundryFight.TRAINING_FOES), identity);
+  state.fight = LocalCombat.createFight(state.map, deployment, party, BP.copy(LocalCombat.TRAINING_FOES), identity);
   state.fightTarget = null;
   document.querySelector(".stage-shell")?.classList.add("fight-active");
-  setWorkflow("present"); setView("board"); frameTopDown(); rebuildAll(); renderFoundryFight();
+  setWorkflow("present"); setView("board"); frameTopDown(); rebuildAll(); renderLocalCombat();
   ui.chunkStatus.textContent = "Local fight prepared · Blueprint " + identity.fingerprint;
   ui.chunkStatus.className = "status good";
 }
 function refreshFightBoard(message, ok) {
-  rebuildAll(); drawScrawl(); drawArtwork(); renderFoundryFight();
+  rebuildAll(); drawScrawl(); drawArtwork(); renderLocalCombat();
   ui.chunkStatus.textContent = message; ui.chunkStatus.className = "status " + (ok ? "good" : "bad");
 }
 function fightCellAction(c, r) {
-  const active = FoundryFight.activeUnit(state.fight);
+  const active = LocalCombat.activeUnit(state.fight);
   const occupant = state.fight.units.find((unit) => unit.alive && unit.c === c && unit.r === r);
   if (occupant) {
-    if (active && occupant.side !== active.side) { state.fightTarget = occupant.unit; renderFoundryFight(); refreshFightBoard(occupant.name + " targeted", true); }
+    if (active && occupant.side !== active.side) { state.fightTarget = occupant.unit; renderLocalCombat(); refreshFightBoard(occupant.name + " targeted", true); }
     else refreshFightBoard("That cell is occupied by an ally.", false);
     return;
   }
-  const result = FoundryFight.moveActive(state.fight, c, r);
+  const result = LocalCombat.moveActive(state.fight, c, r);
   if (result.ok) state.fight = result.fight;
   refreshFightBoard(result.message, result.ok);
 }
@@ -3200,17 +3200,17 @@ ui.gridToggle.addEventListener("click", () => {
   recordHistory(state.gridVisible ? "Grid shown" : "Grid hidden");
 });
 ui.applyGrid.addEventListener("click", () => applyGridCalibration());
-ui.prepareFoundryFight.addEventListener("click", prepareFoundryFight);
-ui.foundryAttack.addEventListener("click", () => {
+ui.prepareLocalCombat.addEventListener("click", prepareLocalCombat);
+ui.combatAttack.addEventListener("click", () => {
   if (!state.fight || !state.fightTarget) return;
-  const result = FoundryFight.resolveAttack(state.fight, state.fightTarget);
+  const result = LocalCombat.resolveAttack(state.fight, state.fightTarget);
   if (result.ok) state.fight = result.fight;
   refreshFightBoard(result.message, result.ok);
 });
-ui.foundryEndTurn.addEventListener("click", () => {
+ui.combatEndTurn.addEventListener("click", () => {
   if (!state.fight || fightFinished()) return;
-  state.fight = FoundryFight.endTurn(state.fight); state.fightTarget = null;
-  refreshFightBoard(FoundryFight.activeUnit(state.fight).name + " is active.", true);
+  state.fight = LocalCombat.endTurn(state.fight); state.fightTarget = null;
+  refreshFightBoard(LocalCombat.activeUnit(state.fight).name + " is active.", true);
 });
 document.querySelectorAll("[data-grid-nudge]").forEach((button) => button.addEventListener("click", () => {
   const [axis, delta] = button.dataset.gridNudge.split(":");
@@ -3272,7 +3272,7 @@ function incomingHandoff() {
   if (!decoded.ok) throw new Error(decoded.error);
   return decoded.handoff;
 }
-window.__forgeFoundryState = () => ({
+window.__forgeCombatState = () => ({
   blueprintId: state.blueprint.id,
   fingerprint: BP.fingerprint(state.blueprint),
   receivedFingerprint: state.handoff?.fingerprint || null,
@@ -3328,10 +3328,10 @@ try {
     }
     updateSourceReceipt();
   }
-  renderFoundryFight();
-  loadFoundryRoster();
+  renderLocalCombat();
+  loadCombatRoster();
 } catch (error) {
   console.error(error);
-  ui.fatal.textContent = "Map Foundry could not start: " + error.message;
+  ui.fatal.textContent = "Forge Combat could not start: " + error.message;
   ui.fatal.classList.add("on");
 }

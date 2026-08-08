@@ -286,7 +286,7 @@
     return Object.assign({
       kind: kind,
       label: PRODUCER_LABELS[kind] || kind,
-      createdBy: "map-foundry"
+      createdBy: "forge-combat"
     }, copy(detail || {}));
   }
   function withSource(blueprint, kind, detail) {
@@ -314,7 +314,7 @@
       return ((next ^ next >>> 14) >>> 0) / 4294967296;
     };
   }
-  function foundryGrid(size) {
+  function blueprintGrid(size) {
     return {
       small: { cols: 24, rows: 18, cellFt: 5, chunkSize: 5 },
       large: { cols: 36, rows: 26, cellFt: 5, chunkSize: 5 }
@@ -381,7 +381,7 @@
     var decorSeed = seed * 769 + candidate * 1021 + 71;
     var random = seededRandom(layoutSeed), heightRandom = seededRandom(heightSeed);
     var semanticRandom = seededRandom(semanticsSeed), decorRandom = seededRandom(decorSeed);
-    var grid = foundryGrid(size), slots = graphSlots(grid, topology, random);
+    var grid = blueprintGrid(size), slots = graphSlots(grid, topology, random);
     var count = topology === "vault" ? Math.max(4, density) : density;
     var labels = ["Arrival", "Crossing", "Sanctum", "Gallery", "Reliquary", "Watch", "Crypt", "Court", "Choir"];
     var materials = ["nave", "cloister", "crypt", "timber"];
@@ -494,7 +494,7 @@
       "blank-battlefield", "Untitled Battlefield", "empty buildable grid",
       [], [], [], [], [], [], []
     ), "blank", { fixtureKey: "blank", deterministic: true, size: size });
-    out.grid = foundryGrid(size);
+    out.grid = blueprintGrid(size);
     return out;
   }
   function acceptImportFinding(blueprint, findingId) {
