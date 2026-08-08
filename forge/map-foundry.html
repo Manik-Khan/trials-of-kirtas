@@ -13,7 +13,7 @@
   }
 }
 </script>
-<link rel="stylesheet" href="map-foundry.css?v=mf1">
+<link rel="stylesheet" href="map-foundry.css?v=mf2">
 </head>
 <body>
 <header class="masthead">
@@ -416,11 +416,18 @@
 
     <div class="workflow-page" data-workflow-page="encounter" hidden>
       <section class="panel intro"><span class="kicker">Run the idea</span><h2>Stage what happens here.</h2><p>Creatures, discovery, and reveal order sit on the finished environment without changing its structure.</p></section>
+      <section class="panel roster-panel">
+        <div class="section-head"><div><span class="step">02</span><h3>Campaign characters</h3></div><span class="status" id="foundryRosterStatus">loading</span></div>
+        <p class="hint">Choose the real characters entering this local test. Their current HP, AC, speed, initiative, and one recorded attack come from the shared character authority.</p>
+        <div id="foundryRoster" class="foundry-roster" aria-live="polite"></div>
+      </section>
       <section class="panel encounter-card">
         <div class="section-head"><div><span class="step">04</span><h3>Encounter groups</h3></div><span class="status good" id="spawnStatus">2 / 2 flags placed</span></div>
         <p class="hint">The existing Forge flow stays intact: choose membership and role, then place one group flag. Formation resolves around it without placing every creature by hand.</p>
         <div id="deploymentGroups" class="deployment-groups"></div>
         <p class="flag-message" id="flagMessage">Choose “Move flag” to restage a group. Browse mode remains safe for normal inspection.</p>
+        <button type="button" class="action primary wide" id="prepareFoundryFight" disabled>Prepare local test fight</button>
+        <p class="fight-gate" id="foundryFightGate">Choose at least one combat-ready character. This proof does not create a shared session or write combat results back to a sheet.</p>
       </section>
       <section class="panel">
         <div class="section-head"><div><span class="step">↳</span><h3>Discovery sequence</h3></div><span class="status" id="idleStatus">idle</span></div>
@@ -436,6 +443,17 @@
 
     <div class="workflow-page" data-workflow-page="present" hidden>
       <section class="panel intro"><span class="kicker">One map · several experiences</span><h2>How should this location read?</h2><p>The DM recommends a composition; players retain the practical top-down view.</p></section>
+      <section class="panel fight-panel">
+        <div class="section-head"><div><span class="step">03</span><h3>Local fight proof</h3></div><span class="status" id="foundryFightStatus">not prepared</span></div>
+        <p class="hint" id="foundryFightInstruction">Prepare the encounter in Populate. The fight will use this exact Blueprint field without changing the authored map.</p>
+        <div id="foundryTurn" class="foundry-turn" hidden></div>
+        <div id="foundryCombatants" class="foundry-combatants"></div>
+        <div class="fight-actions">
+          <button type="button" class="action primary" id="foundryAttack" disabled>Attack selected opponent</button>
+          <button type="button" class="action" id="foundryEndTurn" disabled>End turn</button>
+        </div>
+        <div id="foundryFightLog" class="foundry-fight-log" aria-live="polite"></div>
+      </section>
       <section class="panel presentation-list">
         <button type="button" class="presentation active" data-presentation="table"><b>◫</b><span><strong>Table</strong><small>Rotatable orthographic-style diorama</small></span></button>
         <button type="button" class="presentation" data-presentation="topdown"><b>⌗</b><span><strong>Top-down board</strong><small>The actual 3D map and calibrated grid</small></span></button>
@@ -453,14 +471,24 @@
         </dl>
         <details><summary>Compiler contract</summary><code>{cols, rows, h, wall, occ, coverShape, spawns, props, meta}</code></details>
       </section>
-      <section class="panel receipt"><span class="kicker">Guarded production candidate</span><strong>Blueprint, renderer, and tactical field agree.</strong><small>Fight and reconnect remain field gates before this replaces the legacy Workshop by default.</small><a href="index.html?legacy=1">Return to legacy Workshop</a></section>
+      <section class="panel receipt"><span class="kicker">Guarded production candidate</span><strong>Blueprint, renderer, and tactical field agree.</strong><small>Local combat is under field test. Persistence, reconnect, and multiplayer remain gates before this replaces the legacy Workshop by default.</small><a href="index.html?legacy=1">Return to legacy Workshop</a></section>
     </div>
 
     <footer><span>Code-native sample artwork · no imported assets</span><span>Three.js r185.1 · guarded Foundry</span></footer>
   </aside>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../armor-ac.js?v=um1"></script>
+<script src="../equip-slots.js?v=cc2"></script>
+<script src="../character-combat.js?v=um1"></script>
+<script src="../character-data.js?v=cd2"></script>
+<script src="forge-party-selection.js?v=fps1"></script>
+<script src="forge-deployment.js?v=fd3"></script>
+<script src="tactics-geometry.js?v=tg1"></script>
+<script src="forge-combat-rules.js?v=fcr3"></script>
+<script src="forge-foundry-fight.js?v=fff1"></script>
 <script src="forge-blueprint.js?v=bp1"></script>
-<script type="module" src="map-foundry.js?v=mf1"></script>
+<script type="module" src="map-foundry.js?v=mf2"></script>
 </body>
 </html>

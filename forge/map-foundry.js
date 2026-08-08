@@ -3,6 +3,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 const BP = window.ForgeBlueprint;
 if (!BP) throw new Error("Forge Blueprint authority did not load");
+const FoundryFight = window.ForgeFoundryFight;
+const PartySelection = window.ForgePartySelection;
+if (!FoundryFight || !PartySelection) throw new Error("Foundry fight authorities did not load");
 
 const QUALITY = Object.freeze({
   basic: { pixelRatio: 1, shadows: false, shadowSize: 512, label: "Basic" },
@@ -29,6 +32,9 @@ const ui = {};
   "pinnedReveal", "pinnedBuild", "pinnedUndo", "pinnedRedo", "browseMode", "buildMode", "buildModeInline", "modeNarration",
   "undoAction", "redoAction", "compareHold", "gridToggle", "gridCellPx", "gridOriginX", "gridOriginY",
   "applyGrid", "gridStatus", "deploymentGroups", "flagMessage", "spawnStatus",
+  "foundryRosterStatus", "foundryRoster", "prepareFoundryFight", "foundryFightGate",
+  "foundryFightStatus", "foundryFightInstruction", "foundryTurn", "foundryCombatants",
+  "foundryAttack", "foundryEndTurn", "foundryFightLog",
   "buildHandles", "directBuildStatus", "directBuildMode", "layoutToolGuidance", "massBuildCallout",
   "buildBrushRail", "brushTitle", "brushContextHint", "brushExitBuild", "brushUndo", "brushRedo",
   "buildRadial", "radialUndo", "radialRedo", "radialToolLabel",
@@ -69,6 +75,10 @@ const state = {
     { id: "party-main", label: "Main Party", role: "party", formation: "wedge", unitIds: ["Vesperian", "Caim"], anchor: { c: 4, r: 10 }, seed: 3 },
     { id: "enemy-main", label: "Reliquary Guard", role: "enemy", formation: "cluster", unitIds: ["Abbey Wight"], anchor: { c: 22, r: 11 }, seed: 7 }
   ],
+  rosterCandidates: [],
+  selectedPartyKeys: [],
+  fight: null,
+  fightTarget: null,
   flagPlacement: null,
   history: null,
   compareActive: false,
@@ -83,6 +93,15 @@ const state = {
   handoff: null
 };
 let importedUnderlayImage = null;
+
+function escapeHtml(value) {
+  return String(value == null ? "" : value).replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[character]);
+}
+function runtimeSpawns() {
+  return state.fight ? FoundryFight.spawns(state.fight) : (state.blueprint.spawns || []);
+}
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x101716);
@@ -543,7 +562,7 @@ function buildChunk(chunkC, chunkR, animate = false) {
   addInstances(group, poolGeometry, mats.water, byKind.pool || [], (m, item) => propTransform(m, item, 0.03));
   ["altar", "pew", "reliquary", "statue", "candles", "font", "brazier"].forEach((kind) => (byKind[kind] || []).forEach((item) => addFinishedProp(group, item)));
 
-  const chunkSpawns = (state.blueprint.spawns || []).filter((item) => {
+  const chunkSpawns = runtimeSpawns().filter((item) => {
     const info = cellInfo(item.c, item.r);
     return item.c >= bounds.minC && item.c < bounds.maxC && item.r >= bounds.minR && item.r < bounds.maxR && info && isDiscovered(info.region);
   });
@@ -794,6 +813,23 @@ function edgeSelectionMesh(c, r, edge, y, material) {
 }
 function drawSelection() {
   while (selectionRoot.children.length) selectionRoot.remove(selectionRoot.children[0]);
+  if (state.workflow === "present" && state.fight && !fightFinished()) {
+    const reachable = Object.keys(FoundryFight.reachableForActive(state.fight)).map((value) => {
+      const parts = value.split(",").map(Number);
+      return { c: parts[0], r: parts[1] };
+    });
+    if (reachable.length) {
+      const mesh = new THREE.InstancedMesh(floorGeometry, mats.select, reachable.length), matrix = new THREE.Matrix4();
+      reachable.forEach((cell, index) => {
+        const info = cellInfo(cell.c, cell.r);
+        matrix.makeScale(0.72, 0.09, 0.72);
+        matrix.setPosition(worldX(cell.c), rise(info?.elevationFt || 0) + 0.105, worldZ(cell.r));
+        mesh.setMatrixAt(index, matrix);
+      });
+      mesh.instanceMatrix.needsUpdate = true; mesh.renderOrder = 38; mesh.userData.sharedGeometry = true;
+      selectionRoot.add(mesh);
+    }
+  }
   const selectedCells = [];
   for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
     const info = cellInfo(c, r);
@@ -1285,7 +1321,7 @@ function drawScrawlProps(ctx, cell, ox, oy) {
   });
 }
 function drawScrawlSpawns(ctx, cell, ox, oy) {
-  (state.blueprint.spawns || []).forEach((item) => {
+  runtimeSpawns().forEach((item) => {
     const info = cellInfo(item.c, item.r);
     if (!info || !isDiscovered(info.region)) return;
     ctx.fillStyle = item.side === "pc" ? "#56827e" : "#aa4e43";
@@ -1330,6 +1366,7 @@ function setWorkflow(workflow, preserveView = false) {
   drawScrawl();
   drawArtwork();
   updateAreaInspector();
+  if (workflow === "present") renderFoundryFight();
   requestRender();
 }
 function setMapTab(tab) {
@@ -1462,6 +1499,9 @@ function renderReviewFindings() {
   });
 }
 function useBlueprint(blueprint, handoff = null) {
+  state.fight = null;
+  state.fightTarget = null;
+  document.querySelector(".stage-shell")?.classList.remove("fight-active");
   state.blueprint = BP.copy(blueprint);
   state.handoff = handoff ? BP.copy(handoff) : null;
   state.themeBase = BP.copy(blueprint);
@@ -1481,7 +1521,8 @@ function useBlueprint(blueprint, handoff = null) {
   refreshDocument();
   state.groups = defaultGroups();
   renderReviewFindings();
-  renderDeploymentGroups();
+  if (state.rosterCandidates.length) syncRosterGroups(); else renderDeploymentGroups();
+  renderFoundryFight();
   updateSourceReceipt();
   setLayoutTool("select");
   setRotation(0, false);
@@ -1654,6 +1695,9 @@ function refreshDocument() {
 }
 function loadFixture(key) {
   if (!BP.FIXTURES[key]) return;
+  state.fight = null;
+  state.fightTarget = null;
+  document.querySelector(".stage-shell")?.classList.remove("fight-active");
   state.fixtureKey = key;
   state.blueprint = BP.withSource(BP.FIXTURES[key], "fixture", { fixtureKey: key });
   state.themeBase = BP.copy(state.blueprint);
@@ -1671,7 +1715,8 @@ function loadFixture(key) {
   refreshDocument();
   state.groups = defaultGroups();
   renderReviewFindings();
-  renderDeploymentGroups();
+  if (state.rosterCandidates.length) syncRosterGroups(); else renderDeploymentGroups();
+  renderFoundryFight();
   setLayoutTool("select");
   setRotation(0, false);
   rebuildAll();
@@ -1800,6 +1845,11 @@ function showBuildRadial(clientX, clientY) {
   ui.buildRadial.hidden = false;
 }
 function setMode(mode) {
+  if (mode === "build" && state.fight) {
+    ui.chunkStatus.textContent = "Finish or leave the local fight before editing its accepted map snapshot.";
+    ui.chunkStatus.className = "status bad";
+    return;
+  }
   const previousMode = state.mode;
   state.mode = mode === "build" ? "build" : "browse";
   const building = state.mode === "build";
@@ -1878,12 +1928,13 @@ function renderDeploymentGroups() {
     const roleOptions = ["party", "ally", "npc", "enemy"].map((role) =>
       '<option value="' + role + '"' + (group.role === role ? " selected" : "") + ">" + role[0].toUpperCase() + role.slice(1) + "</option>"
     ).join("");
+    const safeId = escapeHtml(group.id), safeLabel = escapeHtml(group.label);
     card.innerHTML =
-      '<div class="deploy-head"><i class="flag-swatch" style="background:#' + groupColor(group).toString(16).padStart(6, "0") + '"></i><strong>' + group.label + '</strong><small>' + (group.anchor ? "ready" : "unresolved") + '</small></div>' +
-      '<div class="deploy-fields"><label>Role<select data-group-role="' + group.id + '">' + roleOptions + '</select></label>' +
-      '<label>Formation<select data-group-formation="' + group.id + '"><option value="wedge"' + (group.formation === "wedge" ? " selected" : "") + '>Wedge</option><option value="cluster"' + (group.formation === "cluster" ? " selected" : "") + '>Cluster</option><option value="line"' + (group.formation === "line" ? " selected" : "") + '>Line</option></select></label></div>' +
-      '<div class="deploy-members">' + group.unitIds.join(" · ") + '</div>' +
-      '<div class="deploy-actions"><button class="primary" data-group-flag="' + group.id + '">' + (group.anchor ? "Move flag" : "Place flag") + '</button><button data-group-reseed="' + group.id + '">Reseed</button></div>';
+      '<div class="deploy-head"><i class="flag-swatch" style="background:#' + groupColor(group).toString(16).padStart(6, "0") + '"></i><strong>' + safeLabel + '</strong><small>' + (group.anchor ? "ready" : "unresolved") + '</small></div>' +
+      '<div class="deploy-fields"><label>Role<select data-group-role="' + safeId + '">' + roleOptions + '</select></label>' +
+      '<label>Formation<select data-group-formation="' + safeId + '"><option value="wedge"' + (group.formation === "wedge" ? " selected" : "") + '>Wedge</option><option value="cluster"' + (group.formation === "cluster" ? " selected" : "") + '>Cluster</option><option value="line"' + (group.formation === "line" ? " selected" : "") + '>Line</option></select></label></div>' +
+      '<div class="deploy-members">' + group.unitIds.map(escapeHtml).join(" · ") + '</div>' +
+      '<div class="deploy-actions"><button class="primary" data-group-flag="' + safeId + '">' + (group.anchor ? "Move flag" : "Place flag") + '</button><button data-group-reseed="' + safeId + '">Reseed</button></div>';
     ui.deploymentGroups.appendChild(card);
   });
   ui.spawnStatus.textContent = state.groups.filter((group) => group.anchor).length + " / " + state.groups.length + " flags placed";
@@ -1939,6 +1990,177 @@ function placeGroupFlag(c, r) {
   renderDeploymentGroups();
   ui.flagMessage.textContent = group.label + " placed. Formation resolved around the flag.";
   recordHistory(group.label + " flag placed");
+}
+function ensureFoundryAuth() {
+  if (window.__tok?.sb && window.__tok?.ready) return window.__tok;
+  if (!window.supabase?.createClient) throw new Error("The character service did not load.");
+  const query = new URLSearchParams(window.location.search);
+  const client = window.supabase.createClient(
+    query.get("url") || "https://cfthwspwpcfamgbfqzuq.supabase.co",
+    query.get("key") || "sb_publishable_12KUwzDbVvcar0zjh2KE6g_6IRBfmMJ"
+  );
+  window.__tok = { sb: client, ready: client.auth.getSession().then(() => true, () => true) };
+  return window.__tok;
+}
+function selectedParty() {
+  const selected = new Set(state.selectedPartyKeys);
+  return state.rosterCandidates.filter((candidate) => candidate.projection.ok && selected.has(candidate.row.key))
+    .map((candidate) => BP.copy(candidate.projection.unit));
+}
+function syncRosterGroups() {
+  const party = state.groups.find((group) => group.id === "party-main" || group.role === "party");
+  const enemy = state.groups.find((group) => group.id === "enemy-main" || group.role === "enemy");
+  if (party) party.unitIds = state.selectedPartyKeys.slice();
+  if (enemy) enemy.unitIds = FoundryFight.TRAINING_FOES.map((unit) => unit.unit);
+  renderDeploymentGroups();
+}
+function updateFightGate(message, bad = false) {
+  const ready = selectedParty().length;
+  ui.prepareFoundryFight.disabled = !ready;
+  ui.foundryFightGate.textContent = message || (ready
+    ? ready + " real character" + (ready === 1 ? " is" : "s are") + " ready. Three local training guards will provide the opposing side."
+    : "Choose at least one combat-ready character. This proof does not create a shared session or write combat results back to a sheet.");
+  ui.foundryFightGate.className = "fight-gate " + (bad ? "bad" : ready ? "good" : "");
+}
+function renderFoundryRoster() {
+  ui.foundryRoster.replaceChildren();
+  const readyCount = state.rosterCandidates.filter((candidate) => candidate.projection.ok).length;
+  ui.foundryRosterStatus.textContent = readyCount + " / " + state.rosterCandidates.length + " ready";
+  ui.foundryRosterStatus.className = "status " + (readyCount ? "good" : "bad");
+  if (!state.rosterCandidates.length) {
+    const empty = document.createElement("div");
+    empty.className = "foundry-roster-empty";
+    empty.textContent = "No active characters were found in the Campaign Characters folder.";
+    ui.foundryRoster.appendChild(empty);
+    updateFightGate();
+    return;
+  }
+  state.rosterCandidates.forEach((candidate) => {
+    const projection = candidate.projection, selected = state.selectedPartyKeys.includes(candidate.row.key);
+    const label = document.createElement("label");
+    label.className = "foundry-character" + (selected ? " selected" : "") + (projection.ok ? "" : " unready");
+    const input = document.createElement("input");
+    input.type = "checkbox"; input.checked = selected; input.disabled = !projection.ok;
+    const copyBlock = document.createElement("span"), title = document.createElement("strong"), detail = document.createElement("small");
+    title.textContent = projection.name;
+    detail.textContent = projection.ok
+      ? projection.unit.hp + "/" + projection.unit.hpMax + " HP · AC " + projection.unit.ac + " · " + projection.unit.speed + " ft · " + projection.unit.action.label
+      : projection.reason;
+    copyBlock.append(title, detail); label.append(input, copyBlock); ui.foundryRoster.appendChild(label);
+    input.addEventListener("change", () => {
+      const next = new Set(state.selectedPartyKeys);
+      if (input.checked) next.add(candidate.row.key); else next.delete(candidate.row.key);
+      state.selectedPartyKeys = PartySelection.selectedKeys(state.rosterCandidates.map((item) => item.row), [...next]);
+      if (state.fight) {
+        state.fight = null; state.fightTarget = null;
+        document.querySelector(".stage-shell")?.classList.remove("fight-active");
+        rebuildAll(); renderFoundryFight();
+      }
+      syncRosterGroups(); renderFoundryRoster(); updateFightGate();
+    });
+  });
+  updateFightGate();
+}
+async function loadFoundryRoster() {
+  ui.foundryRosterStatus.textContent = "loading";
+  try {
+    ensureFoundryAuth();
+    if (!window.CharacterData) throw new Error("Character authority is unavailable.");
+    const [party, layout] = await Promise.all([window.CharacterData.loadParty(), window.CharacterData.loadLayout()]);
+    const result = PartySelection.candidates(party, layout);
+    if (!result.ok) throw new Error(result.reason);
+    state.rosterCandidates = result.rows.map((row) => ({ row, projection: FoundryFight.projectCharacter(row) }));
+    state.selectedPartyKeys = PartySelection.selectedKeys(result.rows, state.selectedPartyKeys);
+    syncRosterGroups(); renderFoundryRoster();
+  } catch (error) {
+    state.rosterCandidates = []; state.selectedPartyKeys = [];
+    ui.foundryRosterStatus.textContent = "unavailable";
+    ui.foundryRosterStatus.className = "status bad";
+    ui.foundryRoster.replaceChildren();
+    const empty = document.createElement("div");
+    empty.className = "foundry-roster-empty";
+    empty.textContent = "The campaign roster could not be read: " + (error?.message || "unknown error") + " Sign in, then reload this guarded Foundry page.";
+    ui.foundryRoster.appendChild(empty);
+    updateFightGate("The real roster is required before this local fight can begin.", true);
+  }
+}
+function fightFinished() {
+  if (!state.fight) return false;
+  return !state.fight.units.some((unit) => unit.alive && unit.side === "pc") || !state.fight.units.some((unit) => unit.alive && unit.side === "foe");
+}
+function renderFoundryFight() {
+  ui.foundryCombatants.replaceChildren(); ui.foundryFightLog.replaceChildren();
+  if (!state.fight) {
+    ui.foundryFightStatus.textContent = "not prepared"; ui.foundryFightStatus.className = "status";
+    ui.foundryFightInstruction.textContent = "Prepare the encounter in Populate. The fight will use this exact Blueprint field without changing the authored map.";
+    ui.foundryTurn.hidden = true; ui.foundryAttack.disabled = true; ui.foundryEndTurn.disabled = true;
+    return;
+  }
+  const active = FoundryFight.activeUnit(state.fight), finished = fightFinished();
+  if (!state.fight.units.some((unit) => unit.unit === state.fightTarget && unit.alive && active && unit.side !== active.side)) state.fightTarget = null;
+  ui.foundryFightStatus.textContent = finished ? "complete" : "round " + state.fight.round;
+  ui.foundryFightStatus.className = "status good";
+  ui.foundryFightInstruction.textContent = finished
+    ? "This local proof is complete. No character sheet or shared session was changed."
+    : "Click an open highlighted-reachable cell to move. Click an opposing token or combatant row to target it.";
+  ui.foundryTurn.hidden = false;
+  ui.foundryTurn.replaceChildren();
+  const turnName = document.createElement("strong"), turnDetail = document.createElement("small");
+  turnName.textContent = finished ? "Encounter resolved" : active.name + " is active";
+  turnDetail.textContent = finished ? "The authored Blueprint remains unchanged." : active.action.label + " · +" + active.action.hit + " to hit · " + active.action.dmg + " · " + active.speed + " ft";
+  ui.foundryTurn.append(turnName, turnDetail);
+  state.fight.units.forEach((unit) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "foundry-combatant " + unit.side + (unit === active ? " active" : "") + (unit.unit === state.fightTarget ? " target" : "") + (unit.alive ? "" : " dead");
+    const name = document.createElement("span"), facts = document.createElement("small"), hp = document.createElement("b");
+    name.textContent = unit.name; facts.textContent = "AC " + unit.ac + " · init " + unit.initiative + " · " + unit.c + "," + unit.r;
+    hp.textContent = unit.hp + "/" + unit.hpMax; button.append(name, facts, hp);
+    button.disabled = !unit.alive || finished;
+    button.addEventListener("click", () => {
+      if (!active || unit.side === active.side) return;
+      state.fightTarget = unit.unit; renderFoundryFight();
+    });
+    ui.foundryCombatants.appendChild(button);
+  });
+  state.fight.log.slice(-8).forEach((entry) => {
+    const line = document.createElement("p"); line.textContent = entry; ui.foundryFightLog.appendChild(line);
+  });
+  ui.foundryFightLog.scrollTop = ui.foundryFightLog.scrollHeight;
+  ui.foundryAttack.disabled = finished || !state.fightTarget || active.acted;
+  ui.foundryEndTurn.disabled = finished;
+}
+function prepareFoundryFight() {
+  const party = selectedParty();
+  if (!party.length) { updateFightGate("Choose at least one combat-ready character first.", true); return; }
+  refreshDocument();
+  const connectivity = BP.connectivity(state.map);
+  if (!connectivity.ok) { updateFightGate("The map is not yet a connected tactical field: " + connectivity.reason, true); return; }
+  const deployment = FoundryFight.deployCombatants(state.map, party, BP.copy(FoundryFight.TRAINING_FOES), state.groups);
+  if (!deployment.ok) { updateFightGate(deployment.errors.join(" "), true); return; }
+  const identity = { blueprintId: state.blueprint.id, fingerprint: BP.fingerprint(state.blueprint), structuralFingerprint: BP.structuralFingerprint(state.blueprint) };
+  state.fight = FoundryFight.createFight(state.map, deployment, party, BP.copy(FoundryFight.TRAINING_FOES), identity);
+  state.fightTarget = null;
+  document.querySelector(".stage-shell")?.classList.add("fight-active");
+  setWorkflow("present"); setView("board"); frameTopDown(); rebuildAll(); renderFoundryFight();
+  ui.chunkStatus.textContent = "Local fight prepared · Blueprint " + identity.fingerprint;
+  ui.chunkStatus.className = "status good";
+}
+function refreshFightBoard(message, ok) {
+  rebuildAll(); drawScrawl(); drawArtwork(); renderFoundryFight();
+  ui.chunkStatus.textContent = message; ui.chunkStatus.className = "status " + (ok ? "good" : "bad");
+}
+function fightCellAction(c, r) {
+  const active = FoundryFight.activeUnit(state.fight);
+  const occupant = state.fight.units.find((unit) => unit.alive && unit.c === c && unit.r === r);
+  if (occupant) {
+    if (active && occupant.side !== active.side) { state.fightTarget = occupant.unit; renderFoundryFight(); refreshFightBoard(occupant.name + " targeted", true); }
+    else refreshFightBoard("That cell is occupied by an ally.", false);
+    return;
+  }
+  const result = FoundryFight.moveActive(state.fight, c, r);
+  if (result.ok) state.fight = result.fight;
+  refreshFightBoard(result.message, result.ok);
 }
 function focusHeroRoom() {
   if (state.fixtureKey !== "processional" || !state.discovered.has("choir")) {
@@ -2483,7 +2705,8 @@ function inspectCell(c, r) {
   }
 }
 function applyMapClick(c, r, options = {}) {
-  if (state.flagPlacement) placeGroupFlag(c, r);
+  if (state.workflow === "present" && state.fight) fightCellAction(c, r);
+  else if (state.flagPlacement) placeGroupFlag(c, r);
   else if (state.workflow === "map") {
     if (state.mode !== "build") {
       selectLayoutAt(c, r, !!options.additive);
@@ -2977,6 +3200,18 @@ ui.gridToggle.addEventListener("click", () => {
   recordHistory(state.gridVisible ? "Grid shown" : "Grid hidden");
 });
 ui.applyGrid.addEventListener("click", () => applyGridCalibration());
+ui.prepareFoundryFight.addEventListener("click", prepareFoundryFight);
+ui.foundryAttack.addEventListener("click", () => {
+  if (!state.fight || !state.fightTarget) return;
+  const result = FoundryFight.resolveAttack(state.fight, state.fightTarget);
+  if (result.ok) state.fight = result.fight;
+  refreshFightBoard(result.message, result.ok);
+});
+ui.foundryEndTurn.addEventListener("click", () => {
+  if (!state.fight || fightFinished()) return;
+  state.fight = FoundryFight.endTurn(state.fight); state.fightTarget = null;
+  refreshFightBoard(FoundryFight.activeUnit(state.fight).name + " is active.", true);
+});
 document.querySelectorAll("[data-grid-nudge]").forEach((button) => button.addEventListener("click", () => {
   const [axis, delta] = button.dataset.gridNudge.split(":");
   const input = axis === "x" ? ui.gridOriginX : ui.gridOriginY;
@@ -3049,7 +3284,13 @@ window.__forgeFoundryState = () => ({
   mode: state.mode,
   tool: state.layoutTool,
   view: state.view,
-  canUndo: !!state.history?.past.length
+  canUndo: !!state.history?.past.length,
+  rosterReady: state.rosterCandidates.filter((candidate) => candidate.projection.ok).length,
+  selectedParty: state.selectedPartyKeys.slice(),
+  fightActive: !!state.fight,
+  fightIdentity: state.fight?.identity || null,
+  fightRound: state.fight?.round || null,
+  fightUnits: state.fight?.units.map((unit) => ({ unit: unit.unit, side: unit.side, hp: unit.hp, c: unit.c, r: unit.r })) || []
 });
 
 try {
@@ -3087,6 +3328,8 @@ try {
     }
     updateSourceReceipt();
   }
+  renderFoundryFight();
+  loadFoundryRoster();
 } catch (error) {
   console.error(error);
   ui.fatal.textContent = "Map Foundry could not start: " + error.message;

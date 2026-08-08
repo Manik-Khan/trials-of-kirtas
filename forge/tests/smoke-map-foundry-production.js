@@ -17,10 +17,11 @@ function ok(name, value) {
 }
 
 ok("production Blueprint exports the approved schema", BP.SCHEMA === "forge-blueprint/v1");
-ok("production Foundry loads only production-local assets",
-  foundryHtml.includes('href="map-foundry.css?v=mf1"')
+ok("production Foundry loads cache-stamped production assets",
+  foundryHtml.includes('href="map-foundry.css?v=mf2"')
   && foundryHtml.includes('src="forge-blueprint.js?v=bp1"')
-  && foundryHtml.includes('src="map-foundry.js?v=mf1"')
+  && foundryHtml.includes('src="map-foundry.js?v=mf2"')
+  && foundryHtml.includes('src="forge-foundry-fight.js?v=fff1"')
   && !foundryHtml.includes("_edits/") && !foundryHtml.includes("mock-forge"));
 ok("production renderer consumes the production Blueprint authority",
   foundryJs.includes("const BP = window.ForgeBlueprint;")
@@ -29,9 +30,10 @@ ok("Foundry keeps the approved Artwork, Board, and Blueprint views",
   ["artwork", "board", "blueprint"].every((view) => foundryHtml.includes('data-view="' + view + '"')));
 ok("Foundry keeps the approved Shape, Look, Objects, and Areas authoring contexts",
   ["layout", "appearance", "objects", "areas"].every((tab) => foundryHtml.includes('data-map-tab="' + tab + '"')));
-ok("Foundry identifies itself as guarded until fight and reconnect pass",
+ok("Foundry identifies local combat as guarded while reconnect remains gated",
   foundryHtml.includes("Guarded production candidate")
-  && foundryHtml.includes("Fight and reconnect remain field gates"));
+  && foundryHtml.includes("Local combat is under field test")
+  && foundryHtml.includes("Persistence, reconnect, and multiplayer remain gates"));
 
 const seededA = BP.produceSeeded({ seed: 1847, topology: "auto" });
 const seededB = BP.produceSeeded({ seed: 1847, topology: "auto" });

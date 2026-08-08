@@ -1452,11 +1452,52 @@ board with zero warnings/errors, armed all 14 Build controls, opened Blank as a
 genuinely empty grid, drew the first room, changed the compiler gate to
 `first room drawn · connected`, and rendered that exact room in 3D.
 
-This does **not** change the default Forge entry. Populate/Play on the Foundry
-surface are still presentation gates, not the existing character/session
-runtime. The next slice must persist the exact Blueprint and connect its already
-compiled tactical field to a disposable fight, then prove save/reload and
-reconnect before the default can move.
+This did **not** change the default Forge entry. At the August 7 checkpoint,
+Populate/Play on the Foundry surface were still presentation gates rather than
+the existing character/session runtime. The August 8 slice below advances the
+disposable local-fight portion while leaving save/reload and reconnect open.
+
+### Guarded Map Foundry local fight · 2026-08-08
+
+Baseline `1248439` (`map fixes`) was clean and synchronized to `origin/main`
+before this slice. Populate and Play now contain the first guarded runtime seam:
+
+- `forge/forge-foundry-fight.js` projects real active Campaign Characters
+  through `CharacterCombat`, requiring both a combat sheet and a usable recorded
+  attack. Unready characters remain visible with a reason; they are never
+  silently dropped.
+- The selected real party and three explicitly labeled local Reliquary Guards
+  resolve through `forge-deployment.js`. Existing Foundry flags remain the
+  authored anchors; no second placement coordinate system was introduced.
+- The disposable fight copies the exact compiled Blueprint field and carries its
+  Blueprint ID, fingerprint, and structural fingerprint. Runtime token movement,
+  HP, and initiative render from a separate local layer and do not rewrite the
+  authored Blueprint or character sheets.
+- Play exposes height-aware reachable cells, board-click movement, opponent
+  targeting, a real named character attack through current range/LoS/cover and
+  combat-rule helpers, End Turn, HP, initiative, and a local event log.
+- This surface initializes the existing public Supabase character read client
+  and reads `CharacterData.loadParty()` plus `loadLayout()`. It contains no
+  character save, encounter write, shared session, protocol, or replay path.
+
+The focused production and local-fight smokes pass **31/31**. Together with the
+canonical engine, map bridge, tactics, LoS/cover, placement, flora, deployment,
+character projection, party selection, and combat-rules suites, this slice is
+**287/287** across 12 suites. All touched JavaScript files pass `node --check`;
+the HTML has 122 unique IDs with no missing `ui.*` binding.
+
+The app browser security policy blocked automation of the local `file://` page,
+so this slice does **not** claim a browser field pass. The required manual gate is:
+open `forge/index.html?foundry=1`, enter Populate, confirm real roster facts and
+an explicit disabled reason for any unready row, choose at least one character,
+prepare the fight, then move on a highlighted cell, target an opponent, attack,
+and end a turn. Confirm the receipt fingerprint stays fixed and a reload clears
+the disposable fight without changing the character sheet.
+
+This is deliberately local-only. The default Forge remains unchanged. The next
+slice is exact Blueprint/fight snapshot persistence followed by shared-session
+restore and two-device reconnect; only then should protocol/replay or default
+entry promotion be considered.
 
 The remaining gates are:
 
@@ -1539,14 +1580,18 @@ Do not remove the query guard or migrate live rules in the compatibility step.
 4. **Passed August 7 for the guarded candidate.** Seeded generation, Templates,
    Blank, Scrawl, and Build all edit the same Blueprint document. Do not
    substitute a legacy-generated `F` field anywhere in this path.
-5. Persist the exact Blueprint and renderer choice through snapshots/session
-   restore, then test characters, discovery, bridges, water, biomes, an actual
-   fight, and reconnect before changing the default Forge entry.
-6. Port the reviewed image importer only after grid calibration, lasso, eraser,
+5. **Passed August 8 for a disposable local fight.** Real selected Campaign
+   Characters deploy and run movement, range, LoS/cover, attack, HP, and turns
+   on the exact Blueprint field without writing the Blueprint or sheets. The
+   signed-in browser field checklist above remains open.
+6. Persist the exact Blueprint, renderer choice, deployment, and local fight
+   snapshot; then prove shared-session restore and two-device reconnect before
+   changing the default Forge entry.
+7. Port the reviewed image importer only after grid calibration, lasso, eraser,
    structure type/variant, height, and correction receipt create an editable
    Blueprint from a real local image. Local color proposals remain evidence,
    never semantic authority.
-7. Continue `?surfaces=1` live-unit position, occupancy, connector movement,
+8. Continue `?surfaces=1` live-unit position, occupancy, connector movement,
    deployment, and replay only at non-overlapping seams. It converges with the
    Blueprint path at the compiled tactical field, not at the legacy generator.
 
@@ -1560,8 +1605,8 @@ while this visual architecture is being settled.
 ## Deployment discipline
 
 M reviews, commits, and pushes. Codex does not push. Current slice stamps:
-`forge-blueprint.js?v=bp1`, `map-foundry.css?v=mf1`,
-`map-foundry.js?v=mf1`,
+`forge-blueprint.js?v=bp1`, `map-foundry.css?v=mf2`,
+`map-foundry.js?v=mf2`, `forge-foundry-fight.js?v=fff1`,
 `forge-deployment.js?v=fd3`, `forge-generator-foundation.js?v=g2g1`,
 `forge-temple-terraces.js?v=tt1`, `forge-engine.js?v=fe10`,
 `forge-render-power.js?v=frp1`, `forge-architecture.js?v=fa6`, and
