@@ -15,13 +15,14 @@
 // window.CharacterData) and never auto-runs.
 // ---------------------------------------------------------------------------
 
-import './trance-proficiencies.js?v=tp2';
-import { wireInspiration } from './sheet-actions.js?v=tp4';
+import './trance-proficiencies.js?v=tp3';
+import { wireInspiration } from './sheet-actions.js?v=tp5';
 import { assembleActions } from './weapon-actions.js';
 import { applyFeatureCorrections, applySpellCorrections } from './sheet-corrections.js?v=cp1';
 import { mountSheetProgression } from './sheet-progression.js?v=facets1';
 
 function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttr(x){ return esc(x).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function sgn(n){ n=Number(n)||0; return (n>=0?'+':'\u2212')+Math.abs(n); }
 function clamp(n){ return Math.max(0,Math.min(100,n)); }
 function parseSource(src){
@@ -68,19 +69,58 @@ function renderSkills(root, skills){
     return '<div class="skill'+(sk.prof?' prof':'')+disCls+'" data-chk="skill" data-chk-label="'+esc(sk.name)+'" data-chk-mod="'+(sk.bonus||0)+'"'+disHook+' tabindex="0" role="button"><span class="dotp"></span><span class="sk-n">'+esc(sk.name)+'</span><span class="sk-a">'+esc(attr)+'</span>'+disBadge+'<span class="sk-v">'+sgn(sk.bonus||0)+'</span></div>';
   }).join('');
 }
+var featureOpenByRoot=new WeakMap();
 function renderFeatures(root, feats, custom){
   var box=root.querySelector('[data-list="features"]'); if(!box) return;
-  var derived=(feats||[]).map(function(fobj){
+  var open=featureOpenByRoot.get(root); if(!open){ open=new Set(); featureOpenByRoot.set(root,open); }
+  function card(fobj, key, tag, body, controls, extra){
+    var isOpen=open.has(key), p=tag;
+    return '<article class="feat'+(isOpen?' open':'')+(extra||'')+'" data-feature-key="'+escAttr(key)+'"'+body+'>'
+      +'<div class="feat-head"><button class="feat-toggle" type="button" data-feature-toggle aria-expanded="'+(isOpen?'true':'false')+'">'
+      +'<span class="f-tag '+p.cls+'">'+esc(p.label)+'</span><span class="f-n">'+esc(fobj.name)+'</span><span class="f-chev" aria-hidden="true">\u203A</span></button>'
+      +(controls||'')+'</div><div class="f-body"><div class="f-d">'+esc(fobj.desc)+'</div></div></article>';
+  }
+  var derived=(feats||[]).map(function(fobj, i){
     var p=parseSource(fobj.source);
     var corr=fobj.correctionId ? (' data-correction-id="'+esc(fobj.correctionId)+'"') : '';
     var hide=fobj.correctionId ? '' : '<button class="corr-hide" type="button" data-corr-suppress="feature" data-corr-name="'+esc(fobj.name)+'" data-corr-source="'+esc(fobj.source)+'" aria-label="Hide '+esc(fobj.name)+'">Hide</button>';
-    return '<div class="feat'+(fobj.correctionId?' is-correction':'')+'"'+corr+'><span class="f-tag '+p.cls+'">'+esc(p.label)+'</span><div class="f-body"><div class="f-n">'+esc(fobj.name)+'</div><div class="f-d">'+esc(fobj.desc)+'</div></div>'+hide+'</div>';
+    var key='derived:'+(fobj.correctionId||((fobj.source||'')+'|'+(fobj.name||'')+'|'+i));
+    return card(fobj,key,p,corr,hide,fobj.correctionId?' is-correction':'');
   }).join('');
-  var added=(custom||[]).map(function(cf){
-    return '<div class="feat is-custom"><span class="f-tag t-custom">Custom</span><div class="f-body"><div class="f-n">'+esc(cf.name)+'</div><div class="f-d">'+esc(cf.desc)+'</div></div>'
-      +'<button class="f-del" type="button" data-cf-del="'+esc(cf.id)+'" title="Remove feature" aria-label="Remove feature">\u2715</button></div>';
+  var added=(custom||[]).map(function(cf, i){
+    var del='<button class="f-del" type="button" data-cf-del="'+esc(cf.id)+'" title="Remove feature" aria-label="Remove feature">\u2715</button>';
+    return card(cf,'custom:'+(cf.id||((cf.name||'')+'|'+i)),{cls:'t-custom',label:'Custom'},'',del,' is-custom');
   }).join('');
   box.innerHTML = derived + added;
+  var view=(root.ownerDocument||document).defaultView;
+  function nextFrame(fn){ var frame=view&&view.requestAnimationFrame; if(frame) frame.call(view,fn); else setTimeout(fn,0); }
+  function measure(cardEl){
+    var desc=cardEl.querySelector('.f-d'); if(!desc||!cardEl.classList.contains('open')) return;
+    var isLong=desc.scrollHeight>desc.clientHeight+1;
+    desc.classList.toggle('is-long',isLong);
+    if(isLong){ desc.tabIndex=0; desc.setAttribute('aria-label',(cardEl.querySelector('.f-n')||{}).textContent+' description'); }
+    else { desc.removeAttribute('tabindex'); desc.removeAttribute('aria-label'); }
+  }
+  function setOpen(cardEl, isOpen){
+    var key=cardEl.getAttribute('data-feature-key');
+    cardEl.classList.toggle('open',isOpen);
+    var toggle=cardEl.querySelector('[data-feature-toggle]'); if(toggle) toggle.setAttribute('aria-expanded',String(isOpen));
+    if(isOpen){ open.add(key); nextFrame(function(){ measure(cardEl); }); }
+    else open.delete(key);
+  }
+  box.querySelectorAll('.feat').forEach(function(cardEl){
+    var toggle=cardEl.querySelector('[data-feature-toggle]');
+    if(toggle) toggle.addEventListener('click',function(){ setOpen(cardEl,!cardEl.classList.contains('open')); });
+    var desc=cardEl.querySelector('.f-d');
+    if(desc) desc.addEventListener('scroll',function(){
+      desc.classList.add('is-scrolling'); clearTimeout(desc._featureScrollTimer);
+      desc._featureScrollTimer=setTimeout(function(){ desc.classList.remove('is-scrolling'); },700);
+    });
+    if(cardEl.classList.contains('open')) nextFrame(function(){ measure(cardEl); });
+  });
+  var collapse=root.querySelector('[data-features-collapse]'), expand=root.querySelector('[data-features-expand]');
+  if(collapse) collapse.onclick=function(){ box.querySelectorAll('.feat').forEach(function(cardEl){ setOpen(cardEl,false); }); };
+  if(expand) expand.onclick=function(){ box.querySelectorAll('.feat').forEach(function(cardEl){ setOpen(cardEl,true); }); };
 }
 function setStatus(root, v){
   var cond=root.querySelector('[data-f="conditions"]');
@@ -408,7 +448,7 @@ function renderSheet(root, char){
       base=Array.isArray(effective)?effective.filter(function(name){return tempNames.indexOf(name)===-1;}):effective;
     }
     var rows=Array.isArray(base)?base.filter(Boolean).slice():(base?String(base).split(',').map(function(x){return x.trim();}).filter(Boolean):[]);
-    temp.filter(function(p){return p.kind===kind;}).forEach(function(p){rows.push(p.name+' (Trance)');});
+    temp.filter(function(p){return p.kind===kind;}).forEach(function(p){rows.push(p.name+' (Trance'+(p.custom?' \u00B7 manual':'')+')');});
     return profText(rows);
   }
   var skillProfs=profs.skills;
@@ -421,7 +461,7 @@ function renderSheet(root, char){
   var tranceRow=root.querySelector('[data-trance-prof-row]');
   if(tranceRow){
     tranceRow.hidden=!s.restProficiencies;
-    setF('temporaryProficiencies', temp.length?temp.map(function(p){return p.name;}).join(' \u00B7 '):'Choose during Long Rest');
+    setF('temporaryProficiencies', temp.length?temp.map(function(p){return p.name+(p.custom?' (manual)':'');}).join(' \u00B7 '):'Choose during Long Rest');
   }
   setStatus(root, v);
   var notes=(char.notes!=null?char.notes:s.notes);
@@ -1042,7 +1082,13 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
         <div class="lrow"><span>Tools</span><b data-f="toolProficiencies">—</b></div>
         <div class="lrow"><span>Weapons</span><b data-f="weaponProficiencies">—</b></div>
         <div class="lrow"><span>Armor</span><b data-f="armorProficiencies">—</b></div>
-        <div class="lrow" data-trance-prof-row hidden><span>Trance Picks</span><b data-f="temporaryProficiencies">Choose during Long Rest</b></div>
+        <div class="lrow trance-prof-row" data-trance-prof-row hidden><span>Trance Picks</span><b data-f="temporaryProficiencies">Choose during Long Rest</b><button class="trance-edit" type="button" data-trance-edit aria-expanded="false">Edit</button></div>
+        <div class="trance-editor" data-trance-editor hidden>
+          <div class="trance-edit-head"><b data-trance-title>Trance</b><span>Current sheet state</span></div>
+          <p data-trance-rule>Set your temporary proficiencies until the next long rest.</p>
+          <div data-trance-inline-choices></div>
+          <div class="trance-edit-actions"><span data-trance-status role="status" aria-live="polite"></span><button type="button" data-trance-cancel>Cancel</button><button class="go" type="button" data-trance-save>Set current picks</button></div>
+        </div>
       </div>
       <div class="lblock">
         <div class="lhead">Resources <span class="lhint">tap to spend</span></div>
@@ -1205,6 +1251,7 @@ var SHEET_TEMPLATE = `<main class="tok-sheet">
       <div class="block" data-sec="features">
         <div class="sectitle"><span class="swashwrap"><h2>Features</h2></span><span class="tail"></span><span class="hint">&amp; traits</span></div>
         <div class="panelbox">
+          <div class="feat-tools"><button type="button" data-features-collapse>Collapse all</button><button type="button" data-features-expand>Expand all</button></div>
           <div class="feat-cols" data-list="features">
             <div class="feat"><span class="f-tag t-class">Warlock</span><div><div class="f-n">Pact Magic</div><div class="f-d">Spells fueled by short-rest pact slots, all cast at their highest level.</div></div></div>
             <div class="feat"><span class="f-tag t-sub">Hexblade</span><div><div class="f-n">Hex Warrior</div><div class="f-d">Use Charisma for attack and damage with a bonded weapon.</div></div></div>

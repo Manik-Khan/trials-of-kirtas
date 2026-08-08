@@ -35,5 +35,14 @@ ok('temporary skill proficiency adds proficiency bonus to rolls', arcana.prof &&
 ok('temporary tool appears only in effective proficiencies', effective.proficiencies.tools.includes("Thieves' Tools") && !astralPc.proficiencies.tools.includes("Thieves' Tools"));
 ok('permanent proficiency snapshot stays separate', effective.baseProficiencies.skills.length === 1 && effective.baseProficiencies.skills[0] === 'Athletics', effective.baseProficiencies);
 
+const manualPicks = [{id:'skill',kind:'skill',name:'Arcana',custom:true},{id:'memory',kind:'tool',name:'Glass Harp',custom:true}];
+const manualVitals = TP.withSelections({}, astral, manualPicks, astralPc);
+ok('manual entries retain their category and custom marker', manualVitals.temporaryProficiencies.selections.every(p => p.custom === true) && manualVitals.temporaryProficiencies.selections[1].name === 'Glass Harp', manualVitals);
+const manualEffective = TP.apply(astralPc, manualVitals);
+ok('a manual skill matching a sheet skill still drives proficiency math', manualEffective.skills.find(s => s.name === 'Arcana').bonus === 4, manualEffective.skills);
+ok('a custom tool projects into effective proficiencies', manualEffective.proficiencies.tools.includes('Glass Harp'), manualEffective.proficiencies.tools);
+ok('duplicate manual names are rejected across Trance choices', TP.normalizeSelections(astral, [{id:'skill',kind:'skill',name:'Star Lore',custom:true},{id:'memory',kind:'tool',name:'Star Lore',custom:true}], astralPc).length === 1);
+ok('manual weapon names cannot bypass an existing category proficiency', TP.normalizeSelections(shadar, [{id:'memory-1',kind:'weapon',name:'Longsword',custom:true}], fighter).length === 0);
+
 console.log(`\nsmoke-trance-proficiencies: ${pass}/${pass + fail} passed`);
 if (fail) process.exit(1);

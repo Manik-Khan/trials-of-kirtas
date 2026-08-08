@@ -195,6 +195,29 @@
 .tok-sheet .lrow b{color:var(--cream);font-weight:600;text-align:right}
 .tok-sheet .lrow b.muted{color:var(--cream-fnt);font-weight:400;font-style:italic;text-transform:none}
 .tok-sheet .lrow b.conc-on{color:var(--o-subclass)}
+.tok-sheet .lrow.trance-prof-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;border-top:1px solid var(--hair);margin-top:7px;padding-top:10px}
+.tok-sheet .trance-prof-row b{color:var(--o-subclass)}
+.tok-sheet .trance-edit{border:1px solid rgba(96,200,195,.55);background:transparent;color:var(--o-subclass);padding:5px 7px;cursor:pointer;font-family:"Oswald",sans-serif;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+.tok-sheet .trance-edit:hover,.tok-sheet .trance-edit:focus-visible{border-color:var(--o-subclass);outline:none}
+.tok-sheet .trance-editor{margin:8px 0 2px;padding:11px;background:rgba(96,200,195,.06);border:1px solid rgba(96,200,195,.32)}
+.tok-sheet .trance-editor[hidden]{display:none}
+.tok-sheet .trance-edit-head{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.tok-sheet .trance-edit-head b{font-family:"Playfair Display",serif;font-size:15px;color:var(--cream-hi)}
+.tok-sheet .trance-edit-head span{font-family:"Oswald",sans-serif;font-size:8px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--o-subclass)}
+.tok-sheet .trance-editor>p{margin:3px 0 8px;font-family:"EB Garamond",serif;font-size:12.5px;line-height:1.35;font-style:italic;color:var(--cream-dim)}
+.tok-sheet .trance-editor .sa-trance-row{grid-template-columns:1fr;gap:5px;padding:8px 0;color:var(--cream-fnt)}
+.tok-sheet .trance-editor .sa-trance-picks{grid-template-columns:minmax(76px,.7fr) minmax(112px,1.3fr)}
+.tok-sheet .trance-editor .sa-trance-picks.one{grid-template-columns:1fr}
+.tok-sheet .trance-editor .sa-trance-kind{display:none}
+.tok-sheet .trance-editor select,.tok-sheet .trance-editor .sa-trance-custom{box-sizing:border-box;min-width:0;width:100%;padding:6px 7px;border:1px solid rgba(96,200,195,.38);border-radius:0;color:var(--cream);background:rgba(0,0,0,.28);font-family:"Oswald",sans-serif;font-size:10px;letter-spacing:.03em;text-transform:none}
+.tok-sheet .trance-editor .sa-trance-math{color:var(--cream-fnt)}
+.tok-sheet .trance-edit-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:9px}
+.tok-sheet .trance-edit-actions [data-trance-status]{margin-right:auto;font-family:"Oswald",sans-serif;font-size:8px;line-height:1.3;letter-spacing:.06em;text-transform:uppercase;color:var(--cream-fnt)}
+.tok-sheet .trance-edit-actions [data-trance-status].saving{color:var(--gold-br)}
+.tok-sheet .trance-edit-actions [data-trance-status].error,.tok-sheet .trance-edit-actions [data-trance-status].needs-choice{color:var(--red-br)}
+.tok-sheet .trance-edit-actions button{border:1px solid var(--frame);background:transparent;color:var(--cream-dim);padding:6px 8px;cursor:pointer;font-family:"Oswald",sans-serif;font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.tok-sheet .trance-edit-actions button.go{border-color:var(--gold);background:var(--gold);color:var(--ground)}
+.tok-sheet .trance-edit-actions button[disabled]{opacity:.4;cursor:default}
 .tok-sheet .insp{width:13px;height:13px;transform:rotate(45deg);border:1.5px solid var(--gold-br);display:inline-block;filter:url(#rough)}
 /* ── resource trackers (curated, tap-to-spend, drag-reorder Resources panel) ── */
 .tok-sheet [data-list="trackers"]{position:relative}
@@ -550,18 +573,31 @@
 .tok-sheet .detail .d-hl b{font-style:normal;color:#7a3528;font-family:"Oswald",sans-serif;text-transform:uppercase;letter-spacing:.06em;font-size:12px;font-weight:600}
 
 /* ——— features ——— */
-.tok-sheet .feat-cols{columns:2;column-gap:30px}
-.tok-sheet .feat{display:flex;gap:11px;padding:9px 0;border-bottom:1px solid var(--hair);break-inside:avoid}
-.tok-sheet .feat .f-tag{flex:0 0 auto;align-self:flex-start;margin-top:3px;font-family:"Oswald",sans-serif;
+.tok-sheet .feat-tools{display:flex;justify-content:flex-end;gap:7px;margin:0 0 10px}
+.tok-sheet .feat-tools button{border:1px solid var(--hair);background:transparent;color:var(--cream-fnt);padding:6px 8px;cursor:pointer;font-family:"Oswald",sans-serif;font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+.tok-sheet .feat-tools button:hover,.tok-sheet .feat-tools button:focus-visible{border-color:var(--gold);color:var(--gold);outline:none}
+.tok-sheet .feat-cols{columns:2;column-gap:14px}
+.tok-sheet .feat{display:block;margin:0 0 10px;border:1px solid var(--hair);background:rgba(8,17,15,.68);break-inside:avoid}
+.tok-sheet .feat-head{display:flex;align-items:center;gap:5px}
+.tok-sheet .feat-toggle{width:100%;min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 11px;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}
+.tok-sheet .feat .f-tag{flex:0 0 auto;font-family:"Oswald",sans-serif;
   font-size:9.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;
   color:var(--ground);min-width:68px;text-align:center}
 .tok-sheet .f-tag.t-class{background:var(--o-class)}.tok-sheet .f-tag.t-sub{background:var(--o-subclass)}.tok-sheet .f-tag.t-race{background:var(--o-race);color:var(--cream)}
-.tok-sheet .feat .f-n{font-family:"Playfair Display",serif;font-weight:700;font-size:17px;color:var(--cream);line-height:1.18}
-.tok-sheet .feat .f-d{font-family:"EB Garamond",serif;font-size:15px;color:var(--cream-dim);line-height:1.42}
+.tok-sheet .feat .f-n{font-family:"Playfair Display",serif;font-weight:700;font-size:16px;color:var(--cream);line-height:1.18}
+.tok-sheet .feat .f-chev{width:18px;height:18px;display:grid;place-items:center;color:var(--gold);font-family:"Oswald",sans-serif;font-size:15px;font-weight:700;line-height:1;transition:transform .15s}
+.tok-sheet .feat.open .f-chev{transform:rotate(90deg)}
+.tok-sheet .feat .f-body{padding:0 12px 11px 93px}
+.tok-sheet .feat:not(.open) .f-body{display:none}
+.tok-sheet .feat .f-d{font-family:"EB Garamond",serif;font-size:15px;color:var(--cream-dim);line-height:1.42;white-space:pre-line;max-height:142px;overflow-y:auto;padding-right:9px;scrollbar-width:thin;scrollbar-color:transparent transparent}
+.tok-sheet .feat .f-d::-webkit-scrollbar{width:7px}.tok-sheet .feat .f-d::-webkit-scrollbar-track{background:transparent}.tok-sheet .feat .f-d::-webkit-scrollbar-thumb{background:transparent}
+.tok-sheet .feat .f-d.is-long:hover,.tok-sheet .feat .f-d.is-long:focus-visible,.tok-sheet .feat .f-d.is-long.is-scrolling{scrollbar-color:rgba(96,200,195,.68) rgba(255,255,255,.05)}
+.tok-sheet .feat .f-d.is-long:hover::-webkit-scrollbar-track,.tok-sheet .feat .f-d.is-long:focus-visible::-webkit-scrollbar-track,.tok-sheet .feat .f-d.is-long.is-scrolling::-webkit-scrollbar-track{background:rgba(255,255,255,.05)}
+.tok-sheet .feat .f-d.is-long:hover::-webkit-scrollbar-thumb,.tok-sheet .feat .f-d.is-long:focus-visible::-webkit-scrollbar-thumb,.tok-sheet .feat .f-d.is-long.is-scrolling::-webkit-scrollbar-thumb{background:rgba(96,200,195,.68)}
+.tok-sheet .feat .f-d.is-long:focus-visible{outline:1px solid rgba(96,200,195,.42);outline-offset:3px}
 .tok-sheet .f-tag.t-feat{background:var(--o-feat)}
 .tok-sheet .f-tag.t-custom{background:var(--cream-dim)}
-.tok-sheet .feat .f-body{flex:1 1 auto;min-width:0}
-.tok-sheet .feat .f-del{flex:0 0 auto;align-self:flex-start;margin-top:2px;background:transparent;border:0;cursor:pointer;
+.tok-sheet .feat .f-del{flex:0 0 auto;margin-right:5px;background:transparent;border:0;cursor:pointer;
   color:var(--cream-fnt);font-family:"Oswald",sans-serif;font-size:14px;line-height:1;padding:3px 5px;opacity:.5;transition:.12s}
 .tok-sheet .feat.is-custom:hover .f-del{opacity:1}
 .tok-sheet .feat .f-del:hover{color:var(--red-br)}
@@ -624,7 +660,11 @@
   .tok-sheet .subline{justify-content:center}
   .tok-sheet .abil-grid,.tok-sheet .saves{grid-template-columns:repeat(3,1fr)}
   .tok-sheet .skills,.tok-sheet .spell-cols,.tok-sheet .feat-cols{columns:1}
+  .tok-sheet .feat .f-body{padding-left:12px}
   .tok-sheet .ghostnum{font-size:150px}
+}
+@media (max-width:520px){
+  .tok-sheet .trance-editor .sa-trance-picks{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:no-preference){
   .tok-sheet{animation:rise .55s ease both}
@@ -705,7 +745,11 @@
   .sa-trance-picks{display:grid;grid-template-columns:minmax(88px,.72fr) minmax(130px,1.28fr);gap:6px}
   .sa-trance-picks.one{grid-template-columns:1fr}
   .sa-trance-kind{display:none}
-  .sa-trance select{min-width:0;width:100%;padding:6px 7px;border:1px solid rgba(96,200,195,.38);border-radius:0;background:#0b1513;color:var(--cr);font-family:"Oswald",sans-serif;font-size:10px;letter-spacing:.03em;text-transform:none}
+  .sa-trance select,.sa-trance-custom{box-sizing:border-box;min-width:0;width:100%;padding:6px 7px;border:1px solid rgba(96,200,195,.38);border-radius:0;background:#0b1513;color:var(--cr);font-family:"Oswald",sans-serif;font-size:10px;letter-spacing:.03em;text-transform:none}
+  .sa-trance-custom{display:block;margin-top:6px}
+  .sa-trance-custom[hidden]{display:none}
+  .sa-trance-math{display:block;min-height:13px;margin-top:4px;font-family:"EB Garamond",serif;font-size:11px;line-height:1.25;letter-spacing:0;text-transform:none;color:var(--crf)}
+  .sa-trance-validation{min-height:13px;margin-top:5px;font-family:"Oswald",sans-serif;font-size:8px;line-height:1.25;letter-spacing:.06em;text-transform:uppercase;color:#e0584a}
   .sa-cast .scp-list{display:flex;flex-direction:column;gap:6px;margin:2px 0 0}
   .sa-cast .scp-btn{display:flex;align-items:center;gap:9px;justify-content:flex-start;text-align:left;width:100%;font-family:"Oswald",sans-serif;font-weight:500;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:7px 11px;border:1px solid rgba(236,226,205,.28);background:transparent;color:var(--crd);cursor:pointer;transition:border-color .14s ease,color .14s ease,background .14s ease}
   .sa-cast .scp-btn:hover{color:var(--cr);border-color:var(--gp);background:rgba(231,194,121,.06)}
@@ -775,10 +819,13 @@
   .tok-sheet .f-tag, .tok-sheet .f-tag.t-race { color:#1c1813 !important; }
 
   /* strip editing chrome (keep the data) */
-  .tok-sheet .feat-foot, .tok-sheet .feat-add, .tok-sheet .feat-form, .tok-sheet .f-del, .tok-sheet .corr-hide,
+  .tok-sheet .feat-foot, .tok-sheet .feat-add, .tok-sheet .feat-form, .tok-sheet .feat-tools, .tok-sheet .f-del, .tok-sheet .corr-hide, .tok-sheet .f-chev,
+  .tok-sheet .trance-edit, .tok-sheet .trance-editor,
   .tok-sheet .trk.add, .tok-sheet [data-trk-add], .tok-sheet .taddbox, .tok-sheet .tedit-head,
   .tok-sheet .trk-x, .tok-sheet .trk-e, .tok-sheet .trk-confirm,
   .tok-sheet [data-rest], .tok-sheet #insp-toggle { display:none !important; }
+  .tok-sheet .feat .f-body{display:block !important}
+  .tok-sheet .feat .f-d{max-height:none !important;overflow:visible !important;padding-right:0 !important}
 
   /* avoid awkward splits across pages */
   .tok-sheet .block, .tok-sheet .panelbox, .tok-sheet .feat, .tok-sheet .trk { break-inside:avoid; page-break-inside:avoid; }

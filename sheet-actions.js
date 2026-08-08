@@ -31,7 +31,7 @@
 import { assembleActions, meleeWeaponOptions } from './weapon-actions.js';
 import { spellDetailHTML, feedSummary } from './spell-detail.js';
 import { addFeatureCorrection, addSpellCorrection, addSuppressionCorrection, classNamesOf, closeCorrection, correctionLedger, spellExists } from './sheet-corrections.js?v=cp1';
-import './trance-proficiencies.js?v=tp2';
+import './trance-proficiencies.js?v=tp3';
 
 function trance() {
   return (typeof globalThis !== 'undefined' && globalThis.TranceProficiencies) ? globalThis.TranceProficiencies : null;
@@ -144,6 +144,7 @@ export function applyHp(vitals, structural, act, amt) {
 }
 
 function esc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function escAttr(x) { return esc(x).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 function raf(fn) { (typeof requestAnimationFrame !== 'undefined' ? requestAnimationFrame : function (f) { f(); })(fn); }
 
 // ── inventory drag mutations (pure, dup-safe; unit-tested). Each takes the
@@ -276,9 +277,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     if (doc) doc.removeEventListener('click', onOutside, true);
   }
   function onOutside(e) { for (let i = 0; i < pops.length; i++) if (pops[i].contains(e.target)) return; closePops(); }
-  function mountPop(pop, anchor) {
-    if (!doc) return;
-    (doc.body || root).appendChild(pop);
+  function placePop(pop, anchor) {
     if (anchor && anchor.getBoundingClientRect) {
       const r = anchor.getBoundingClientRect();
       const view = doc.defaultView;
@@ -290,11 +289,50 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       if (vw) pop.style.left = Math.round(Math.max(8, Math.min(r.left, vw - pr.width - 8))) + 'px';
       if (vh) pop.style.top = Math.round(Math.max(8, Math.min(r.bottom + 6, vh - pr.height - 8))) + 'px';
     }
+  }
+  function mountPop(pop, anchor) {
+    if (!doc) return;
+    (doc.body || root).appendChild(pop);
+    placePop(pop, anchor);
     pops.push(pop);
     raf(() => pop.classList.add('in'));
     setTimeout(() => { if (doc) doc.addEventListener('click', onOutside, true); }, 0);
   }
   function mkPop(cls) { const p = doc.createElement('div'); p.className = 'sa-pop ' + cls; return p; }
+
+  function tranceStateFor(spec) {
+    const TP = trance(), current = TP.currentSelections(vitals, spec, structural);
+    return spec.choices.map(function (choice) {
+      var pick = current.filter(function (item) { return item.id === choice.id; })[0];
+      return pick ? Object.assign({}, pick) : { id:choice.id, kind:choice.kinds[0], name:'', custom:false };
+    });
+  }
+  function validateTranceChoices(spec, state) {
+    const TP = trance();
+    if (!TP || !spec) return { valid:[], message:'Trance choices are unavailable.' };
+    var valid = TP.normalizeSelections(spec, state, structural);
+    if (valid.length === spec.choices.length) return { valid:valid, message:'' };
+    if (state.some(function (pick) { return !String(pick.name || '').trim(); })) return { valid:valid, message:'Finish every Trance choice before saving.' };
+    return { valid:valid, message:'Choose different proficiencies that are not already permanent.' };
+  }
+  function renderTranceChoices(host, spec, state, onChange) {
+    const TP = trance(); if (!host || !TP) return;
+    host.innerHTML = spec.choices.map(function (choice, i) {
+      var pick=state[i], kindLabel=pick.kind === 'weapon' ? 'Weapon' : (pick.kind === 'tool' ? 'Tool' : 'Skill');
+      var kindPick = choice.kinds.length > 1
+        ? '<select data-trance-kind="'+i+'" aria-label="'+escAttr(choice.label)+' type">'+choice.kinds.map(function (kind) { return '<option value="'+kind+'"'+(pick.kind===kind?' selected':'')+'>'+(kind==='weapon'?'Weapon':(kind==='tool'?'Tool':'Skill'))+'</option>'; }).join('')+'</select>'
+        : '<span class="sa-trance-kind">'+esc(choice.label)+'</span>';
+      var opts=TP.optionsForKind(spec,i,pick.kind,structural,state);
+      var names='<option value="">Choose '+esc(pick.kind)+'\u2026</option>'+opts.map(function (name) { return '<option value="'+escAttr(name)+'"'+(!pick.custom&&pick.name===name?' selected':'')+'>'+esc(name)+'</option>'; }).join('')
+        +'<option value="__custom__"'+(pick.custom?' selected':'')+'>Write in\u2026</option>';
+      var custom='<input class="sa-trance-custom" data-trance-custom="'+i+'"'+(pick.custom?'':' hidden')+' value="'+(pick.custom?escAttr(pick.name):'')+'" maxlength="60" placeholder="Write in '+escAttr(pick.kind)+' proficiency" aria-label="Custom '+escAttr(pick.kind)+' proficiency">';
+      var note=pick.custom?'Manual '+kindLabel.toLowerCase()+'; matching sheet names still link to roll math.':(pick.name?(pick.kind==='skill'?'Math linked; proficiency bonus applies to '+esc(pick.name)+'.':'Rules linked; recognized '+esc(pick.kind)+' proficiency.'):'Choose a proficiency.');
+      return '<div class="sa-trance-row"><span>'+esc(choice.label)+'</span><span><span class="sa-trance-picks'+(choice.kinds.length===1?' one':'')+'">'+kindPick+'<select data-trance-name="'+i+'" aria-label="'+escAttr(choice.label)+'">'+names+'</select></span>'+custom+'<span class="sa-trance-math">'+note+'</span></span></div>';
+    }).join('');
+    host.querySelectorAll('[data-trance-kind]').forEach(function (sel) { sel.addEventListener('change',function () { var i=+sel.getAttribute('data-trance-kind'); state[i].kind=sel.value; state[i].name=''; state[i].custom=false; onChange(true); }); });
+    host.querySelectorAll('[data-trance-name]').forEach(function (sel) { sel.addEventListener('change',function () { var i=+sel.getAttribute('data-trance-name'), custom=sel.value==='__custom__'; state[i].custom=custom; state[i].name=custom?'':sel.value; onChange(true); }); });
+    host.querySelectorAll('[data-trance-custom]').forEach(function (input) { input.addEventListener('input',function () { state[+input.getAttribute('data-trance-custom')].name=input.value; onChange(false); }); });
+  }
 
   function confirmRest(kind) {
     if (saving || !doc) return;
@@ -302,36 +340,25 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     const n = longRegainCount(structural);
     const TP = trance();
     const tranceSpec = kind === 'long' && TP && TP.specFromStructural ? TP.specFromStructural(structural) : null;
-    const tranceState = tranceSpec ? tranceSpec.choices.map(function (choice) {
-      var current = TP.currentSelections(vitals, tranceSpec, structural).filter(function (pick) { return pick.id === choice.id; })[0];
-      return current ? Object.assign({}, current) : { id:choice.id, kind:choice.kinds[0], name:'' };
-    }) : [];
+    const tranceState = tranceSpec ? tranceStateFor(tranceSpec) : [];
     const lines = kind === 'long'
       ? ['Restore all HP', 'Clear temp HP & concentration' + (mageArmorActive(vitals) ? ' \u00B7 end Mage Armor' : ''), 'Restore every resource & spell slot', 'Regain ' + n + ' hit ' + (n === 1 ? 'die' : 'dice')].concat(tranceSpec ? ['Replace your temporary ' + tranceSpec.source + ' proficiencies'] : [])
       : ['Restore short-rest resources', 'Leaves spell slots & HP untouched'];
     const pop = mkPop('sa-confirm' + (tranceSpec ? ' sa-trance-rest' : ''));
     pop.innerHTML = '<div class="sa-pop-t">' + esc(label) + '?</div>'
       + '<ul class="sa-pop-l">' + lines.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>'
-      + (tranceSpec ? '<div class="sa-trance"><div class="sa-trance-t">' + esc(tranceSpec.source) + ' choices</div><div class="sa-trance-note">These replace your current picks until the next long rest.</div><div data-trance-choices></div></div>' : '')
+      + (tranceSpec ? '<div class="sa-trance"><div class="sa-trance-t">' + esc(tranceSpec.source) + ' choices</div><div class="sa-trance-note">These replace your current picks until the next long rest.</div><div data-trance-choices></div><div class="sa-trance-validation" data-trance-validation role="status"></div></div>' : '')
       + '<div class="sa-pop-act"><button class="sa-btn ghost" data-no type="button">Cancel</button>'
       + '<button class="sa-btn go" data-yes type="button">Confirm</button></div>';
     const yes = pop.querySelector('[data-yes]');
     function paintTranceChoices() {
       if (!tranceSpec) return;
       const host = pop.querySelector('[data-trance-choices]');
-      host.innerHTML = tranceSpec.choices.map(function (choice, i) {
-        var state = tranceState[i];
-        var kindPick = choice.kinds.length > 1
-          ? '<select data-trance-kind="' + i + '" aria-label="' + esc(choice.label) + ' type">' + choice.kinds.map(function (k) { return '<option value="' + k + '"' + (state.kind === k ? ' selected' : '') + '>' + (k === 'weapon' ? 'Weapon' : (k === 'tool' ? 'Tool' : 'Skill')) + '</option>'; }).join('') + '</select>'
-          : '<span class="sa-trance-kind">' + esc(choice.label) + '</span>';
-        var opts = TP.optionsForKind(tranceSpec, i, state.kind, structural, tranceState);
-        var names = '<option value="">Choose ' + state.kind + '\u2026</option>' + opts.map(function (name) { return '<option value="' + esc(name) + '"' + (state.name === name ? ' selected' : '') + '>' + esc(name) + '</option>'; }).join('');
-        return '<label class="sa-trance-row"><span>Choice ' + (i + 1) + '</span><span class="sa-trance-picks' + (choice.kinds.length === 1 ? ' one' : '') + '">' + kindPick + '<select data-trance-name="' + i + '" aria-label="' + esc(choice.label) + '">' + names + '</select></span></label>';
-      }).join('');
-      host.querySelectorAll('[data-trance-kind]').forEach(function (sel) { sel.addEventListener('change', function () { var i=+sel.getAttribute('data-trance-kind'); tranceState[i].kind=sel.value; tranceState[i].name=''; paintTranceChoices(); }); });
-      host.querySelectorAll('[data-trance-name]').forEach(function (sel) { sel.addEventListener('change', function () { var i=+sel.getAttribute('data-trance-name'); tranceState[i].name=sel.value; paintTranceChoices(); }); });
-      yes.disabled = tranceState.some(function (pick) { return !pick.name; });
+      renderTranceChoices(host,tranceSpec,tranceState,function (repaint) { if(repaint) paintTranceChoices(); else updateTranceConfirm(); });
+      updateTranceConfirm();
+      placePop(pop,root.querySelector('[data-rest="long"]'));
     }
+    function updateTranceConfirm(){ var check=validateTranceChoices(tranceSpec,tranceState), note=pop.querySelector('[data-trance-validation]'); yes.disabled=!!check.message; yes.title=check.message; if(note) note.textContent=check.message; }
     paintTranceChoices();
     mountPop(pop, kind === 'long' ? root.querySelector('[data-rest="long"]') : root.querySelector('[data-rest="short"]'));
     pop.querySelector('[data-no]').addEventListener('click', (e) => { e.stopPropagation(); closePops(); });
@@ -2261,6 +2288,52 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     portrait.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ppOpen(); } });
   }
 
+  function bindTranceEditor(editable) {
+    const TP=trance(), spec=TP&&TP.specFromStructural ? TP.specFromStructural(structural) : null;
+    const edit=root.querySelector('[data-trance-edit]'), editor=root.querySelector('[data-trance-editor]');
+    if(!edit||!editor) return;
+    if(!spec||!editable){ edit.hidden=true; editor.hidden=true; return; }
+    const host=editor.querySelector('[data-trance-inline-choices]'), save=editor.querySelector('[data-trance-save]');
+    const cancel=editor.querySelector('[data-trance-cancel]'), status=editor.querySelector('[data-trance-status]');
+    let state=[];
+    function ruleText(){
+      var skill=spec.choices.filter(function(choice){return choice.kinds.length===1&&choice.kinds[0]==='skill';}).length;
+      var memories=spec.choices.length-skill;
+      if(skill&&memories) return 'Set one temporary skill and one temporary weapon or tool proficiency retained until the next long rest.';
+      return 'Set the '+(spec.choices.length===2?'two':spec.choices.length)+' temporary weapon or tool proficiencies retained until the next long rest.';
+    }
+    function updateValidity(){
+      var check=validateTranceChoices(spec,state); save.disabled=!!check.message; save.title=check.message;
+      status.textContent=check.message; status.className=check.message?'needs-choice':'';
+      return check;
+    }
+    function paintChoices(){
+      renderTranceChoices(host,spec,state,function(repaint){ if(repaint){ paintChoices(); var custom=host.querySelector('[data-trance-custom]:not([hidden])'); if(custom&&!custom.value) custom.focus(); } else updateValidity(); });
+      updateValidity();
+    }
+    function close(){ editor.hidden=true; edit.textContent='Edit'; edit.setAttribute('aria-expanded','false'); status.textContent=''; }
+    function open(){
+      state=tranceStateFor(spec); editor.querySelector('[data-trance-title]').textContent=spec.source||'Trance';
+      editor.querySelector('[data-trance-rule]').textContent=ruleText(); paintChoices(); editor.hidden=false;
+      edit.textContent='Close'; edit.setAttribute('aria-expanded','true');
+    }
+    edit.hidden=false;
+    edit.addEventListener('click',function(e){ e.stopPropagation(); if(editor.hidden) open(); else close(); });
+    cancel.addEventListener('click',function(e){ e.stopPropagation(); close(); });
+    save.addEventListener('click',async function(e){
+      e.stopPropagation(); if(saving) return;
+      var check=updateValidity(); if(check.message) return;
+      var prev=vitals; vitals=TP.withSelections(vitals,spec,state,structural); saving=true; save.disabled=true;
+      status.textContent='Saving current Trance proficiencies\u2026'; status.className='saving'; refresh();
+      try{
+        var saved=await characterData.save(key,{vitals:vitals}); vitals=(saved&&saved.vitals)?saved.vitals:vitals;
+        refresh(); close(); showStat('saved','Trance proficiencies updated \u2713',true);
+      }catch(err){
+        vitals=prev; refresh(); status.textContent="Couldn't save Trance proficiencies \u00B7 try again"; status.className='error'; save.disabled=false;
+      }finally{ saving=false; }
+    });
+  }
+
 
   const ready = (async () => {
     let editable = false;
@@ -2298,6 +2371,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       bindAttacks(true);
       bindActionEditor();
       bindPortraitPicker();
+      bindTranceEditor(true);
       try { await (depsReady || Promise.resolve()); } catch (_) {}   // EquipSlots may be self-loading on rail/float hosts
       backfillInventory();
       bindEquip();
@@ -2316,6 +2390,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
       bindSpellcasting(false);
       bindCorrections(false);
       bindAttacks(false);
+      bindTranceEditor(false);
     }
   })();
 

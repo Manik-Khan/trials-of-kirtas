@@ -34,7 +34,7 @@ const ROW = {
     },
     classFeatures: { pactSlots:{max:2,level:1}, sorcererSlots:{'1':{max:2}}, sorceryPoints:{max:0,current:0} },
     spells: { cantrip:[{name:'Eldritch Blast',castingTime:'1 action'}], '1':[{name:'Hex',castingTime:'1 bonus'}] },
-    features: [ {name:'Pact Magic',source:'class:Warlock',desc:'Short-rest pact slots.'}, {name:'Hex Warrior',source:'subclass:The Hexblade',desc:'CHA for a bonded weapon.'}, {name:'Fey Ancestry',source:'race:Astral Elf',desc:'Advantage vs charm.'} ]
+    features: [ {name:'Pact Magic',source:'class:Warlock',desc:'Short-rest pact slots.\n\nThe full pact-magic rules remain available here when the card opens, including the rules for slot level, recovery, and the spellcasting ability used by the character.'}, {name:'Hex Warrior',source:'subclass:The Hexblade',desc:'CHA for a bonded weapon.'}, {name:'Fey Ancestry',source:'race:Astral Elf',desc:'Advantage vs charm.'} ]
   },
   vitals: { hp:18, hpTemp:4, hpBonus:0, concentration:'Hex', conditions:[], inspiration:true, pipState:{pactSlots:0,sorc_1:0}, temporaryProficiencies:{version:1,specId:'astral-trance',source:'Astral Trance',selections:[{id:'skill',kind:'skill',name:'Stealth'},{id:'memory',kind:'tool',name:"Thieves' Tools"}]} },
   notes: 'Patron stirs near the rift.'
@@ -67,11 +67,24 @@ function mockCD({ canEdit = true } = {}) {
   ok([...slot.querySelectorAll('[data-list="saves"] .save')].filter(e => e.classList.contains('prof')).length === 2, 'two proficient saves (Wis/Cha)');
   ok(slot.querySelector('[data-list="saves"] + .saves-caption')?.textContent.trim() === 'Saving Throws', 'saving-throw bar has a learner-facing caption');
   ok(slot.querySelectorAll('[data-list="features"] .feat').length === ROW.structural.features.length, 'all features rendered');
+  ok(slot.querySelectorAll('[data-list="features"] .feat.open').length === 0, 'feature cards start collapsed');
+  ok(!!slot.querySelector('[data-features-collapse]') && !!slot.querySelector('[data-features-expand]'), 'feature toolbar exposes collapse-all and expand-all');
+  const firstFeature = slot.querySelector('[data-list="features"] .feat');
+  firstFeature.querySelector('[data-feature-toggle]').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+  await settle();
+  ok(firstFeature.classList.contains('open') && firstFeature.querySelector('[data-feature-toggle]').getAttribute('aria-expanded') === 'true', 'individual feature toggle expands its description');
+  slot.querySelector('[data-features-expand]').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+  await settle();
+  ok(slot.querySelectorAll('[data-list="features"] .feat.open').length === ROW.structural.features.length, 'Expand all opens every feature');
+  slot.querySelector('[data-features-collapse]').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+  ok(slot.querySelectorAll('[data-list="features"] .feat.open').length === 0, 'Collapse all closes every feature');
+  firstFeature.querySelector('[data-feature-toggle]').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
   ok(slot.querySelector('[data-f="skillProficiencies"]').textContent.includes('Arcana'), 'skill proficiencies render in Senses & Lore');
   ok(slot.querySelector('[data-f="toolProficiencies"]').textContent.includes("Navigator's Tools"), 'tool proficiencies render in Senses & Lore');
   ok(slot.querySelector('[data-f="toolProficiencies"]').textContent.includes("Thieves' Tools (Trance)"), 'temporary Trance tool is labeled beside permanent tools');
   ok(slot.querySelector('[data-f="skillProficiencies"]').textContent.includes('Stealth (Trance)'), 'temporary Trance skill is labeled beside permanent skills');
   ok(!slot.querySelector('[data-trance-prof-row]').hidden && /Stealth/.test(slot.querySelector('[data-f="temporaryProficiencies"]').textContent), 'Trance choice row narrates the current long-rest picks');
+  ok(!slot.querySelector('[data-trance-edit]').hidden, 'editable Trance entitlement exposes its direct editor');
   ok(slot.querySelector('[data-f="weaponProficiencies"]').textContent.includes('Martial'), 'weapon proficiencies render in Senses & Lore');
   ok(slot.querySelector('[data-f="armorProficiencies"]').textContent.includes('Medium') && slot.querySelector('[data-f="armorProficiencies"]').textContent.includes('Shield'), 'armor proficiencies render in Senses & Lore');
   ok(/t-race/.test(slot.querySelector('[data-list="features"]').innerHTML), 'feature origin stamp drives a race tag class');
@@ -96,6 +109,21 @@ function mockCD({ canEdit = true } = {}) {
   const patch = cd.calls.save[0] && cd.calls.save[0][1];
   ok(!!patch && patch.vitals && patch.vitals.inspiration === false, 'save flipped inspiration to false');
   ok(!!patch && patch.vitals && patch.vitals.hp === 18 && patch.vitals.concentration === 'Hex', 'save preserved the rest of vitals (full-column merge)');
+  ok(slot.querySelector('[data-list="features"] .feat').classList.contains('open'), 'feature expansion survives a live sheet refresh');
+
+  slot.querySelector('[data-trance-edit]').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+  ok(!slot.querySelector('[data-trance-editor]').hidden && slot.querySelectorAll('[data-trance-inline-choices] .sa-trance-row').length === 2, 'Trance Edit opens the version-aware inline choices');
+  let names = slot.querySelectorAll('[data-trance-inline-choices] [data-trance-name]');
+  names[1].value = '__custom__';
+  names[1].dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+  const manual = slot.querySelector('[data-trance-inline-choices] [data-trance-custom]:not([hidden])');
+  manual.value = 'Glass Harp';
+  manual.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+  slot.querySelector('[data-trance-save]').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+  await settle();
+  const trancePatch = cd.calls.save[1] && cd.calls.save[1][1];
+  ok(cd.calls.save.length === 2 && trancePatch.vitals.temporaryProficiencies.selections[1].name === 'Glass Harp' && trancePatch.vitals.temporaryProficiencies.selections[1].custom === true, 'inline Write in saves a categorized manual Trance proficiency');
+  ok(/Glass Harp \(Trance · manual\)/.test(slot.querySelector('[data-f="toolProficiencies"]').textContent), 'saved manual pick is visibly labeled in proficiencies');
 }
 
 // ── scenario 2: defs idempotency + canEdit=false gate ───────────────────────
@@ -111,6 +139,7 @@ function mockCD({ canEdit = true } = {}) {
   ok(dom.window.document.querySelectorAll('#rough').length === 1, 'ensureDefs is a no-op when host already carries the defs (no duplicate #rough)');
   const toggle = slot.querySelector('#insp-toggle');
   ok(toggle.classList.contains('view-only'), 'non-editable: toggle marked view-only');
+  ok(slot.querySelector('[data-trance-edit]').hidden, 'non-editable: direct Trance editor stays hidden');
   toggle.dispatchEvent(new dom.window.Event('click'));
   await settle();
   ok(cd.calls.save.length === 0, 'non-editable: click does NOT write');

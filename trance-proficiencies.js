@@ -37,6 +37,7 @@
 
   function clone(v) { return JSON.parse(JSON.stringify(v == null ? null : v)); }
   function key(v) { return String(v == null ? '' : v).trim().toLowerCase().replace(/\s+weapons?$/, '').replace(/[^a-z0-9]+/g, ''); }
+  function cleanName(v) { return String(v == null ? '' : v).trim().replace(/\s+/g, ' ').slice(0, 60); }
   function has(list, value) { var k = key(value); return (list || []).some(function (x) { return key(x) === k; }); }
   function add(list, value) { if (value && !has(list, value)) list.push(value); }
   function sourceOf(race) { return String((race && (race.source || race.s)) || '').toUpperCase(); }
@@ -83,6 +84,16 @@
       tools: Array.isArray(p.tools) ? p.tools : (p.tools ? String(p.tools).split(',') : [])
     };
   }
+  function coveredByPermanent(kind, name, p) {
+    var list=kind === 'skill' ? p.skills : (kind === 'weapon' ? p.weapons : p.tools);
+    if(has(list,name)) return true;
+    if(kind !== 'weapon') return false;
+    var weapon=WEAPONS.filter(function(item){return key(item.name)===key(name);})[0];
+    if(!weapon) return false;
+    return list.some(function(item){
+      return weapon.category==='simple' ? /^(?:all\s+)?simple(?:\s+weapons?)?$/i.test(String(item).trim()) : /^(?:all\s+)?martial(?:\s+weapons?)?$/i.test(String(item).trim());
+    });
+  }
 
   function optionsForKind(spec, choiceIndex, kind, structural, selections) {
     var choice = spec && spec.choices && spec.choices[choiceIndex];
@@ -107,7 +118,13 @@
       if (!raw || choice.kinds.indexOf(raw.kind) === -1) return;
       var opts = optionsForKind(spec, i, raw.kind, structural, out);
       var canonical = opts.filter(function (x) { return key(x) === key(raw.name); })[0];
-      if (canonical) out.push({ id:choice.id, kind:raw.kind, name:canonical });
+      if (raw.custom) {
+        var manual = cleanName(raw.name);
+        var p = permanent(structural);
+        if (manual && !coveredByPermanent(raw.kind, manual, p) && !has(out.map(function (s) { return s.name; }), manual)) {
+          out.push({ id:choice.id, kind:raw.kind, name:manual, custom:true });
+        }
+      } else if (canonical) out.push({ id:choice.id, kind:raw.kind, name:canonical });
     });
     return out;
   }
