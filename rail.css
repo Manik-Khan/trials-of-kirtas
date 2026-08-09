@@ -192,13 +192,20 @@
 #tok-rail .mc-pick-none{ font-family:"EB Garamond",Georgia,serif; font-style:italic; font-size:12.5px; color:var(--cream-fnt); padding:9px 11px; }
 #tok-rail .mc-pick-sec{ font-size:9px; letter-spacing:.22em; text-transform:uppercase; color:var(--cream-fnt); padding:7px 11px 4px; border-bottom:1px solid var(--hair); }
 #tok-rail .mc-pick-item{ display:flex; align-items:baseline; gap:8px; padding:7px 11px; cursor:pointer; font-size:13px; }
+#tok-rail .mc-pick-item.mention{ display:grid; grid-template-columns:16px minmax(0,1fr) auto; align-items:center; padding:8px 11px; }
 #tok-rail .mc-pick-item:hover, #tok-rail .mc-pick-item.sel{ background:rgba(199,154,74,.13); }
 #tok-rail .mc-pick-item .nm{ color:var(--cream-hi); letter-spacing:.04em; }
 #tok-rail .mc-pick-item.char .nm{ color:#c97886; }
 #tok-rail .mc-pick-item.loc .nm{ color:#8ab4c9; }
 #tok-rail .mc-pick-item .ht{ font-family:"EB Garamond",Georgia,serif; font-style:italic; font-size:12px; color:var(--cream-fnt); margin-left:auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:110px; }
-#tok-rail .mc-pick-item.create .nm{ color:var(--cream-dim); }
+#tok-rail .mc-pick-item.mention .ht{ display:block; font-size:11px; line-height:1.2; margin:2px 0 0; white-space:normal; overflow:visible; max-width:none; letter-spacing:0; }
+#tok-rail .mc-pick-item.create .nm{ color:var(--cream-hi); font-weight:600; }
 #tok-rail .mc-pick-item.create .plus{ color:#bd8ce8; font-weight:600; }
+#tok-rail .mc-pick-icon{ font-size:10px; color:var(--cream-fnt); }
+#tok-rail .mc-pick-badge{ font:700 8px/1 "Oswald",sans-serif; letter-spacing:.13em; text-transform:uppercase; border:1px solid currentColor; border-radius:10px; padding:4px 6px; white-space:nowrap; color:var(--cream-fnt); }
+#tok-rail .mc-pick-item.char .mc-pick-badge{ color:#c97886; }
+#tok-rail .mc-pick-item.npc .mc-pick-badge{ color:#d4ac3a; }
+#tok-rail .mc-pick-item.loc .mc-pick-badge{ color:#8ab4c9; }
 
 /* mention / wikilink chips — in the editor AND in feed message bodies
    (same classes the journal/chronicle emit; tooltips.js may not be on

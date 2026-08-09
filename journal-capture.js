@@ -18,7 +18,7 @@
    for the single-row read. ONE client: window.__tok.sb.
    ════════════════════════════════════════════════════════════════════ */
 
-import { createComposer, ensureCanon, buildPool, serializeDoc, docToHTML, docToRefs, slug } from './mention-composer.js?v=mc2';
+import { createComposer, ensureCanon, buildPool, serializeDoc, docToHTML, docToRefs, slug } from './mention-composer.js?v=mc3';
 
 const esc = s => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

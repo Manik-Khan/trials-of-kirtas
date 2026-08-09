@@ -307,12 +307,25 @@ export function createComposer(host, opts) {
       if (!items.length) html += '<div class="mc-pick-none">no matching pages</div>';
     }
     items.forEach((it, i) => {
+      if (it.type === 'page') {
+        if (it.section !== lastSec) { lastSec = it.section; html += '<div class="mc-pick-sec">' + esc(it.section) + '</div>'; }
+        html += '<div class="mc-pick-item' + (i === sel ? ' sel' : '') + '" data-i="' + i + '">' +
+                '<span class="nm">' + esc(it.label) + '</span>' +
+                (it.hint ? '<span class="ht">' + esc(it.hint) + '</span>' : '') + '</div>';
+        return;
+      }
+      const isCreate = it.section === 'Create';
+      const typeLabel = it.type === 'character' ? 'Player' : it.type === 'npc' ? 'NPC' : it.type === 'location' ? 'Location' : 'Page';
+      const rowLabel = isCreate ? 'Create ' + it.label : it.label;
+      const hint = isCreate
+        ? (it.type === 'npc' ? 'Add this person to the confirmation queue' : 'Add this place to the confirmation queue')
+        : it.hint;
       if (it.section !== lastSec) { lastSec = it.section; html += '<div class="mc-pick-sec">' + esc(it.section) + '</div>'; }
-      html += '<div class="mc-pick-item' + (i === sel ? ' sel' : '') + (it.type === 'character' ? ' char' : '') + (it.type === 'location' ? ' loc' : '') +
-              (it.resolved === false ? ' create' : '') + '" data-i="' + i + '">' +
-              (it.resolved === false ? '<span class="plus">+</span>' : '') +
-              '<span class="nm">' + esc(it.label) + '</span>' +
-              (it.hint ? '<span class="ht">' + esc(it.hint) + '</span>' : '') + '</div>';
+      html += '<div class="mc-pick-item mention' + (i === sel ? ' sel' : '') + (it.type === 'character' ? ' char' : '') + (it.type === 'npc' ? ' npc' : '') + (it.type === 'location' ? ' loc' : '') +
+              (isCreate ? ' create' : '') + '" data-i="' + i + '">' +
+              (isCreate ? '<span class="plus">+</span>' : '<span class="mc-pick-icon">' + (it.type === 'character' ? '◆' : it.type === 'npc' ? '●' : '◆') + '</span>') +
+              '<span class="nm">' + esc(rowLabel) + (hint ? '<span class="ht">' + esc(hint) + '</span>' : '') + '</span>' +
+              '<span class="mc-pick-badge">' + (isCreate ? 'New ' : '') + esc(typeLabel) + '</span></div>';
     });
     pick.innerHTML = html; pick.style.display = 'block';
   }

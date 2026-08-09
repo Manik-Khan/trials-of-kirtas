@@ -41,7 +41,7 @@
 
   var LS_KEY = 'tok.rail.v1';
   var RAIL_W = 384;
-  var RAIL_ASSET_V = 'mentions2';
+  var RAIL_ASSET_V = 'mentions3';
 
   // ── dependency bootstrap (idempotent) ──────────────────────────────
   function linkOnce(id, attrs) {
@@ -669,7 +669,7 @@
         mountFallbackInput();
       } else {
       setTimeout(function () { if (!SURF) mountFallbackInput(); }, 1500);
-      import('./mention-composer.js?v=mc2').then(function (mod) {
+      import('./mention-composer.js?v=mc3').then(function (mod) {
         if (SURF) { console.warn('[rail] mention-composer arrived after fallback — keeping the input'); return; }
         MC.mod = mod;
         var composer = mod.createComposer(host, {
@@ -737,7 +737,7 @@
         return words.length > 6 ? t + '…' : t;
       }
       function sendRowToJournal(row) {
-        Promise.all([import('./mention-composer.js?v=mc2'), import('./journal-capture.js?v=jc2')]).then(function (mods) {
+        Promise.all([import('./mention-composer.js?v=mc3'), import('./journal-capture.js?v=jc3')]).then(function (mods) {
           var mc = mods[0], jc = mods[1];
           if (!MC.mod) MC.mod = mc;
           var ensureSlugs = MC.loaded ? Promise.resolve()

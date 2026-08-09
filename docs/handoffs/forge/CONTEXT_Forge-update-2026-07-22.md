@@ -1764,6 +1764,93 @@ that task to absorb the proof or edit its files. Do not build
 `bridge-crossing`, re-enable random legacy bridge selection, or promote Temple
 while this visual architecture is being settled.
 
+### Enterable-building spatial proof · 2026-08-08
+
+Baseline `0678e54` was clean. The exact combat snapshot/import/session work and
+the committed root mention/rail corrections are dependencies with no file
+overlap. Production Forge, Blueprint, combat, surfaces, protocol/replay,
+importer, character, theme, and deployment files remain untouched.
+
+The isolated `_edits/mock-forge-enterable-building.html` proof and its
+cache-stamped CSS/JS/core companions establish a game-studio-style spatial
+contract before production integration:
+
+- the lower garden, courtyard, hall, gallery, and roof are stable named walk
+  surfaces at logical `-10 / 0 / 0 / +10 / +20 ft`;
+- a renderer-only +10-ft datum offset can keep every visible mesh above its
+  drawing floor without clamping or mutating the signed rules elevation;
+- stairs author only lower and upper landing surfaces, then derive their rise,
+  segment count, and gradual `path[].elevationFt`; no separate stair-height
+  control exists;
+- hall and gallery positions use the complete
+  `{c,r,surfaceId,elevationFt}` identity, so the same grid column does not merge
+  the two floors;
+- entering through the authored door eases the camera inward, lifts the roof,
+  fades the near walls, and exposes the hall; the same transition isolates the
+  gallery upstairs and restores the complete shell on exit; and
+- every unavailable control narrates the surface from which it becomes valid.
+
+The focused contract is **29/29** and all three new JavaScript files pass
+`node --check`. The real local browser completed courtyard → hall → gallery →
+hall → courtyard → lower garden with zero warnings/errors; the interior stair
+was visually corrected so its derived treads remain readable inside the
+cutaway. The default desktop and 820×1180 touch layout both rendered without
+overflowing the interaction surface.
+
+M approved the interior/camera interaction. The proof remains the isolated
+visual authority; the guarded production candidate below carries its spatial
+contract into Forge without claiming stacked tactical movement is ready.
+
+### Guarded River Archive production candidate · 2026-08-09
+
+Baseline remains `0678e54`. Other active work added dirty root, journal, rail,
+and page files during this task; none overlap this candidate's ownership:
+`forge/forge-buildings.js`, the Blueprint compile/fingerprint seam, Forge
+Combat renderer/creation UI and CSS, the importer's Blueprint cache stamp,
+focused tests, and this handoff. Shared session/event code and unrelated dirty
+files were not edited.
+
+Open `forge/combat.html?buildings=1`, then choose **New or change map →
+Templates → The River Archive**. Without that exact flag the template and Scene
+views stay hidden and the ordinary Forge path is unchanged.
+
+The candidate establishes:
+
+- `forge-building-set/v1` and `forge-camera-view/v1` records for stable building,
+  floor, roof, opening, landing, connector, and DM-authored camera identities;
+- logical walk surfaces at `-10 / 0 / 0 / +10 / +20 ft`, with a renderer-only
+  +10-ft datum offset and no mutation or clamping of the signed rules values;
+- landing-authored stairs whose `riseFt`, segment count, and gradual
+  `path[].elevationFt` are derived, including the `0 / 2.5 / 5 / 7.5 / 10 ft`
+  gallery run;
+- a reusable code-native shell with a gable roof, authored entrance opening,
+  lower garden, hall, and upper balcony surrounding an explicit open-to-hall
+  void instead of a featureless upper platform;
+- four saved Scene views (establishing, entrance, hall, gallery) that ease the
+  camera and locally fade roof/walls for interiors; normal pointer orbit remains
+  available immediately afterward; and
+- exact Blueprint compile, fingerprint, snapshot, and reopen preservation for
+  the complete building/view record. Ordinary Blueprints conditionally omit
+  those receipt fields, preserving their existing structural and field identity
+  shape.
+
+The real browser completed flagged template selection, all four views, a
+post-view pointer orbit, exact save → replacement map → reopen, and the
+unflagged hidden-control check with zero browser warnings/errors. Browser review
+caught and corrected two issues before handoff: the gallery initially read as a
+blank full-floor slab, and the template-deck CSS initially overrode the hidden
+flag state.
+
+Stacked-floor local combat is intentionally disabled with a visible reason: the
+hall and gallery may occupy the same `c/r` columns and must retain separate
+surface identities. Shared writes remain locked behind the existing gate. This
+candidate does **not** close the signed-in two-device snapshot/reconnect field
+test and does not absorb the importer city/camp replay work. M still deploys and
+performs that live two-device proof.
+
+Current candidate stamps: `forge-blueprint.js?v=bp6`,
+`forge-buildings.js?v=fbld2`, `combat.js?v=fc9`, and `combat.css?v=fc4`.
+
 ## Deployment discipline
 
 M reviews, commits, and pushes. Codex does not push. Current slice stamps:

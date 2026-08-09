@@ -110,6 +110,7 @@ function pressEnter(shift = false) {
 // picker open on @ → Enter inserts the chip, send does NOT fire
 type('ask @dar');
 ok(pick.style.display !== 'none', '@ opens the picker');
+ok(pick.querySelector('.mc-pick-badge').textContent === 'NPC', 'known NPC row names its type');
 pressEnter();
 ok(sends === 0, 'picker-open Enter did not send');
 ok(!!ed.querySelector('[data-mention-key="general-darius"]'), 'picker-open Enter inserted the chip');
@@ -118,6 +119,7 @@ ok(pick.style.display === 'none', 'picker closed after insert');
 // player character search → rose character chip, never an NPC
 type('ask @chonk');
 ok(pick.textContent.includes('Player characters') && pick.textContent.includes('Chonkalius'), 'player character appears in the @ picker');
+ok(pick.querySelector('.mc-pick-badge').textContent === 'Player', 'player row names its type');
 pressEnter();
 const charChip = ed.querySelector('[data-mention-type="character"]');
 ok(!!charChip && charChip.classList.contains('character-link'), 'player selection inserts a character chip');
@@ -125,6 +127,10 @@ ok(!!charChip && charChip.classList.contains('character-link'), 'player selectio
 // an unknown name seeds only after the writer chooses its explicit Create row
 type('ask @new rock');
 ok(createdEntities.length === 0, 'plain unknown @ text does not seed an entity');
+ok(pick.querySelectorAll('.mc-pick-badge').length === 2
+  && pick.querySelectorAll('.mc-pick-badge')[0].textContent === 'New NPC'
+  && pick.querySelectorAll('.mc-pick-badge')[1].textContent === 'New Location', 'unknown rows explicitly distinguish new NPC from new location');
+ok(pick.textContent.includes('Add this person') && pick.textContent.includes('Add this place'), 'unknown rows explain the confirmation destination');
 pressEnter();
 ok(createdEntities.length === 1 && createdEntities[0].type === 'npc' && createdEntities[0].id === 'new-rock', 'choosing Create NPC queues the new entity');
 

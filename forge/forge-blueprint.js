@@ -60,7 +60,7 @@
     return "bp-" + hashText(stableStringify(blueprint));
   }
   function structuralFingerprint(blueprint) {
-    return "struct-" + hashText(stableStringify({
+    var structural = {
       grid: blueprint && blueprint.grid,
       topology: blueprint && blueprint.topology,
       spaces: blueprint && blueprint.spaces,
@@ -68,7 +68,10 @@
       connectors: blueprint && blueprint.connectors,
       architecture: blueprint && blueprint.architecture,
       elevationZones: blueprint && blueprint.elevationZones
-    }));
+    };
+    if (blueprint && blueprint.buildingSet) structural.buildingSet = blueprint.buildingSet;
+    if (blueprint && blueprint.cameraViews) structural.cameraViews = blueprint.cameraViews;
+    return "struct-" + hashText(stableStringify(structural));
   }
   function key(c, r) { return c + "," + r; }
   function idx(cols, c, r) { return r * cols + c; }
@@ -784,6 +787,8 @@
         producer: copy(blueprint.source || sourceRecord("fixture", {}))
       }
     };
+    if (blueprint.buildingSet) map.meta.buildingSet = copy(blueprint.buildingSet);
+    if (blueprint.cameraViews) map.meta.cameraViews = copy(blueprint.cameraViews);
     regions.forEach(function (cell, i) {
       if (!cell) return;
       map.wall[i] = false; map.occ[i] = 0; map.h[i] = Number(cell.elevationFt) || 0;

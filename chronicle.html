@@ -885,6 +885,7 @@
       background: var(--ink-deep);
       border: 1px solid var(--gold-dim);
       min-width: 180px;
+      width: min(320px, calc(100vw - 16px));
       max-height: 200px;
       overflow-y: auto;
       z-index: 500;
@@ -915,11 +916,20 @@
     .inline-dropdown-name { font-size: 0.82rem; color: var(--parchment2); flex: 1; }
     .inline-dropdown-type {
       font-family: var(--font-title);
-      font-size: 0.78rem;
-      letter-spacing: 0.1em;
+      font-size: 0.58rem;
+      line-height: 1;
+      letter-spacing: 0.13em;
       text-transform: uppercase;
       color: var(--muted);
+      border: 1px solid currentColor;
+      border-radius: 10px;
+      padding: 0.24rem 0.34rem;
+      white-space: nowrap;
     }
+    .inline-dropdown-type.character { color: #c97886; }
+    .inline-dropdown-type.npc { color: var(--gold); }
+    .inline-dropdown-type.location { color: #8ab4c9; }
+    .inline-dropdown-hint { display: block; color: var(--muted); font-family: var(--font-body); font-size: 0.72rem; font-style: italic; margin-top: 0.1rem; }
 
     /* ── Floating selection toolbar ── */
     .selection-toolbar {
@@ -1389,7 +1399,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
 <script src="tooltips.js"></script>
 <script src="characters.js"></script>
-<script src="nav.js?v=sup4"></script>
+<script src="nav.js?v=sup5"></script>
 <script src="living-codex.js?v=lc1"></script>
 <script src="battle.js"></script>
 <script src="feed-bridge.js"></script>
@@ -1816,9 +1826,9 @@ function showInlineDropdown() {
         const display = inlineEsc(rawDisplay);
         const key = LivingCodex.slug(inlineRawQuery);
         dd.innerHTML = `
-          <div class="inline-dropdown-section">Unknown — add as:</div>
-          <div class="inline-dropdown-item" onclick="${mentionAction('insertUnresolvedMention','npc',key,rawDisplay)}"><span class="inline-dropdown-icon">👤</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(new NPC)</em></span></div>
-          <div class="inline-dropdown-item" onclick="${mentionAction('insertUnresolvedMention','location',key,rawDisplay)}"><span class="inline-dropdown-icon">📍</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(new location)</em></span></div>`;
+          <div class="inline-dropdown-section">Not known yet — choose what this is</div>
+          <div class="inline-dropdown-item" onclick="${mentionAction('insertUnresolvedMention','npc',key,rawDisplay)}"><span class="inline-dropdown-icon">＋</span><span class="inline-dropdown-name">Create ${display}<span class="inline-dropdown-hint">Add this person to the confirmation queue</span></span><span class="inline-dropdown-type npc">New NPC</span></div>
+          <div class="inline-dropdown-item" onclick="${mentionAction('insertUnresolvedMention','location',key,rawDisplay)}"><span class="inline-dropdown-icon">＋</span><span class="inline-dropdown-name">Create ${display}<span class="inline-dropdown-hint">Add this place to the confirmation queue</span></span><span class="inline-dropdown-type location">New location</span></div>`;
         dd.style.display = 'block';
         const bounds = quill.getBounds(quill.getSelection()?.index||0);
         const editorRect = document.getElementById('quill-editor').getBoundingClientRect();
@@ -1835,7 +1845,8 @@ function showInlineDropdown() {
           ddTop = cursorBottom + 4;
           dd.style.maxHeight = Math.min(spaceBelow, DD_MAX_HEIGHT) + 'px';
         }
-        if (ddLeft + 200 > window.innerWidth - 8) ddLeft = window.innerWidth - 208;
+        const ddWidth = dd.getBoundingClientRect().width || 200;
+        if (ddLeft + ddWidth > window.innerWidth - 8) ddLeft = window.innerWidth - ddWidth - 8;
         if (ddLeft < 8) ddLeft = 8;
         dd.style.left = ddLeft + 'px';
         dd.style.top  = ddTop  + 'px';
@@ -1847,15 +1858,15 @@ function showInlineDropdown() {
     let html = '';
     if (chars.length) {
       html += `<div class="inline-dropdown-section">Player characters</div>`;
-      html += chars.slice(0,5).map(n=>`<div class="inline-dropdown-item" onclick="${mentionAction('insertMention','character',n.key,n.name)}"><span class="inline-dropdown-icon">◆</span><span class="inline-dropdown-name">${inlineEsc(n.name)}</span><span class="inline-dropdown-type">Character</span></div>`).join('');
+      html += chars.slice(0,5).map(n=>`<div class="inline-dropdown-item" onclick="${mentionAction('insertMention','character',n.key,n.name)}"><span class="inline-dropdown-icon">◆</span><span class="inline-dropdown-name">${inlineEsc(n.name)}</span><span class="inline-dropdown-type character">Player</span></div>`).join('');
     }
     if (npcs.length) {
       html += `<div class="inline-dropdown-section">NPCs</div>`;
-      html += npcs.slice(0,5).map(n=>`<div class="inline-dropdown-item" onclick="${mentionAction(n.resolved ? 'insertMention' : 'insertUnresolvedMention','npc',n.key,n.name)}"><span class="inline-dropdown-icon">👤</span><span class="inline-dropdown-name">${inlineEsc(n.name)}${n.resolved ? '' : ' <em style="color:var(--muted)">(awaiting confirmation)</em>'}</span><span class="inline-dropdown-type">NPC</span></div>`).join('');
+      html += npcs.slice(0,5).map(n=>`<div class="inline-dropdown-item" onclick="${mentionAction(n.resolved ? 'insertMention' : 'insertUnresolvedMention','npc',n.key,n.name)}"><span class="inline-dropdown-icon">●</span><span class="inline-dropdown-name">${inlineEsc(n.name)}${n.resolved ? '' : '<span class="inline-dropdown-hint">awaiting confirmation</span>'}</span><span class="inline-dropdown-type npc">NPC</span></div>`).join('');
     }
     if (locs.length) {
       html += `<div class="inline-dropdown-section">Locations</div>`;
-      html += locs.slice(0,5).map(l=>`<div class="inline-dropdown-item" onclick="${mentionAction(l.resolved ? 'insertMention' : 'insertUnresolvedMention','location',l.key,l.name)}"><span class="inline-dropdown-icon">📍</span><span class="inline-dropdown-name">${inlineEsc(l.name)}${l.resolved ? '' : ' <em style="color:var(--muted)">(awaiting confirmation)</em>'}</span><span class="inline-dropdown-type">Location</span></div>`).join('');
+      html += locs.slice(0,5).map(l=>`<div class="inline-dropdown-item" onclick="${mentionAction(l.resolved ? 'insertMention' : 'insertUnresolvedMention','location',l.key,l.name)}"><span class="inline-dropdown-icon">◆</span><span class="inline-dropdown-name">${inlineEsc(l.name)}${l.resolved ? '' : '<span class="inline-dropdown-hint">awaiting confirmation</span>'}</span><span class="inline-dropdown-type location">Location</span></div>`).join('');
     }
     dd.innerHTML = html;
   } else {
@@ -1893,7 +1904,7 @@ function showInlineDropdown() {
   }
 
   // Keep within viewport horizontally
-  const ddWidth = 200;
+  const ddWidth = dd.getBoundingClientRect().width || 200;
   if (left + ddWidth > window.innerWidth - 8) left = window.innerWidth - ddWidth - 8;
   if (left < 8) left = 8;
 

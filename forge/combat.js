@@ -3,6 +3,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
 const BP = window.ForgeBlueprint;
 if (!BP) throw new Error("Forge Blueprint authority did not load");
+const BUILDINGS_ENABLED = new URLSearchParams(window.location.search).get("buildings") === "1";
+const Buildings = window.ForgeBuildings;
+if (BUILDINGS_ENABLED && !Buildings) throw new Error("Forge building authority did not load");
 const LocalCombat = window.ForgeCombatLocal;
 const PartySelection = window.ForgePartySelection;
 const CombatSnapshot = window.ForgeCombatSnapshot;
@@ -34,6 +37,7 @@ const ui = {};
   "creationTopology", "creationSize", "creationDensity", "creationVerticality", "createDirections", "newDirections",
   "creationCandidateDeck", "openImageImport", "creationBlankSize", "stageBlankMap",
   "creationSelection", "creationSelectionDetail", "confirmMapChoice",
+  "buildingViewsPanel", "buildingViewList", "buildingSceneStatus",
   "sourceReceipt", "sourceReceiptDetail", "reviewFindings", "toggleUnderlay", "acceptAllFindings",
   "pinnedReveal", "pinnedBuild", "pinnedUndo", "pinnedRedo", "browseMode", "buildMode", "buildModeInline", "modeNarration",
   "undoAction", "redoAction", "compareHold", "gridToggle", "gridCellPx", "gridOriginX", "gridOriginY",
@@ -100,7 +104,9 @@ const state = {
   renderUntil: 0,
   lastFrameMs: 0,
   lastActivity: performance.now(),
-  handoff: null
+  handoff: null,
+  buildingViewId: null,
+  cameraTransition: null
 };
 let importedUnderlayImage = null;
 const creation = {
@@ -142,6 +148,7 @@ controls.minDistance = 11;
 controls.maxDistance = 54;
 controls.maxPolarAngle = Math.PI * 0.47;
 controls.target.set(0, 0, 0);
+controls.addEventListener("start", () => { state.cameraTransition = null; });
 controls.addEventListener("change", () => {
   state.lastActivity = performance.now();
   updateCutaway();
@@ -170,7 +177,8 @@ const selectionRoot = new THREE.Group();
 const gridRoot = new THREE.Group();
 const flagRoot = new THREE.Group();
 const areaRoot = new THREE.Group();
-scene.add(boardRoot, lightRoot, gridRoot, flagRoot, areaRoot, selectionRoot);
+const buildingRoot = new THREE.Group();
+scene.add(boardRoot, buildingRoot, lightRoot, gridRoot, flagRoot, areaRoot, selectionRoot);
 
 const ambientPlane = new THREE.Mesh(
   new THREE.PlaneGeometry(80, 64),
@@ -267,6 +275,13 @@ function disposeObject(object) {
 function worldX(c) { return c - state.blueprint.grid.cols / 2 + 0.5; }
 function worldZ(r) { return r - state.blueprint.grid.rows / 2 + 0.5; }
 function rise(elevationFt) { return Number(elevationFt || 0) * 0.1; }
+function buildingDatumFt() {
+  return BUILDINGS_ENABLED && Buildings ? Buildings.renderDatum(state.blueprint).offsetFt : 0;
+}
+function syncBuildingDatum() {
+  const y = rise(buildingDatumFt());
+  [boardRoot, buildingRoot, lightRoot, gridRoot, flagRoot, areaRoot, selectionRoot].forEach((root) => { root.position.y = y; });
+}
 function cellInfo(c, r) { return state.map.meta.regions[BP.idx(state.map.cols, c, r)]; }
 function cellElevationFt(c, r) { return Number(state.map.h[BP.idx(state.map.cols, c, r)]) || 0; }
 function isDiscovered(region) { return region && state.discovered.has(region); }
@@ -716,6 +731,148 @@ function clearOwnedRoot(root) {
     });
   }
 }
+function buildingBoundsCenter(surface) {
+  const box = Buildings.bounds(surface.polygon);
+  return {
+    box,
+    x: (box.minC + box.maxC) / 2 - state.blueprint.grid.cols / 2,
+    z: (box.minR + box.maxR) / 2 - state.blueprint.grid.rows / 2
+  };
+}
+function addBuildingPart(geometry, materialValue, position, rotation = null) {
+  const mesh = new THREE.Mesh(geometry, materialValue);
+  mesh.position.set(position.x, position.y, position.z);
+  if (rotation) mesh.rotation.set(rotation.x || 0, rotation.y || 0, rotation.z || 0);
+  mesh.castShadow = state.quality !== "basic";
+  mesh.receiveShadow = true;
+  mesh.userData.ownedMaterial = true;
+  buildingRoot.add(mesh);
+  return mesh;
+}
+function addBuildingSlabBounds(box, elevationFt, color, opacity) {
+  const width = box.maxC - box.minC, depth = box.maxR - box.minR;
+  if (width <= 0 || depth <= 0) return;
+  addBuildingPart(
+    new THREE.BoxGeometry(width, 0.12, depth),
+    material(color, { transparent: opacity < 1, opacity, depthWrite: opacity > 0.2 }),
+    {
+      x: (box.minC + box.maxC) / 2 - state.blueprint.grid.cols / 2,
+      y: rise(elevationFt) + 0.04,
+      z: (box.minR + box.maxR) / 2 - state.blueprint.grid.rows / 2
+    }
+  );
+}
+function addBuildingSlab(surface, color, opacity = 1) {
+  const outer = Buildings.bounds(surface.polygon), opening = Buildings.bounds(surface.openings?.[0]?.polygon);
+  if (!opening) { addBuildingSlabBounds(outer, surface.elevationFt, color, opacity); return; }
+  addBuildingSlabBounds({ minC: outer.minC, maxC: outer.maxC, minR: outer.minR, maxR: opening.minR }, surface.elevationFt, color, opacity);
+  addBuildingSlabBounds({ minC: outer.minC, maxC: outer.maxC, minR: opening.maxR, maxR: outer.maxR }, surface.elevationFt, color, opacity);
+  addBuildingSlabBounds({ minC: outer.minC, maxC: opening.minC, minR: opening.minR, maxR: opening.maxR }, surface.elevationFt, color, opacity);
+  addBuildingSlabBounds({ minC: opening.maxC, maxC: outer.maxC, minR: opening.minR, maxR: opening.maxR }, surface.elevationFt, color, opacity);
+}
+function addBuildingWalls(surface, opacity, building) {
+  const at = buildingBoundsCenter(surface), width = at.box.maxC - at.box.minC, depth = at.box.maxR - at.box.minR;
+  const wallMaterial = () => material(0x8d806c, { transparent: opacity < 1, opacity, depthWrite: opacity > 0.2, side: THREE.DoubleSide });
+  const y = rise(surface.elevationFt) + 0.54;
+  [at.box.minR, at.box.maxR].forEach((r) => addBuildingPart(
+    new THREE.BoxGeometry(width, 1.02, 0.18), wallMaterial(),
+    { x: at.x, y, z: r - state.blueprint.grid.rows / 2 }
+  ));
+  [at.box.minC, at.box.maxC].forEach((c) => {
+    const door = (building.connectors || []).find((item) => item.kind === "door"
+      && [item.from.surfaceId, item.to.surfaceId].includes(surface.id)
+      && Math.abs((item.from.surfaceId === surface.id ? item.from.c : item.to.c) - c) < 0.1);
+    if (!door) {
+      addBuildingPart(new THREE.BoxGeometry(0.18, 1.02, depth), wallMaterial(), { x: c - state.blueprint.grid.cols / 2, y, z: at.z });
+      return;
+    }
+    const landing = door.from.surfaceId === surface.id ? door.from : door.to;
+    [{ min: at.box.minR, max: landing.r - 0.65 }, { min: landing.r + 0.65, max: at.box.maxR }].forEach((segment) => {
+      if (segment.max <= segment.min) return;
+      addBuildingPart(
+        new THREE.BoxGeometry(0.18, 1.02, segment.max - segment.min), wallMaterial(),
+        { x: c - state.blueprint.grid.cols / 2, y, z: (segment.min + segment.max) / 2 - state.blueprint.grid.rows / 2 }
+      );
+    });
+  });
+}
+function addBuildingRoof(building, roofSurface, opacity) {
+  const at = buildingBoundsCenter(roofSurface), width = at.box.maxC - at.box.minC, depth = at.box.maxR - at.box.minR;
+  const slope = Math.atan2(0.75, depth / 2), panelDepth = Math.sqrt((depth / 2) ** 2 + 0.75 ** 2);
+  [-1, 1].forEach((side) => addBuildingPart(
+    new THREE.BoxGeometry(width + 0.25, 0.12, panelDepth),
+    material(0x54483d, { transparent: opacity < 1, opacity, depthWrite: opacity > 0.2, side: THREE.DoubleSide }),
+    { x: at.x, y: rise(roofSurface.elevationFt) + 0.18, z: at.z + side * depth / 4 },
+    { x: side * slope }
+  ));
+}
+function addBuildingStairs(connector, opacity) {
+  connector.path.forEach((point) => addBuildingPart(
+    new THREE.BoxGeometry(0.72, 0.12, 0.62),
+    material(0xb4a486, { transparent: opacity < 1, opacity, depthWrite: opacity > 0.2 }),
+    { x: worldX(point.c), y: rise(point.elevationFt) + 0.09, z: worldZ(point.r) }
+  ));
+}
+function rebuildBuildings() {
+  clearOwnedRoot(buildingRoot);
+  if (!BUILDINGS_ENABLED || !state.blueprint.buildingSet) return;
+  const audit = Buildings.validate(state.blueprint);
+  if (!audit.ok) {
+    ui.buildingSceneStatus.textContent = "Building record is invalid: " + audit.errors.join(" ");
+    return;
+  }
+  const presentation = Buildings.presentation(state.blueprint, state.buildingViewId);
+  const building = state.blueprint.buildingSet.buildings[0];
+  const lower = Buildings.surfaceById(state.blueprint, "surface-lower-garden");
+  const hall = Buildings.surfaceById(state.blueprint, "surface-hall");
+  const gallery = Buildings.surfaceById(state.blueprint, "surface-gallery");
+  const roof = Buildings.surfaceById(state.blueprint, building.roof.surfaceId);
+  if (lower) addBuildingSlab(lower, 0x5c7467);
+  if (hall) addBuildingSlab(hall, 0x887b68, presentation.floorSurfaceId === hall.id ? 0.48 : 0.18);
+  if (gallery) addBuildingSlab(gallery, 0x8e8069, presentation.floorSurfaceId === hall?.id ? 0.12 : 0.96);
+  [hall, gallery].filter(Boolean).forEach((surface) => addBuildingWalls(surface, presentation.nearWallOpacity, building));
+  if (roof) addBuildingRoof(building, roof, presentation.roofOpacity);
+  (building.connectors || []).filter((item) => item.kind === "stairs").forEach((item) => {
+    const relevant = !presentation.floorSurfaceId || [item.from.surfaceId, item.to.surfaceId].includes(presentation.floorSurfaceId);
+    addBuildingStairs(item, relevant ? 1 : 0.14);
+  });
+}
+function renderBuildingViewControls() {
+  const available = BUILDINGS_ENABLED && !!state.blueprint.buildingSet;
+  ui.buildingViewsPanel.hidden = !available;
+  ui.buildingViewList.replaceChildren();
+  if (!available) return;
+  (state.blueprint.cameraViews || []).forEach((view) => {
+    const button = document.createElement("button"), label = document.createElement("strong"), detail = document.createElement("small");
+    button.type = "button";
+    button.className = view.id === state.buildingViewId ? "active" : "";
+    label.textContent = view.label;
+    detail.textContent = view.floorSurfaceId ? Buildings.surfaceById(state.blueprint, view.floorSurfaceId)?.relation || "authored floor" : "complete exterior";
+    button.append(label, detail);
+    button.addEventListener("click", () => applyBuildingView(view.id));
+    ui.buildingViewList.appendChild(button);
+  });
+  ui.buildingSceneStatus.textContent = "Presentation only · free orbit remains available · stacked-floor combat locked.";
+}
+function applyBuildingView(viewId) {
+  if (!BUILDINGS_ENABLED) return;
+  const view = Buildings.viewById(state.blueprint, viewId);
+  if (!view) return;
+  state.buildingViewId = view.id;
+  state.cameraTransition = null;
+  setView("board");
+  rebuildBuildings();
+  renderBuildingViewControls();
+  const datum = buildingDatumFt();
+  const target = new THREE.Vector3(worldX(view.target.c), rise(view.target.elevationFt + datum), worldZ(view.target.r));
+  const position = target.clone().add(new THREE.Vector3(view.offset.x, view.offset.y, view.offset.z));
+  state.cameraTransition = {
+    startedAt: performance.now(), duration: 650,
+    fromPosition: camera.position.clone(), fromTarget: controls.target.clone(),
+    toPosition: position, toTarget: target
+  };
+  requestRender(700);
+}
 function buildGrid() {
   clearOwnedRoot(gridRoot);
   if (!state.gridVisible) return;
@@ -855,6 +1012,7 @@ function buildAreaOverlay() {
   }
 }
 function rebuildAll() {
+  syncBuildingDatum();
   state.chunks.forEach((group) => { boardRoot.remove(group); disposeObject(group); });
   state.chunks.clear();
   const size = state.blueprint.grid.chunkSize;
@@ -866,6 +1024,7 @@ function rebuildAll() {
   buildFlags();
   buildAreaOverlay();
   drawSelection();
+  rebuildBuildings();
   requestRender();
 }
 function rebuildRegion(regionId, animate) {
@@ -1020,10 +1179,22 @@ function animateReveals(now) {
   });
   return active;
 }
+function animateCameraTransition(now) {
+  const transition = state.cameraTransition;
+  if (!transition) return false;
+  const t = Math.min(1, (now - transition.startedAt) / transition.duration);
+  const eased = 1 - Math.pow(1 - t, 3);
+  camera.position.lerpVectors(transition.fromPosition, transition.toPosition, eased);
+  controls.target.lerpVectors(transition.fromTarget, transition.toTarget, eased);
+  controls.update();
+  if (t >= 1) state.cameraTransition = null;
+  return t < 1;
+}
 function renderFrame(now) {
   state.renderPending = false;
   const started = performance.now();
-  const animating = animateReveals(now);
+  const revealing = animateReveals(now), movingCamera = animateCameraTransition(now);
+  const animating = revealing || movingCamera;
   renderer.render(scene, camera);
   state.lastFrameMs = performance.now() - started;
   updateMetrics();
@@ -1663,6 +1834,8 @@ function useBlueprint(blueprint, handoff = null) {
   state.layoutPassage = null;
   state.buildAnchor = null;
   state.sourceUnderlay = !!state.blueprint.source?.underlay;
+  state.buildingViewId = BUILDINGS_ENABLED ? state.blueprint.cameraViews?.[0]?.id || null : null;
+  state.cameraTransition = null;
   loadImportedUnderlay();
   state.discovered = new Set(state.blueprint.discoveryRegions.map((region) => region.id));
   document.querySelectorAll("[data-fixture]").forEach((button) => button.classList.toggle("active", button.dataset.fixture === state.fixtureKey));
@@ -1672,11 +1845,13 @@ function useBlueprint(blueprint, handoff = null) {
   renderReviewFindings();
   if (state.rosterCandidates.length) syncRosterGroups(); else renderDeploymentGroups();
   renderLocalCombat();
+  updateFightGate();
   updateSourceReceipt();
   setLayoutTool("select");
   setRotation(0, false);
   rebuildAll();
   frameBoard();
+  if (state.buildingViewId) applyBuildingView(state.buildingViewId);
   setMode("browse");
   resetHistory();
   setWorkflow("map");
@@ -1763,6 +1938,16 @@ function renderCreationTemplates() {
     drawCreationPreview(button.querySelector("canvas"), BP.FIXTURES[key]);
     button.classList.toggle("active", creation.draftKind === "fixture" && creation.draft?.source?.fixtureKey === key);
   });
+  const buildingButton = document.querySelector("[data-building-template]");
+  if (BUILDINGS_ENABLED && buildingButton) {
+    const blueprint = Buildings.createRiverArchive(BP);
+    drawCreationPreview(buildingButton.querySelector("canvas"), blueprint);
+    buildingButton.classList.toggle("active", creation.draft?.source?.buildingTemplate === "river-archive");
+  }
+}
+function setupBuildingStudy() {
+  const button = document.querySelector("[data-building-template]");
+  if (button) button.hidden = !BUILDINGS_ENABLED;
 }
 function setCreationMethod(method) {
   creation.method = ["generate", "template", "import", "blank"].includes(method) ? method : "generate";
@@ -1958,6 +2143,7 @@ function refreshDocument() {
   drawArtwork();
   updateAreaInspector();
   updateDirectUI();
+  renderBuildingViewControls();
 }
 function loadFixture(key) {
   if (!BP.FIXTURES[key]) return;
@@ -1975,6 +2161,8 @@ function loadFixture(key) {
   state.layoutPassage = null;
   state.buildAnchor = null;
   state.sourceUnderlay = false;
+  state.buildingViewId = null;
+  state.cameraTransition = null;
   state.discovered = new Set(state.blueprint.discoveryRegions.map((region) => region.id));
   document.querySelectorAll("[data-fixture]").forEach((button) => button.classList.toggle("active", button.dataset.fixture === key));
   updateRegionControls();
@@ -1983,6 +2171,7 @@ function loadFixture(key) {
   renderReviewFindings();
   if (state.rosterCandidates.length) syncRosterGroups(); else renderDeploymentGroups();
   renderLocalCombat();
+  updateFightGate();
   setLayoutTool("select");
   setRotation(0, false);
   rebuildAll();
@@ -1992,16 +2181,18 @@ function loadFixture(key) {
 }
 function frameBoard() {
   const span = Math.max(state.blueprint.grid.cols, state.blueprint.grid.rows);
-  controls.target.set(0, 0, 0);
-  camera.position.set(span * 0.72, span * 0.8, span * 0.9);
+  const datum = rise(buildingDatumFt());
+  controls.target.set(0, datum, 0);
+  camera.position.set(span * 0.72, span * 0.8 + datum, span * 0.9);
   controls.update();
   requestRender();
 }
 function frameTopDown() {
   if (!state.blueprint) return;
   const span = Math.max(state.blueprint.grid.cols, state.blueprint.grid.rows);
-  controls.target.set(0, 0, 0);
-  camera.position.set(0, span * 1.48, 0.01);
+  const datum = rise(buildingDatumFt());
+  controls.target.set(0, datum, 0);
+  camera.position.set(0, span * 1.48 + datum, 0.01);
   controls.update();
   requestRender();
 }
@@ -2077,6 +2268,8 @@ function restoreSnapshot(snapshot, direction) {
   state.buildAnchor = null;
   state.linePreview = [];
   state.roomPreview = null;
+  state.buildingViewId = BUILDINGS_ENABLED ? state.blueprint.cameraViews?.[0]?.id || null : null;
+  state.cameraTransition = null;
   refreshDocument();
   updateRegionControls();
   syncGridControls();
@@ -2282,6 +2475,12 @@ function syncRosterGroups() {
 }
 function updateFightGate(message, bad = false) {
   const ready = selectedParty().length;
+  if (state.blueprint.buildingSet) {
+    ui.prepareLocalCombat.disabled = true;
+    ui.combatFightGate.textContent = "Stacked-floor combat is intentionally locked: the hall and gallery keep separate surface identities even where their grid columns overlap.";
+    ui.combatFightGate.className = "fight-gate bad";
+    return;
+  }
   ui.prepareLocalCombat.disabled = !ready;
   ui.combatFightGate.textContent = message || (ready
     ? ready + " real character" + (ready === 1 ? " is" : "s are") + " ready. Three local training guards will provide the opposing side."
@@ -2358,7 +2557,9 @@ function renderLocalCombat() {
   ui.combatCombatants.replaceChildren(); ui.combatFightLog.replaceChildren();
   if (!state.fight) {
     ui.combatFightStatus.textContent = "not prepared"; ui.combatFightStatus.className = "status";
-    ui.combatFightInstruction.textContent = "Choose characters first. Combat will use this exact Blueprint field without changing the authored map.";
+    ui.combatFightInstruction.textContent = state.blueprint.buildingSet
+      ? "This building is ready for scene framing. Stacked-floor combat stays locked until movement can preserve surface identity."
+      : "Choose characters first. Combat will use this exact Blueprint field without changing the authored map.";
     ui.combatTurn.hidden = true; ui.combatAttack.disabled = true; ui.combatEndTurn.disabled = true;
     ui.openSharedCombat.disabled = true;
     return;
@@ -2401,6 +2602,10 @@ function renderLocalCombat() {
   ui.openSharedCombat.disabled = !!state.session;
 }
 function prepareLocalCombat() {
+  if (state.blueprint.buildingSet) {
+    updateFightGate("Stacked-floor combat is intentionally locked: the hall and gallery share grid columns and must not collapse into one tactical surface.", true);
+    return;
+  }
   const party = selectedParty();
   if (!party.length) { updateFightGate("Choose at least one combat-ready character first.", true); return; }
   refreshDocument();
@@ -3218,6 +3423,12 @@ document.querySelectorAll("[data-creation-template]").forEach((button) => button
   stageCreation(blueprint, blueprint.name, blueprint.topology + " template");
   renderCreationTemplates();
 }));
+document.querySelectorAll("[data-building-template]").forEach((button) => button.addEventListener("click", () => {
+  if (!BUILDINGS_ENABLED) return;
+  const blueprint = Buildings.createRiverArchive(BP);
+  stageCreation(blueprint, blueprint.name, "Enterable two-storey building · scene framing study");
+  renderCreationTemplates();
+}));
 document.querySelectorAll("[data-theme]").forEach((button) => button.addEventListener("click", () => applyThemePreset(button.dataset.theme)));
 document.querySelectorAll("[data-map-tab]").forEach((button) => button.addEventListener("click", () => setMapTab(button.dataset.mapTab)));
 document.querySelectorAll("[data-layout-tool]").forEach((button) => button.addEventListener("click", () => activateLayoutTool(button.dataset.layoutTool)));
@@ -3626,6 +3837,7 @@ function restoreCombatSnapshot(record, source) {
   document.querySelector(".stage-shell")?.classList.toggle("fight-active", !!state.fight);
   setWorkflow(state.fight ? "present" : "map");
   renderLocalCombat();
+  updateFightGate();
   snapshotMessage(source + " · Blueprint " + record.authored.blueprintFingerprint + " · field " + record.authored.fieldFingerprint);
 }
 function saveCombatSnapshot() {
@@ -3738,10 +3950,15 @@ window.__forgeCombatState = () => ({
   sessionId: state.session?.row?.id || null,
   sessionEventSeq: state.session?.pipe?.state()?.lastSeq || null,
   sessionReadOnly: !!state.session,
+  buildingsEnabled: BUILDINGS_ENABLED,
+  buildingSetSchema: state.blueprint.buildingSet?.schema || null,
+  buildingViewId: state.buildingViewId,
+  cameraViews: state.blueprint.cameraViews?.map((view) => view.id) || [],
   fightUnits: state.fight?.units.map((unit) => ({ unit: unit.unit, side: unit.side, hp: unit.hp, c: unit.c, r: unit.r })) || []
 });
 
 try {
+  setupBuildingStudy();
   updateRegionControls();
   refreshDocument();
   state.groups = defaultGroups();

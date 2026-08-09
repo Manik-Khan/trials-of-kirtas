@@ -199,7 +199,9 @@ Quill Chronicle composition, the TipTap Journal mention menu, and the shared
 Feed rail now offer Characters, NPCs, and Locations. Choosing an explicit
 Create NPC or Create location row inserts an unresolved chip and remembers one
 uncurated shared entity after the post succeeds; plain typed text creates
-nothing. The staff-only
+nothing. Every picker row carries a written Player, NPC, or Location badge;
+unknown names use explicit New NPC / New location actions instead of relying
+on color or icons alone. The staff-only
 Journal **New to the world** queue can edit, canonize, merge, or discard those
 discoveries. Canonize resolves matching chips everywhere. Merge rewrites
 structured mention nodes, cached page HTML, and refs, leaves an alias for future

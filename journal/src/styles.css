@@ -926,16 +926,16 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
   padding: 6px 12px;
   font-size: 14px; color: var(--sh-ink-soft);
 }
+.jm-dd-item.jm-dd-mention { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; padding: 8px 12px; }
 .jm-dd-item.is-selected { background: var(--sh-ink-wash-2); color: var(--sh-ink); }
-.jm-dd-item.is-unresolved .jm-dd-name { font-style: italic; }
 .jm-dd-icon { flex: none; font-size: 12px; }
 .jm-dd-name { font-family: var(--sh-font-body); font-size: 15px; }
-.jm-dd-new {
-  font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700;
-  color: var(--sh-paper); background: var(--sh-accent);
-  padding: 1px 6px; margin-left: auto;
-}
 .jm-dd-hint { padding: 6px 12px 8px; font-size: 11px; font-style: italic; color: var(--sh-ink-faint); font-family: var(--sh-font-body); }
+.jm-dd-mention .jm-dd-hint { display: block; margin-top: 2px; padding: 0; line-height: 1.2; font-weight: 400; }
+.jm-dd-type { font-size: 8px; line-height: 1; letter-spacing: 0.13em; text-transform: uppercase; font-weight: 700; border: 1px solid currentColor; border-radius: 10px; padding: 4px 6px; white-space: nowrap; }
+.jm-dd-type.is-character { color: var(--sh-accent); }
+.jm-dd-type.is-npc { color: #946a2d; }
+.jm-dd-type.is-location { color: var(--sh-place); }
 
 /* ── knowledge panels: backlinks + world refs ── */
 .j-know {

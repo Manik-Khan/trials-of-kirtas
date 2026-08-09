@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Trials of Kirtas — Mention Type Picker Mock</title>
+  <style>
+    :root{--bg:#07100f;--panel:#0b1715;--line:#33433e;--hair:#202f2b;--cream:#e8dfca;--muted:#928d80;--gold:#d4ac3a;--rose:#c97886;--blue:#8ab4c9;--violet:#bd8ce8}
+    *{box-sizing:border-box} body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 15%,#19302b 0,#07100f 52%);color:var(--cream);font-family:Georgia,serif;padding:42px 18px}
+    main{max-width:760px;margin:auto}.eyebrow{font:600 10px/1.3 Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}h1{font-weight:400;margin:8px 0 8px;font-size:31px}.intro{color:#b8b1a2;max-width:620px;line-height:1.55;margin:0 0 28px}
+    .examples{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:26px}.example h2{font:600 10px/1.3 Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase;color:#b8b1a2;margin:0 0 8px}.composer{border:1px solid var(--line);background:rgba(5,12,11,.92);box-shadow:0 22px 48px rgba(0,0,0,.38)}.typed{padding:12px 13px;border-bottom:1px solid var(--line);font-size:15px}.typed b{color:var(--gold);font-weight:600}.section{padding:7px 11px 4px;border-bottom:1px solid var(--hair);font:600 9px/1.2 Arial,sans-serif;letter-spacing:.21em;text-transform:uppercase;color:#817e74}
+    .row{display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;gap:8px;padding:10px 11px;border-bottom:1px solid var(--hair)}.row:last-child{border-bottom:0}.row.selected{background:rgba(199,154,74,.13)}.icon{font-size:12px}.name{font-size:15px}.hint{display:block;color:var(--muted);font-style:italic;font-size:12px;margin-top:2px}.badge{font:700 8px/1 Arial,sans-serif;letter-spacing:.13em;text-transform:uppercase;border:1px solid currentColor;border-radius:10px;padding:4px 6px;white-space:nowrap}.player .badge{color:var(--rose)}.npc .badge{color:var(--gold)}.location .badge{color:var(--blue)}.create .name{font-weight:600}.create .hint{font-weight:400}.create.npc .icon{color:var(--gold)}.create.location .icon{color:var(--blue)}.new{color:var(--violet);margin-right:4px}
+    .rule{margin-top:28px;padding:14px 16px;border-left:2px solid var(--gold);background:rgba(212,172,58,.06);color:#c9c0ae;line-height:1.5}.rule strong{color:var(--cream)}
+    @media(max-width:650px){.examples{grid-template-columns:1fr}body{padding:26px 14px}}
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Living Codex · picker clarification</div>
+    <h1>Every @ choice names its type</h1>
+    <p class="intro">Color and icons remain as quick cues, but a written badge carries the meaning. New names become explicit actions instead of two nearly identical rows.</p>
+    <div class="examples">
+      <section class="example">
+        <h2>Known matches</h2>
+        <div class="composer">
+          <div class="typed">We met <b>@chonk</b></div>
+          <div class="section">Matches</div>
+          <div class="row player selected"><span class="icon">◆</span><span class="name">Chonkalius<span class="hint">Barbarian 4</span></span><span class="badge">Player</span></div>
+          <div class="row npc"><span class="icon">●</span><span class="name">Chon Kal<span class="hint">awaiting confirmation</span></span><span class="badge">NPC</span></div>
+          <div class="row location"><span class="icon">◆</span><span class="name">Chonk’s Rest</span><span class="badge">Location</span></div>
+        </div>
+      </section>
+      <section class="example">
+        <h2>Unknown name</h2>
+        <div class="composer">
+          <div class="typed">We met <b>@rock plenge</b></div>
+          <div class="section">Not known yet — choose what this is</div>
+          <div class="row create npc selected"><span class="icon"><span class="new">＋</span></span><span class="name">Create Rock Plenge<span class="hint">Add this person to the confirmation queue</span></span><span class="badge">New NPC</span></div>
+          <div class="row create location"><span class="icon"><span class="new">＋</span></span><span class="name">Create Rock Plenge<span class="hint">Add this place to the confirmation queue</span></span><span class="badge">New location</span></div>
+        </div>
+      </section>
+    </div>
+    <div class="rule"><strong>Selection rule:</strong> typing alone creates nothing. Clicking a row—or choosing it with Enter—records exactly the type written on its badge.</div>
+  </main>
+</body>
+</html>

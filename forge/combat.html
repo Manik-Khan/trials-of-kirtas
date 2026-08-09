@@ -13,7 +13,7 @@
   }
 }
 </script>
-<link rel="stylesheet" href="combat.css?v=fc2">
+<link rel="stylesheet" href="combat.css?v=fc4">
 </head>
 <body>
 <header class="masthead">
@@ -152,6 +152,12 @@
           <div class="section-head"><div><span class="step">↳</span><h3>Starting point</h3></div><span class="status">optional</span></div>
           <button type="button" class="action primary wide" id="openMapCreation">New or change map</button>
           <small>Generate three directions, choose a template, import local artwork, or begin with an empty grid. Your current map stays here until you confirm a replacement.</small>
+        </section>
+        <section class="panel building-views" id="buildingViewsPanel" hidden>
+          <div class="section-head"><div><span class="step">⌂</span><h3>Scene views</h3></div><span class="status">guarded</span></div>
+          <p class="hint">Views frame an authored entrance or floor. Orbit remains free before and after every view.</p>
+          <div class="building-view-list" id="buildingViewList"></div>
+          <p class="fight-gate" id="buildingSceneStatus">Building presentation is local while stacked-floor combat remains locked.</p>
         </section>
         <section class="panel next-step combat-entry">
           <span>Battlefield ready?</span>
@@ -515,6 +521,7 @@
           <button type="button" data-creation-template="processional"><canvas width="240" height="112"></canvas><span><b>Processional Abbey</b><small>Linear progression</small></span></button>
           <button type="button" data-creation-template="vault"><canvas width="240" height="112"></canvas><span><b>Loop / Hub Vault</b><small>Choices around a center</small></span></button>
           <button type="button" data-creation-template="warren"><canvas width="240" height="112"></canvas><span><b>Branching Warren</b><small>Forks and optional rooms</small></span></button>
+          <button type="button" data-building-template="river-archive" hidden><canvas width="240" height="112"></canvas><span><b>The River Archive</b><small>Enterable two-storey building · guarded</small></span></button>
         </div>
       </section>
       <section class="creation-panel" data-creation-panel="import" hidden>
@@ -550,8 +557,9 @@
 <script src="forge-replay.js?v=fb19"></script>
 <script src="forge-bus.js?v=fb2"></script>
 <script src="forge-pipeline.js?v=fb9"></script>
-<script src="forge-blueprint.js?v=bp5"></script>
+<script src="forge-blueprint.js?v=bp6"></script>
+<script src="forge-buildings.js?v=fbld2"></script>
 <script src="forge-combat-snapshot.js?v=fcs1"></script>
-<script type="module" src="combat.js?v=fc5"></script>
+<script type="module" src="combat.js?v=fc9"></script>
 </body>
 </html>

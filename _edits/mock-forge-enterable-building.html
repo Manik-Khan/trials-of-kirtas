@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Forge · Enterable building proof</title>
+  <link rel="stylesheet" href="mock-forge-enterable-building.css?v=eb2">
+</head>
+<body>
+  <header class="masthead">
+    <div>
+      <span class="eyebrow">Battle Forge · isolated spatial proof</span>
+      <h1>A building, not a platform.</h1>
+    </div>
+    <div class="proof-status"><i></i><span>Production Forge untouched</span></div>
+  </header>
+
+  <main>
+    <section class="stage-shell" aria-label="Enterable archive demonstration">
+      <canvas id="stage" width="1440" height="900" aria-label="Isometric enterable building"></canvas>
+      <div class="stage-wash"></div>
+      <div class="place-caption">
+        <span id="placeRelation">Site datum · 0 ft</span>
+        <strong id="placeName">Courtyard</strong>
+        <small id="cameraMode">Outside camera · complete building</small>
+      </div>
+      <div class="stage-legend">
+        <span><i class="party"></i>Party</span><span><i class="floor"></i>Active walk surface</span><span><i class="connector"></i>Derived connector</span>
+      </div>
+      <button type="button" class="next-stop" id="nextStop"><span>Next stop</span><b>Enter the archive →</b></button>
+      <div class="narration" id="narration"><b>Courtyard ready.</b><span>The building is complete from outside. Enter it to let the camera reveal the authored interior.</span></div>
+    </section>
+
+    <aside class="workbench">
+      <section class="heading">
+        <span class="eyebrow">Forge stacked place / proof v1</span>
+        <h2>The River Archive</h2>
+        <p>Floors own their elevation. Doors and stairs only connect named walk surfaces.</p>
+      </section>
+
+      <section class="panel journey">
+        <div class="section-head"><div><span>01</span><h3>Walk through it</h3></div><small>touch-first</small></div>
+        <div id="actions" class="actions"></div>
+      </section>
+
+      <section class="panel height-stack">
+        <div class="section-head"><div><span>02</span><h3>Height by relationship</h3></div><small>signed</small></div>
+        <p class="panel-intro">Author the place you mean. The renderer can shift it upward without changing its rules.</p>
+        <div id="surfaceStack" class="surface-stack"></div>
+      </section>
+
+      <section class="panel receipt">
+        <div class="section-head"><div><span>03</span><h3>Current position</h3></div><small id="receiptState">outside</small></div>
+        <dl>
+          <div><dt>Walk surface</dt><dd id="receiptSurface">surface-courtyard</dd></div>
+          <div><dt>Logical elevation</dt><dd id="receiptLogical">0 ft</dd></div>
+          <div><dt>Renderer elevation</dt><dd id="receiptRender">10 ft</dd></div>
+          <div><dt>Roof / near wall</dt><dd id="receiptShell">100% / 100%</dd></div>
+        </dl>
+        <code id="positionKey">5,8@surface-courtyard</code>
+      </section>
+
+      <section class="principle">
+        <b>The stair has no height control.</b>
+        <p>Choose its lower and upper landings. The rise, tread count, and every gradual elevation are derived.</p>
+      </section>
+
+      <button type="button" class="reset" id="resetProof">Reset walkthrough</button>
+      <footer>Code-native canvas · no network · no imported assets</footer>
+    </aside>
+  </main>
+
+  <script src="mock-forge-enterable-building-core.js?v=eb2"></script>
+  <script src="mock-forge-enterable-building.js?v=eb2"></script>
+</body>
+</html>

@@ -45,10 +45,16 @@ export const MentionList = forwardRef(function MentionList(props, ref) {
 
   if (!items.length) return null
 
+  const typeLabel = item => item.type === 'character' ? 'Player' : item.type === 'npc' ? 'NPC' : item.type === 'location' ? 'Location' : 'Page'
+  const createHint = item => item.type === 'npc'
+    ? 'Add this person to the confirmation queue'
+    : 'Add this place to the confirmation queue'
+
   // Group consecutive items by section for headers
   let lastSection = null
   const rows = []
   items.forEach((item, i) => {
+    const isCreate = item.section === 'Create'
     if (item.section !== lastSection) {
       lastSection = item.section
       rows.push(
@@ -60,17 +66,17 @@ export const MentionList = forwardRef(function MentionList(props, ref) {
     rows.push(
       <button
         type="button"
-        className={`jm-dd-item ${i === selected ? 'is-selected' : ''} ${item.resolved ? '' : 'is-unresolved'}`}
+        className={`jm-dd-item jm-dd-mention ${i === selected ? 'is-selected' : ''} ${item.resolved ? '' : 'is-unresolved'}`}
         key={`${item.type}:${item.id}`}
         onMouseEnter={() => setSelected(i)}
         onClick={() => choose(i)}
       >
         <span className="jm-dd-icon">{item.type === 'character' ? '◆' : item.type === 'npc' ? '👤' : item.type === 'location' ? '📍' : '📄'}</span>
         <span className="jm-dd-name">
-          {item.label}
-          {!item.resolved && <em className="jm-dd-new"> — {item.origin === 'journal' ? 'awaiting confirmation' : `new ${item.type === 'npc' ? 'NPC' : item.type === 'location' ? 'location' : 'page'}`}</em>}
+          {isCreate ? `Create ${item.label}` : item.label}
+          {(isCreate || item.hint) && <em className="jm-dd-hint">{isCreate ? createHint(item) : item.hint}</em>}
         </span>
-        {item.hint && <span className="jm-dd-hint">{item.hint}</span>}
+        <span className={`jm-dd-type is-${item.type}`}>{isCreate ? 'New ' : ''}{typeLabel(item)}</span>
       </button>,
     )
   })
