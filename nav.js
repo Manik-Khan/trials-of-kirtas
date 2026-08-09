@@ -542,7 +542,7 @@ function mountRail() {
   if (document.getElementById('tok-rail-js')) return;   // inject once
   const s = document.createElement('script');
   s.id = 'tok-rail-js';
-  s.src = 'rail.js?v=settings3';
+  s.src = 'rail.js?v=settings4';
   s.defer = true;
   document.body.appendChild(s);
 }
@@ -552,7 +552,7 @@ function mountRail() {
 // only Site look + Sheet look. Device behavior lives in the rail Settings tab.
 // SETTINGS_V busts browser caches — bump it whenever the injected look/settings/badge
 // scripts change (learned July 3: the un-stamped first deploy served stale files).
-const SETTINGS_V = 12;
+const SETTINGS_V = 13;
 function mountSettings() {
   if (document.getElementById('tok-settings-js')) return;   // inject once
   // look-derive.js first: the flyout drives window.TokLook for the finish
@@ -582,7 +582,7 @@ function mountSettings() {
   const a = document.createElement('script');
   a.id = 'tok-appearance-settings-js';
   a.type = 'module';
-  a.src = 'appearance-settings.js?v=appearance2';
+  a.src = 'appearance-settings.js?v=appearance3';
   document.body.appendChild(a);
 }
 

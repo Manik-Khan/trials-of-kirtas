@@ -92,10 +92,15 @@ t('derived tones arrive as rgba()/rgb() literals computed in JS',
   && /^rgba\(/.test(fly.style.getPropertyValue('--ts-wash')))
 
 // ── open ──
+let railClosed = 0
+window.TokRail = { close: () => { railClosed++ } }
 window.TokSettings.open()
 await new Promise(r => setTimeout(r, 10))
 t('◐ opens the flyout, aria follows', $('#tok-settings').classList.contains('is-open')
   && $('.nav-theme-btn').getAttribute('aria-expanded') === 'true')
+t('opening Appearance closes the right rail first', railClosed === 1)
+t('flyout CSS preserves the native hidden contract',
+  sheet.includes('#tok-settings [hidden]{display:none!important}'))
 
 // ── THE SYNC GUARD: rendered dots must equal the module's catalog ──
 const inkDots = $$('#ts-inks .ts-dot')
@@ -211,7 +216,9 @@ t('unwired page: the Sheet pointer shows, the appearance row hides',
   && $('#ts-sheet-pointer').getAttribute('href') === 'sheet-v2.html')
 let mounted = 0
 window.AppearanceUI = { mount: () => { mounted++ } }
-$('#ts-row-appearance').hidden = false   // as maybeShowSheet's retimer would
+document.dispatchEvent(new window.CustomEvent('tok:appearance-ui-ready'))
+t('wired page hides the fallback and reveals the Sheet row',
+  $('#ts-sheet-pointer').hidden && !$('#ts-row-appearance').hidden)
 $('#ts-row-appearance').click()
 await new Promise(r => setTimeout(r, 10))
 t('the Sheet row mounts AppearanceUI into the hosted #appearance-drawer',

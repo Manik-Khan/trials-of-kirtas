@@ -70,6 +70,14 @@ async function mount(){
   // card chrome, so the hosted editor fills its drawer without another frame.
   host.className = 'tok-appearance tr-appearance';
   host.style.setProperty('--ap-w', '100%');
+  host.style.setProperty('--ap-ground', 'var(--ts-paper,#182826)');
+  host.style.setProperty('--ap-cream', 'var(--ts-ink,#ece2cd)');
+  host.style.setProperty('--ap-cream-dim', 'var(--ts-soft,#c2b99f)');
+  host.style.setProperty('--ap-cream-fnt', 'var(--ts-faint,#8d8675)');
+  host.style.setProperty('--ap-gold', 'var(--ts-accent,#c79a4a)');
+  host.style.setProperty('--ap-gold-br', 'var(--ts-accent,#e7c279)');
+  host.style.setProperty('--ap-frame', 'var(--ts-hairline,rgba(199,154,74,.34))');
+  host.style.setProperty('--ap-hair', 'var(--ts-hairline,rgba(236,226,205,.13))');
   host.style.background = 'transparent';
   host.style.border = '0';
   host.style.boxShadow = 'none';

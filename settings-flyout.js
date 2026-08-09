@@ -318,8 +318,10 @@
       '#tok-settings .ts-mrow .car{color:var(--ts-faint)}',
       '#tok-settings .ts-pointer{display:block;font-family:"EB Garamond",Georgia,serif;font-style:italic;font-size:12.5px;color:var(--ts-soft);text-decoration:none;border-bottom:0;padding:2px 0}',
       '#tok-settings .ts-pointer:hover{color:var(--ts-accent)}',
+      '#tok-settings [hidden]{display:none!important}',
       '#tok-settings .ts-sheet-drawer{margin-top:6px}',
       '#tok-settings .ts-sheet-drawer .appearance-drawer{position:static;display:block}',
+      '#tok-settings .tr-appearance .tok-ap-sel{color:var(--ts-ink);background:var(--ts-wash);border-color:var(--ts-hairline)}',
       '#tok-settings .ts-sub-a{display:block;width:100%;padding:6px 0 6px 14px;font-size:11px;letter-spacing:.06em;color:var(--ts-soft)}',
       '#tok-settings .ts-sub-a:hover{color:var(--ts-accent)}',
       '#tok-settings .ts-subacts{display:none}#tok-settings .ts-subacts.open{display:block}',
@@ -722,6 +724,7 @@
 
   function openFly() {
     build();
+    if (window.TokRail && window.TokRail.close) window.TokRail.close();
     open = true;
     root.classList.add('is-open');
     var b = document.querySelector('.nav-theme-btn'); if (b) b.setAttribute('aria-expanded', 'true');

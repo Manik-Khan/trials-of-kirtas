@@ -207,14 +207,17 @@ async function makeRail({ role, characterKey, withBattle = true, preferences = n
 
 // ── Scenario C: tabs, collapse, channel toggle, mods, no-battle ─────
 {
-  const { document, toggled } = await makeRail({ role: 'player', characterKey: 'cosmere' });
+  const { document, window, toggled } = await makeRail({ role: 'player', characterKey: 'cosmere' });
   const rail = document.getElementById('tok-rail');
   const handle = document.querySelector('.tr-handle');
 
   // open via handle
+  let appearanceClosed = 0;
+  window.TokSettings = { close: () => { appearanceClosed++; } };
   handle.dispatchEvent(new document.defaultView.MouseEvent('click', { bubbles: true }));
   ok(!rail.classList.contains('tr-collapsed'), 'C: handle click opens the rail');
   ok(handle.classList.contains('tr-open'), 'C: handle tracks open state');
+  ok(appearanceClosed === 1, 'C: opening the rail closes Appearance first');
 
   // (the Sheet tab was removed — sheets open in the float now; tab-switching is
   // exercised by the registry test in section E.) A future tab does nothing:

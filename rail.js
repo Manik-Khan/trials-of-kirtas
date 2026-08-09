@@ -399,7 +399,10 @@
       handle.classList.toggle('tr-open', RAIL.open);
       if (RAIL.open) flagUnread(false);
     }
-    function setOpen(v) { RAIL.open = v; applyOpen(); persist(); }
+    function setOpen(v) {
+      if (v && window.TokSettings && window.TokSettings.close) window.TokSettings.close();
+      RAIL.open = v; applyOpen(); persist();
+    }
 
     // ── tabs: built-in (feed/sheet/…) + page-registered contextual ──
     var contextTabs = {};   // id → spec

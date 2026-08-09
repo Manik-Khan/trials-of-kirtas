@@ -91,6 +91,7 @@ ok(!mountErr, 'mount() builds without throwing' + (mountErr ? ' — ' + String(m
 const host = drawer.querySelector('.tr-appearance');
 ok(!!host, 'mount() builds a .tr-appearance host into the ◐ drawer');
 ok(host && host.classList.contains('tok-appearance'), 'host carries .tok-appearance (panel styling hook)');
+ok(host && host.style.getPropertyValue('--ap-cream').includes('--ts-ink'), 'hosted editor ink follows the flyout look');
 ok(host && host.children.length > 0, 'buildAppearancePanel populated the host (controls present)');
 ok(!!document.getElementById('tok-appearance-css'), 'appearance.css injected once on demand');
 

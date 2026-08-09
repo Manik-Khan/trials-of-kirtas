@@ -25,10 +25,38 @@ applyAppearance(CURRENT);
 
 const drawer = () => document.getElementById('appearance-drawer');
 
+function ensureCss() {
+  if (document.getElementById('tok-appearance-css')) return;
+  const l = document.createElement('link');
+  l.id = 'tok-appearance-css'; l.rel = 'stylesheet'; l.href = 'appearance.css?v=appearance2';
+  document.head.appendChild(l);
+}
+
 function buildPanel() {
   const d = drawer();
   if (!d) return;
-  buildAppearancePanel(d, { supabase: SB, uid: UID, current: CURRENT });
+  ensureCss();
+  let host = d.querySelector('.tr-appearance');
+  if (!host) {
+    host = document.createElement('div');
+    host.className = 'tok-appearance tr-appearance';
+    host.style.setProperty('--ap-w', '100%');
+    host.style.setProperty('--ap-ground', 'var(--ts-paper,#182826)');
+    host.style.setProperty('--ap-cream', 'var(--ts-ink,#ece2cd)');
+    host.style.setProperty('--ap-cream-dim', 'var(--ts-soft,#c2b99f)');
+    host.style.setProperty('--ap-cream-fnt', 'var(--ts-faint,#8d8675)');
+    host.style.setProperty('--ap-gold', 'var(--ts-accent,#c79a4a)');
+    host.style.setProperty('--ap-gold-br', 'var(--ts-accent,#e7c279)');
+    host.style.setProperty('--ap-frame', 'var(--ts-hairline,rgba(199,154,74,.34))');
+    host.style.setProperty('--ap-hair', 'var(--ts-hairline,rgba(236,226,205,.13))');
+    host.style.background = 'transparent';
+    host.style.border = '0';
+    host.style.boxShadow = 'none';
+    host.style.maxHeight = 'none';
+    d.innerHTML = '';
+    d.appendChild(host);
+  }
+  buildAppearancePanel(host, { supabase: SB, uid: UID, current: CURRENT });
   built = true;
 }
 
@@ -46,6 +74,7 @@ window.AppearanceUI = {
   isOpen() { return isOpen; },
   mount() { if (!built) buildPanel(); },   // build into the drawer on demand; the cog flyout governs visibility
 };
+document.dispatchEvent(new CustomEvent('tok:appearance-ui-ready'));
 
 // Close on outside click — but not when clicking inside the drawer or on the cog.
 document.addEventListener('click', (e) => {
