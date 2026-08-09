@@ -13,7 +13,7 @@
   }
 }
 </script>
-<link rel="stylesheet" href="combat.css?v=fc4">
+<link rel="stylesheet" href="combat.css?v=fc5">
 </head>
 <body>
 <header class="masthead">
@@ -156,8 +156,13 @@
         <section class="panel building-views" id="buildingViewsPanel" hidden>
           <div class="section-head"><div><span class="step">⌂</span><h3>Scene views</h3></div><span class="status">guarded</span></div>
           <p class="hint">Views frame an authored entrance or floor. Orbit remains free before and after every view.</p>
+          <div class="building-layer-actions">
+            <button type="button" class="action" id="toggleBuildingRoof">Hide roof</button>
+            <button type="button" class="action" id="clearBuildingSelection" disabled>Clear building selection</button>
+          </div>
+          <p class="building-selection-status" id="buildingSelectionStatus">Select the roof, a wall, a floor, or stairs directly on the Board.</p>
           <div class="building-view-list" id="buildingViewList"></div>
-          <p class="fight-gate" id="buildingSceneStatus">Building presentation is local while stacked-floor combat remains locked.</p>
+          <p class="fight-gate" id="buildingSceneStatus">Ground-floor combat uses the courtyard, entrance, and hall. Upper-gallery movement remains locked.</p>
         </section>
         <section class="panel next-step combat-entry">
           <span>Battlefield ready?</span>
@@ -559,7 +564,7 @@
 <script src="forge-pipeline.js?v=fb9"></script>
 <script src="forge-blueprint.js?v=bp6"></script>
 <script src="forge-buildings.js?v=fbld2"></script>
-<script src="forge-combat-snapshot.js?v=fcs1"></script>
-<script type="module" src="combat.js?v=fc9"></script>
+<script src="forge-combat-snapshot.js?v=fcs2"></script>
+<script type="module" src="combat.js?v=fc10"></script>
 </body>
 </html>

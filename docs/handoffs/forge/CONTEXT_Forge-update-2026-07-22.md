@@ -1841,15 +1841,41 @@ caught and corrected two issues before handoff: the gallery initially read as a
 blank full-floor slab, and the template-deck CSS initially overrode the hidden
 flag state.
 
-Stacked-floor local combat is intentionally disabled with a visible reason: the
-hall and gallery may occupy the same `c/r` columns and must retain separate
-surface identities. Shared writes remain locked behind the existing gate. This
-candidate does **not** close the signed-in two-device snapshot/reconnect field
-test and does not absorb the importer city/camp replay work. M still deploys and
-performs that live two-device proof.
+M's first field pass invalidated the blanket local-combat lock and exposed two
+missing interactions: the roof had no direct control, and code-native building
+parts were absent from Board picking. The correction begins from clean baseline
+`9960ec0` and keeps the same file ownership.
+
+- Scene views now provide an explicit reversible **Hide roof / Show roof**
+  control. The roof, hall/gallery wall groups, named floors, and both stair runs
+  participate in Board selection—even when the Room brush was armed before the
+  click. Selection highlights the complete named part and does not silently
+  mutate the authored Blueprint.
+- Local combat now uses the already-authoritative connected ground field:
+  courtyard → entrance threshold → archive hall. A real production deployment
+  succeeds, and a courtyard character can reach hall cells through the door.
+  Starting the fight automatically hides the roof and applies the hall cutaway.
+- Only upper-gallery movement remains locked. It still requires surface-aware
+  runtime positions before a combatant can occupy the same `c/r` on a different
+  floor; the gallery is not flattened into ground combat.
+- Building presentation is now exact renderer state: the active DM view and
+  roof visibility survive local snapshot save/reopen. Ordinary snapshot
+  renderer records retain their previous shape.
+
+The real browser reproduced Build mode with Room armed, selected the roof
+directly, hid/restored it, selected upper-gallery walls and gallery stairs,
+and reopened the exact hidden-roof Hall view with zero warnings/errors. The
+focused contract proves a real local deployment and entrance-to-hall movement.
+The browser was signed out, so the final real-character button still correctly
+requires M's signed-in roster field pass.
+
+Shared writes remain locked behind the existing gate. This candidate does
+**not** close the signed-in two-device snapshot/reconnect field test and does
+not absorb importer city/camp replay work.
 
 Current candidate stamps: `forge-blueprint.js?v=bp6`,
-`forge-buildings.js?v=fbld2`, `combat.js?v=fc9`, and `combat.css?v=fc4`.
+`forge-buildings.js?v=fbld2`, `forge-combat-snapshot.js?v=fcs2`,
+`combat.js?v=fc10`, and `combat.css?v=fc5`.
 
 ## Deployment discipline
 

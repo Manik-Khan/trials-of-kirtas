@@ -808,6 +808,9 @@ main{
 .building-view-list button:hover,.building-view-list button.active{border-color:var(--gold);background:rgba(198,164,95,.09)}
 .building-view-list button strong{font:11px Georgia,serif}.building-view-list button small{color:var(--paper-dim);font-size:8px}
 .building-views>.hint{margin-top:0}
+.building-layer-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}
+.building-layer-actions .action{min-width:0;padding:8px 6px}
+.building-selection-status{margin:0 0 9px;padding:7px 8px;border-left:2px solid #61736c;background:#111716;color:var(--paper-dim);font-size:8px;line-height:1.4}
 .encounter-card{background:linear-gradient(145deg,rgba(109,147,146,.07),transparent)}
 .unit-row{
   display:grid;

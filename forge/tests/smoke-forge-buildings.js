@@ -6,6 +6,7 @@ const forgeDir = path.join(__dirname, "..");
 const BP = require(path.join(forgeDir, "forge-blueprint.js"));
 const Buildings = require(path.join(forgeDir, "forge-buildings.js"));
 const Snapshot = require(path.join(forgeDir, "forge-combat-snapshot.js"));
+const LocalCombat = require(path.join(forgeDir, "forge-combat-local.js"));
 const combatHtml = fs.readFileSync(path.join(forgeDir, "combat.html"), "utf8");
 const combatJs = fs.readFileSync(path.join(forgeDir, "combat.js"), "utf8");
 const combatCss = fs.readFileSync(path.join(forgeDir, "combat.css"), "utf8");
@@ -63,6 +64,21 @@ ok("establishing view restores the complete exterior shell",
 
 ok("guarded template still compiles to a valid production field", BP.validateMap(map).ok);
 ok("guarded template keeps its temporary ground footprint connected", BP.tacticalConnectivity(map).ok);
+const fieldParty = [{
+  unit: "field-pc", name: "Field PC", side: "pc", hp: 20, hpMax: 20, ac: 15, speed: 40, initMod: 20,
+  action: { id: "blade", label: "Blade", rng: 1, hit: 5, dmg: "1d8+3", damage: 7 }
+}];
+const fieldGroups = [
+  { id: "party-main", label: "Party", role: "party", formation: "cluster", unitIds: ["field-pc"], anchor: { c: 7, r: 10 }, seed: 1 },
+  { id: "enemy-main", label: "Enemy", role: "enemy", formation: "cluster", unitIds: LocalCombat.TRAINING_FOES.map((unit) => unit.unit), anchor: { c: 18, r: 7 }, seed: 2 }
+];
+const fieldDeployment = LocalCombat.deployCombatants(map, fieldParty, BP.copy(LocalCombat.TRAINING_FOES), fieldGroups);
+ok("River Archive can deploy a real local ground-floor fight", fieldDeployment.ok);
+const fieldFight = LocalCombat.createFight(map, fieldDeployment, fieldParty, BP.copy(LocalCombat.TRAINING_FOES), {
+  blueprintId: blueprint.id, fingerprint: BP.fingerprint(blueprint), structuralFingerprint: BP.structuralFingerprint(blueprint)
+});
+ok("a courtyard character can move through the entrance into the hall",
+  Object.keys(LocalCombat.reachableForActive(fieldFight)).some((key) => Number(key.split(",")[0]) >= 11));
 ok("compiled receipt carries the exact building contract",
   BP.stableStringify(map.meta.buildingSet) === BP.stableStringify(blueprint.buildingSet));
 ok("compiled receipt carries the exact DM views",
@@ -83,12 +99,15 @@ ok("structural identity includes DM-authored camera views", BP.structuralFingerp
 
 const saved = Snapshot.create({
   savedAt: "2026-08-08T22:00:00.000Z", blueprint, edits: {},
-  renderer: { view: "board", quality: "balanced" }, discovered: blueprint.discoveryRegions.map((region) => region.id)
+  renderer: { view: "board", quality: "balanced", buildingViewId: "view-archive-hall", roofHidden: true },
+  discovered: blueprint.discoveryRegions.map((region) => region.id)
 });
 const reopened = Snapshot.restore(saved);
 ok("exact snapshot stores the complete building set", BP.stableStringify(saved.authored.blueprint.buildingSet) === BP.stableStringify(blueprint.buildingSet));
 ok("exact snapshot reopens every signed floor unchanged", BP.stableStringify(reopened.blueprint.buildingSet) === BP.stableStringify(blueprint.buildingSet));
 ok("exact snapshot reopens every authored camera view unchanged", BP.stableStringify(reopened.blueprint.cameraViews) === BP.stableStringify(blueprint.cameraViews));
+ok("exact snapshot reopens the active building view and roof visibility",
+  reopened.renderer.buildingViewId === "view-archive-hall" && reopened.renderer.roofHidden === true);
 ok("exact snapshot verifies all three saved identities",
   saved.authored.blueprintFingerprint === BP.fingerprint(reopened.blueprint)
   && saved.authored.structuralFingerprint === BP.structuralFingerprint(reopened.blueprint)
@@ -97,16 +116,24 @@ ok("exact snapshot verifies all three saved identities",
 ok("production loads cache-stamped guarded building authority",
   combatHtml.includes('src="forge-buildings.js?v=fbld2"')
   && combatHtml.includes('src="forge-blueprint.js?v=bp6"')
-  && combatHtml.includes('src="combat.js?v=fc9"'));
+  && combatHtml.includes('src="combat.js?v=fc10"')
+  && combatHtml.includes('src="forge-combat-snapshot.js?v=fcs2"'));
 ok("River Archive template is hidden until the explicit building flag", combatHtml.includes('data-building-template="river-archive" hidden'));
 ok("template grid cannot override the guarded hidden state", combatCss.includes(".creation-deck>button[hidden]{display:none}"));
 ok("runtime guard requires the explicit buildings query value", combatJs.includes('get("buildings") === "1"'));
 ok("camera views ease to their framing and leave Orbit controls available",
   combatJs.includes("animateCameraTransition") && combatJs.includes('controls.addEventListener("start"'));
-ok("stacked-floor combat fails with an explicit surface-identity reason",
-  combatJs.includes("Stacked-floor combat is intentionally locked") && combatJs.includes("must not collapse into one tactical surface"));
-ok("stacked-floor combat gate takes priority over roster availability",
-  combatJs.includes("the hall and gallery keep separate surface identities even where their grid columns overlap"));
+ok("roof has a direct reversible visibility control",
+  combatHtml.includes('id="toggleBuildingRoof"') && combatJs.includes("toggleBuildingRoofVisibility") && combatJs.includes("buildingRoofHidden"));
+ok("roof, walls, floors, and stairs participate in Board selection",
+  combatJs.includes("buildingPartFromEvent") && ["roof", "wall", "floor", "stairs"].every((kind) => combatJs.includes('kind: "' + kind + '"')));
+ok("local combat is no longer refused for the building",
+  !combatJs.includes("Stacked-floor combat is intentionally locked")
+  && combatJs.includes("Ground-floor combat is active")
+  && combatJs.includes("upper gallery remains presentation-only"));
+ok("ground-floor combat automatically exposes the hall",
+  combatJs.includes('state.buildingRoofHidden = true')
+  && combatJs.includes('state.fight ? "view-archive-hall" : state.buildingViewId'));
 ok("shared combat remains on its existing locked gate", combatJs.includes("Shared combat actions remain locked until the two-device reconnect field gate passes."));
 
 console.log("\n" + passed + " Forge building checks passed");

@@ -37,7 +37,7 @@ const ui = {};
   "creationTopology", "creationSize", "creationDensity", "creationVerticality", "createDirections", "newDirections",
   "creationCandidateDeck", "openImageImport", "creationBlankSize", "stageBlankMap",
   "creationSelection", "creationSelectionDetail", "confirmMapChoice",
-  "buildingViewsPanel", "buildingViewList", "buildingSceneStatus",
+  "buildingViewsPanel", "buildingViewList", "buildingSceneStatus", "toggleBuildingRoof", "clearBuildingSelection", "buildingSelectionStatus",
   "sourceReceipt", "sourceReceiptDetail", "reviewFindings", "toggleUnderlay", "acceptAllFindings",
   "pinnedReveal", "pinnedBuild", "pinnedUndo", "pinnedRedo", "browseMode", "buildMode", "buildModeInline", "modeNarration",
   "undoAction", "redoAction", "compareHold", "gridToggle", "gridCellPx", "gridOriginX", "gridOriginY",
@@ -106,7 +106,9 @@ const state = {
   lastActivity: performance.now(),
   handoff: null,
   buildingViewId: null,
-  cameraTransition: null
+  cameraTransition: null,
+  buildingRoofHidden: false,
+  buildingSelection: null
 };
 let importedUnderlayImage = null;
 const creation = {
@@ -739,17 +741,23 @@ function buildingBoundsCenter(surface) {
     z: (box.minR + box.maxR) / 2 - state.blueprint.grid.rows / 2
   };
 }
-function addBuildingPart(geometry, materialValue, position, rotation = null) {
+function buildingPartKey(part) { return part ? part.kind + ":" + part.id : ""; }
+function addBuildingPart(geometry, materialValue, position, rotation = null, part = null) {
   const mesh = new THREE.Mesh(geometry, materialValue);
   mesh.position.set(position.x, position.y, position.z);
   if (rotation) mesh.rotation.set(rotation.x || 0, rotation.y || 0, rotation.z || 0);
   mesh.castShadow = state.quality !== "basic";
   mesh.receiveShadow = true;
   mesh.userData.ownedMaterial = true;
+  mesh.userData.buildingPart = part ? BP.copy(part) : null;
+  if (part && buildingPartKey(part) === buildingPartKey(state.buildingSelection) && materialValue.emissive) {
+    materialValue.emissive.setHex(0x6f5520);
+    materialValue.emissiveIntensity = 0.9;
+  }
   buildingRoot.add(mesh);
   return mesh;
 }
-function addBuildingSlabBounds(box, elevationFt, color, opacity) {
+function addBuildingSlabBounds(box, elevationFt, color, opacity, part) {
   const width = box.maxC - box.minC, depth = box.maxR - box.minR;
   if (width <= 0 || depth <= 0) return;
   addBuildingPart(
@@ -759,31 +767,33 @@ function addBuildingSlabBounds(box, elevationFt, color, opacity) {
       x: (box.minC + box.maxC) / 2 - state.blueprint.grid.cols / 2,
       y: rise(elevationFt) + 0.04,
       z: (box.minR + box.maxR) / 2 - state.blueprint.grid.rows / 2
-    }
+    }, null, part
   );
 }
 function addBuildingSlab(surface, color, opacity = 1) {
   const outer = Buildings.bounds(surface.polygon), opening = Buildings.bounds(surface.openings?.[0]?.polygon);
-  if (!opening) { addBuildingSlabBounds(outer, surface.elevationFt, color, opacity); return; }
-  addBuildingSlabBounds({ minC: outer.minC, maxC: outer.maxC, minR: outer.minR, maxR: opening.minR }, surface.elevationFt, color, opacity);
-  addBuildingSlabBounds({ minC: outer.minC, maxC: outer.maxC, minR: opening.maxR, maxR: outer.maxR }, surface.elevationFt, color, opacity);
-  addBuildingSlabBounds({ minC: outer.minC, maxC: opening.minC, minR: opening.minR, maxR: opening.maxR }, surface.elevationFt, color, opacity);
-  addBuildingSlabBounds({ minC: opening.maxC, maxC: outer.maxC, minR: opening.minR, maxR: opening.maxR }, surface.elevationFt, color, opacity);
+  const part = { kind: "floor", id: surface.id, label: surface.label, surfaceId: surface.id };
+  if (!opening) { addBuildingSlabBounds(outer, surface.elevationFt, color, opacity, part); return; }
+  addBuildingSlabBounds({ minC: outer.minC, maxC: outer.maxC, minR: outer.minR, maxR: opening.minR }, surface.elevationFt, color, opacity, part);
+  addBuildingSlabBounds({ minC: outer.minC, maxC: outer.maxC, minR: opening.maxR, maxR: outer.maxR }, surface.elevationFt, color, opacity, part);
+  addBuildingSlabBounds({ minC: outer.minC, maxC: opening.minC, minR: opening.minR, maxR: opening.maxR }, surface.elevationFt, color, opacity, part);
+  addBuildingSlabBounds({ minC: opening.maxC, maxC: outer.maxC, minR: opening.minR, maxR: opening.maxR }, surface.elevationFt, color, opacity, part);
 }
 function addBuildingWalls(surface, opacity, building) {
   const at = buildingBoundsCenter(surface), width = at.box.maxC - at.box.minC, depth = at.box.maxR - at.box.minR;
   const wallMaterial = () => material(0x8d806c, { transparent: opacity < 1, opacity, depthWrite: opacity > 0.2, side: THREE.DoubleSide });
+  const part = { kind: "wall", id: "walls-" + surface.id, label: surface.label + " walls", surfaceId: surface.id };
   const y = rise(surface.elevationFt) + 0.54;
   [at.box.minR, at.box.maxR].forEach((r) => addBuildingPart(
     new THREE.BoxGeometry(width, 1.02, 0.18), wallMaterial(),
-    { x: at.x, y, z: r - state.blueprint.grid.rows / 2 }
+    { x: at.x, y, z: r - state.blueprint.grid.rows / 2 }, null, part
   ));
   [at.box.minC, at.box.maxC].forEach((c) => {
     const door = (building.connectors || []).find((item) => item.kind === "door"
       && [item.from.surfaceId, item.to.surfaceId].includes(surface.id)
       && Math.abs((item.from.surfaceId === surface.id ? item.from.c : item.to.c) - c) < 0.1);
     if (!door) {
-      addBuildingPart(new THREE.BoxGeometry(0.18, 1.02, depth), wallMaterial(), { x: c - state.blueprint.grid.cols / 2, y, z: at.z });
+      addBuildingPart(new THREE.BoxGeometry(0.18, 1.02, depth), wallMaterial(), { x: c - state.blueprint.grid.cols / 2, y, z: at.z }, null, part);
       return;
     }
     const landing = door.from.surfaceId === surface.id ? door.from : door.to;
@@ -791,7 +801,7 @@ function addBuildingWalls(surface, opacity, building) {
       if (segment.max <= segment.min) return;
       addBuildingPart(
         new THREE.BoxGeometry(0.18, 1.02, segment.max - segment.min), wallMaterial(),
-        { x: c - state.blueprint.grid.cols / 2, y, z: (segment.min + segment.max) / 2 - state.blueprint.grid.rows / 2 }
+        { x: c - state.blueprint.grid.cols / 2, y, z: (segment.min + segment.max) / 2 - state.blueprint.grid.rows / 2 }, null, part
       );
     });
   });
@@ -803,14 +813,16 @@ function addBuildingRoof(building, roofSurface, opacity) {
     new THREE.BoxGeometry(width + 0.25, 0.12, panelDepth),
     material(0x54483d, { transparent: opacity < 1, opacity, depthWrite: opacity > 0.2, side: THREE.DoubleSide }),
     { x: at.x, y: rise(roofSurface.elevationFt) + 0.18, z: at.z + side * depth / 4 },
-    { x: side * slope }
+    { x: side * slope },
+    { kind: "roof", id: building.roof.id, label: roofSurface.label, surfaceId: roofSurface.id }
   ));
 }
 function addBuildingStairs(connector, opacity) {
   connector.path.forEach((point) => addBuildingPart(
     new THREE.BoxGeometry(0.72, 0.12, 0.62),
     material(0xb4a486, { transparent: opacity < 1, opacity, depthWrite: opacity > 0.2 }),
-    { x: worldX(point.c), y: rise(point.elevationFt) + 0.09, z: worldZ(point.r) }
+    { x: worldX(point.c), y: rise(point.elevationFt) + 0.09, z: worldZ(point.r) }, null,
+    { kind: "stairs", id: connector.id, label: connector.label, connectorId: connector.id }
   ));
 }
 function rebuildBuildings() {
@@ -821,7 +833,7 @@ function rebuildBuildings() {
     ui.buildingSceneStatus.textContent = "Building record is invalid: " + audit.errors.join(" ");
     return;
   }
-  const presentation = Buildings.presentation(state.blueprint, state.buildingViewId);
+  const presentation = Buildings.presentation(state.blueprint, state.fight ? "view-archive-hall" : state.buildingViewId);
   const building = state.blueprint.buildingSet.buildings[0];
   const lower = Buildings.surfaceById(state.blueprint, "surface-lower-garden");
   const hall = Buildings.surfaceById(state.blueprint, "surface-hall");
@@ -831,7 +843,7 @@ function rebuildBuildings() {
   if (hall) addBuildingSlab(hall, 0x887b68, presentation.floorSurfaceId === hall.id ? 0.48 : 0.18);
   if (gallery) addBuildingSlab(gallery, 0x8e8069, presentation.floorSurfaceId === hall?.id ? 0.12 : 0.96);
   [hall, gallery].filter(Boolean).forEach((surface) => addBuildingWalls(surface, presentation.nearWallOpacity, building));
-  if (roof) addBuildingRoof(building, roof, presentation.roofOpacity);
+  if (roof && !state.buildingRoofHidden) addBuildingRoof(building, roof, presentation.roofOpacity);
   (building.connectors || []).filter((item) => item.kind === "stairs").forEach((item) => {
     const relevant = !presentation.floorSurfaceId || [item.from.surfaceId, item.to.surfaceId].includes(presentation.floorSurfaceId);
     addBuildingStairs(item, relevant ? 1 : 0.14);
@@ -841,7 +853,15 @@ function renderBuildingViewControls() {
   const available = BUILDINGS_ENABLED && !!state.blueprint.buildingSet;
   ui.buildingViewsPanel.hidden = !available;
   ui.buildingViewList.replaceChildren();
-  if (!available) return;
+  if (!available) {
+    state.buildingSelection = null;
+    return;
+  }
+  ui.toggleBuildingRoof.textContent = state.buildingRoofHidden ? "Show roof" : "Hide roof";
+  ui.clearBuildingSelection.disabled = !state.buildingSelection;
+  ui.buildingSelectionStatus.textContent = state.buildingSelection
+    ? state.buildingSelection.label + " selected" + (state.buildingSelection.kind === "roof" && state.buildingRoofHidden ? " · currently hidden" : "")
+    : "Select the roof, a wall, a floor, or stairs directly on the Board.";
   (state.blueprint.cameraViews || []).forEach((view) => {
     const button = document.createElement("button"), label = document.createElement("strong"), detail = document.createElement("small");
     button.type = "button";
@@ -852,7 +872,33 @@ function renderBuildingViewControls() {
     button.addEventListener("click", () => applyBuildingView(view.id));
     ui.buildingViewList.appendChild(button);
   });
-  ui.buildingSceneStatus.textContent = "Presentation only · free orbit remains available · stacked-floor combat locked.";
+  ui.buildingSceneStatus.textContent = state.fight
+    ? "Ground-floor combat active · move through the entrance into the hall · upper-gallery movement locked."
+    : "Ground-floor combat ready · courtyard, entrance, and hall are playable · upper-gallery movement locked.";
+}
+function selectBuildingPart(part) {
+  if (!part) return;
+  state.buildingSelection = BP.copy(part);
+  rebuildBuildings();
+  renderBuildingViewControls();
+  ui.chunkStatus.textContent = part.label + " selected · no authored geometry changed";
+  ui.chunkStatus.className = "status good";
+  requestRender();
+}
+function clearBuildingPartSelection() {
+  state.buildingSelection = null;
+  rebuildBuildings();
+  renderBuildingViewControls();
+  requestRender();
+}
+function toggleBuildingRoofVisibility() {
+  if (!state.blueprint.buildingSet) return;
+  state.buildingRoofHidden = !state.buildingRoofHidden;
+  rebuildBuildings();
+  renderBuildingViewControls();
+  ui.chunkStatus.textContent = state.buildingRoofHidden ? "Roof hidden · interior available" : "Roof restored";
+  ui.chunkStatus.className = "status good";
+  requestRender();
 }
 function applyBuildingView(viewId) {
   if (!BUILDINGS_ENABLED) return;
@@ -1836,6 +1882,8 @@ function useBlueprint(blueprint, handoff = null) {
   state.sourceUnderlay = !!state.blueprint.source?.underlay;
   state.buildingViewId = BUILDINGS_ENABLED ? state.blueprint.cameraViews?.[0]?.id || null : null;
   state.cameraTransition = null;
+  state.buildingRoofHidden = false;
+  state.buildingSelection = null;
   loadImportedUnderlay();
   state.discovered = new Set(state.blueprint.discoveryRegions.map((region) => region.id));
   document.querySelectorAll("[data-fixture]").forEach((button) => button.classList.toggle("active", button.dataset.fixture === state.fixtureKey));
@@ -2163,6 +2211,8 @@ function loadFixture(key) {
   state.sourceUnderlay = false;
   state.buildingViewId = null;
   state.cameraTransition = null;
+  state.buildingRoofHidden = false;
+  state.buildingSelection = null;
   state.discovered = new Set(state.blueprint.discoveryRegions.map((region) => region.id));
   document.querySelectorAll("[data-fixture]").forEach((button) => button.classList.toggle("active", button.dataset.fixture === key));
   updateRegionControls();
@@ -2270,6 +2320,8 @@ function restoreSnapshot(snapshot, direction) {
   state.roomPreview = null;
   state.buildingViewId = BUILDINGS_ENABLED ? state.blueprint.cameraViews?.[0]?.id || null : null;
   state.cameraTransition = null;
+  state.buildingRoofHidden = false;
+  state.buildingSelection = null;
   refreshDocument();
   updateRegionControls();
   syncGridControls();
@@ -2475,15 +2527,11 @@ function syncRosterGroups() {
 }
 function updateFightGate(message, bad = false) {
   const ready = selectedParty().length;
-  if (state.blueprint.buildingSet) {
-    ui.prepareLocalCombat.disabled = true;
-    ui.combatFightGate.textContent = "Stacked-floor combat is intentionally locked: the hall and gallery keep separate surface identities even where their grid columns overlap.";
-    ui.combatFightGate.className = "fight-gate bad";
-    return;
-  }
   ui.prepareLocalCombat.disabled = !ready;
   ui.combatFightGate.textContent = message || (ready
-    ? ready + " real character" + (ready === 1 ? " is" : "s are") + " ready. Three local training guards will provide the opposing side."
+    ? ready + " real character" + (ready === 1 ? " is" : "s are") + " ready. " + (state.blueprint.buildingSet
+      ? "Ground-floor combat includes the courtyard, entrance, and archive hall; the upper gallery stays out of movement."
+      : "Three local training guards will provide the opposing side.")
     : "Choose at least one combat-ready character. This proof does not create a shared session or write combat results back to a sheet.");
   ui.combatFightGate.className = "fight-gate " + (bad ? "bad" : ready ? "good" : "");
 }
@@ -2558,7 +2606,7 @@ function renderLocalCombat() {
   if (!state.fight) {
     ui.combatFightStatus.textContent = "not prepared"; ui.combatFightStatus.className = "status";
     ui.combatFightInstruction.textContent = state.blueprint.buildingSet
-      ? "This building is ready for scene framing. Stacked-floor combat stays locked until movement can preserve surface identity."
+      ? "Choose characters to fight across the courtyard, entrance, and archive hall. Upper-gallery movement remains unavailable."
       : "Choose characters first. Combat will use this exact Blueprint field without changing the authored map.";
     ui.combatTurn.hidden = true; ui.combatAttack.disabled = true; ui.combatEndTurn.disabled = true;
     ui.openSharedCombat.disabled = true;
@@ -2572,6 +2620,8 @@ function renderLocalCombat() {
     ? "This shared snapshot is restored through the existing event log. Combat writes stay locked until the two-device reconnect gate passes."
     : finished
     ? "This local proof is complete. No character sheet or shared session was changed."
+    : state.blueprint.buildingSet
+    ? "Ground-floor combat is active. Move through the entrance into the archive hall; the upper gallery remains presentation-only."
     : "Click an open highlighted-reachable cell to move. Click an opposing token or combatant row to target it.";
   ui.combatTurn.hidden = false;
   ui.combatTurn.replaceChildren();
@@ -2602,10 +2652,6 @@ function renderLocalCombat() {
   ui.openSharedCombat.disabled = !!state.session;
 }
 function prepareLocalCombat() {
-  if (state.blueprint.buildingSet) {
-    updateFightGate("Stacked-floor combat is intentionally locked: the hall and gallery share grid columns and must not collapse into one tactical surface.", true);
-    return;
-  }
   const party = selectedParty();
   if (!party.length) { updateFightGate("Choose at least one combat-ready character first.", true); return; }
   refreshDocument();
@@ -2617,8 +2663,10 @@ function prepareLocalCombat() {
   state.fight = LocalCombat.createFight(state.map, deployment, party, BP.copy(LocalCombat.TRAINING_FOES), identity);
   state.deployment = BP.copy(deployment.record);
   state.fightTarget = null;
+  if (state.blueprint.buildingSet) state.buildingRoofHidden = true;
   document.querySelector(".stage-shell")?.classList.add("fight-active");
   setWorkflow("present"); setView("board"); frameTopDown(); rebuildAll(); renderLocalCombat();
+  renderBuildingViewControls();
   ui.chunkStatus.textContent = "Local fight prepared · Blueprint " + identity.fingerprint;
   ui.chunkStatus.className = "status good";
 }
@@ -3246,12 +3294,22 @@ function boardCellFromEvent(event, allowEmpty) {
   }
   return cell;
 }
+function buildingPartFromEvent(event) {
+  if (!BUILDINGS_ENABLED || !state.blueprint.buildingSet) return null;
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = (event.clientX - rect.left) / rect.width * 2 - 1;
+  pointer.y = -(event.clientY - rect.top) / rect.height * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hit = raycaster.intersectObjects(buildingRoot.children, true).find((item) => item.object.userData.buildingPart);
+  return hit ? BP.copy(hit.object.userData.buildingPart) : null;
+}
 renderer.domElement.addEventListener("pointerdown", (event) => {
   if (event.button !== 0) return;
   hideBuildRadial();
+  const buildingPart = state.workflow === "map" ? buildingPartFromEvent(event) : null;
   const roomBuilding = state.workflow === "map" && state.mode === "build" && state.mapTab === "layout" && state.layoutTool === "room";
-  const cell = roomBuilding ? boardCellFromEvent(event, true) : null;
-  boardPointerStart = { x: event.clientX, y: event.clientY, cell };
+  const cell = roomBuilding && !buildingPart ? boardCellFromEvent(event, true) : null;
+  boardPointerStart = { x: event.clientX, y: event.clientY, cell, buildingPart };
   if (roomBuilding && cell) {
     controls.enabled = false;
     state.roomPreview = { from: cell, to: cell };
@@ -3281,6 +3339,12 @@ renderer.domElement.addEventListener("pointerup", (event) => {
     return;
   }
   if (boardPointerStart && Math.hypot(event.clientX - boardPointerStart.x, event.clientY - boardPointerStart.y) > 5) return;
+  const buildingPart = boardPointerStart?.buildingPart || (state.workflow === "map" ? buildingPartFromEvent(event) : null);
+  if (buildingPart) {
+    selectBuildingPart(buildingPart);
+    boardPointerStart = null;
+    return;
+  }
   const cell = boardCellFromEvent(event, false);
   if (cell) applyMapClick(cell.c, cell.r, { additive: event.shiftKey, edge: cell.edge });
   else {
@@ -3704,6 +3768,8 @@ ui.gridToggle.addEventListener("click", () => {
   recordHistory(state.gridVisible ? "Grid shown" : "Grid hidden");
 });
 ui.applyGrid.addEventListener("click", () => applyGridCalibration());
+ui.toggleBuildingRoof.addEventListener("click", toggleBuildingRoofVisibility);
+ui.clearBuildingSelection.addEventListener("click", clearBuildingPartSelection);
 ui.prepareLocalCombat.addEventListener("click", prepareLocalCombat);
 ui.saveCombatSnapshot.addEventListener("click", saveCombatSnapshot);
 ui.reopenCombatSnapshot.addEventListener("click", reopenCombatSnapshot);
@@ -3792,9 +3858,12 @@ function incomingHandoff() {
   return decoded.handoff;
 }
 function currentCombatSnapshot() {
+  const buildingRenderer = state.blueprint.buildingSet
+    ? { buildingViewId: state.buildingViewId, roofHidden: state.buildingRoofHidden }
+    : {};
   return CombatSnapshot.create({
     blueprint: state.blueprint, edits: state.edits,
-    renderer: { view: state.view, quality: state.quality },
+    renderer: { view: state.view, quality: state.quality, ...buildingRenderer },
     groups: state.groups, deployment: state.deployment,
     discovered: [...state.discovered], calibration: state.calibration, gridVisible: state.gridVisible,
     selectedPartyKeys: state.selectedPartyKeys, fight: state.fight
@@ -3824,6 +3893,14 @@ function restoreCombatSnapshot(record, source) {
   state.buildAnchor = null;
   state.linePreview = [];
   state.roomPreview = null;
+  state.buildingViewId = BUILDINGS_ENABLED
+    ? restored.renderer.buildingViewId || state.blueprint.cameraViews?.[0]?.id || null
+    : null;
+  state.cameraTransition = null;
+  state.buildingRoofHidden = BUILDINGS_ENABLED && state.blueprint.buildingSet
+    ? restored.renderer.roofHidden === true || !!state.fight
+    : false;
+  state.buildingSelection = null;
   applyQuality(restored.renderer.quality);
   setView(restored.renderer.view);
   setMode("browse");
@@ -3953,6 +4030,8 @@ window.__forgeCombatState = () => ({
   buildingsEnabled: BUILDINGS_ENABLED,
   buildingSetSchema: state.blueprint.buildingSet?.schema || null,
   buildingViewId: state.buildingViewId,
+  buildingRoofHidden: state.buildingRoofHidden,
+  buildingSelection: state.buildingSelection ? BP.copy(state.buildingSelection) : null,
   cameraViews: state.blueprint.cameraViews?.map((view) => view.id) || [],
   fightUnits: state.fight?.units.map((unit) => ({ unit: unit.unit, side: unit.side, hp: unit.hp, c: unit.c, r: unit.r })) || []
 });

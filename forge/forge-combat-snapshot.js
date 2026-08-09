@@ -38,7 +38,10 @@
     renderer = renderer || {};
     var view = ["artwork", "board", "blueprint"].indexOf(renderer.view) >= 0 ? renderer.view : "board";
     var quality = ["basic", "balanced", "cinematic"].indexOf(renderer.quality) >= 0 ? renderer.quality : "balanced";
-    return { view: view, quality: quality };
+    var out = { view: view, quality: quality };
+    if (typeof renderer.buildingViewId === "string" && renderer.buildingViewId) out.buildingViewId = renderer.buildingViewId;
+    if (typeof renderer.roofHidden === "boolean") out.roofHidden = renderer.roofHidden;
+    return out;
   }
   function fightRecord(fight) {
     if (!fight) return null;

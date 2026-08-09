@@ -25,7 +25,7 @@ fight.units[0].moved = true;
 
 const saved = Snapshot.create({
   savedAt: "2026-08-08T12:00:00.000Z", blueprint, edits,
-  renderer: { view: "blueprint", quality: "cinematic" },
+  renderer: { view: "blueprint", quality: "cinematic", buildingViewId: "view-test", roofHidden: true },
   groups: deployment.groups, deployment: deployment.record,
   discovered: ["gate", "nave"], calibration: { cellPx: 28, originX: 2, originY: 3 }, gridVisible: false,
   selectedPartyKeys: ["caim"], fight
@@ -33,6 +33,7 @@ const saved = Snapshot.create({
 ok("snapshot is explicitly versioned", saved.schema === "forge-combat-snapshot/v1" && saved.version === 1);
 ok("exact Blueprint and both authored fingerprints are stored", saved.authored.blueprint.id === blueprint.id && saved.authored.blueprintFingerprint === BP.fingerprint(blueprint) && saved.authored.fieldFingerprint.startsWith("field-"));
 ok("renderer choice round-trips", Snapshot.restore(saved).renderer.view === "blueprint" && Snapshot.restore(saved).renderer.quality === "cinematic");
+ok("optional building presentation round-trips", Snapshot.restore(saved).renderer.buildingViewId === "view-test" && Snapshot.restore(saved).renderer.roofHidden === true);
 ok("deployment groups and exact positions round-trip", Snapshot.restore(saved).deployment.positions.caim.c === deployment.record.positions.caim.c && Snapshot.restore(saved).groups.length === 2);
 ok("local combat HP, movement, round, and log round-trip", Snapshot.restore(saved).fight.units[0].hp === fight.units[0].hp && Snapshot.restore(saved).fight.units[0].moved && Snapshot.restore(saved).fight.round === fight.round && Snapshot.restore(saved).fight.log.join("|") === fight.log.join("|"));
 ok("restored tactical map is recompiled from authored state", Snapshot.restore(saved).fight.map.meta.blueprintFingerprint === BP.fingerprint(blueprint) && Snapshot.restore(saved).fight.map.wall[10 * map.cols + 8] === map.wall[10 * map.cols + 8]);
