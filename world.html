@@ -15,7 +15,7 @@
     .world-header-title { font-family: var(--font-title); font-size: 0.52rem; letter-spacing: 0.4em; text-transform: uppercase; color: var(--gold-light); }
     .world-layout { display: flex; flex: 1; overflow: hidden; position: relative; }
     .world-rail { width: 52px; background: rgba(0,0,0,0.72); border-right: 1px solid var(--gold-dim); display: flex; flex-direction: column; align-items: center; padding: 0.6rem 0; gap: 0.2rem; z-index: 5; flex-shrink: 0; }
-    .rail-btn { width: 38px; height: 38px; background: transparent; border: 1px solid transparent; color: var(--muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.12rem; transition: color 0.15s, border-color 0.15s, background 0.15s; }
+    .rail-btn { position: relative; width: 38px; height: 38px; background: transparent; border: 1px solid transparent; color: var(--muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.12rem; transition: color 0.15s, border-color 0.15s, background 0.15s; }
     .rail-btn:hover { color: var(--aged); border-color: var(--gold-dim); background: rgba(184,149,42,0.06); }
     .rail-btn.active { color: var(--gold-light); border-color: var(--gold-mid); background: rgba(184,149,42,0.12); }
     .rail-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
@@ -211,6 +211,12 @@
     .loc-drawer-item:last-child { border-bottom: none; }
     .loc-drawer-icon { width: 12px; height: 12px; flex-shrink: 0; }
     .loc-drawer-name { font-family: var(--font-body); font-size: 0.82rem; color: var(--parchment2); }
+    .loc-drawer-note { margin-left: auto; font-family: var(--font-title); font-size: 0.4rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    .rail-btn.has-unmapped { color: var(--gold-light); border-color: var(--gold-mid); }
+    .rail-count { position: absolute; top: 2px; right: 2px; min-width: 13px; height: 13px; border-radius: 8px; background: var(--blood); color: white; font: 8px/13px sans-serif; text-align: center; }
+    .panel-sublocations { display: flex; flex-direction: column; gap: 0.35rem; }
+    .panel-sublocation { width: 100%; text-align: left; border: 1px solid var(--gold-dim); background: rgba(184,149,42,0.05); color: var(--parchment2); padding: 0.45rem 0.55rem; cursor: pointer; font-family: var(--font-body); }
+    .panel-sublocation:hover { border-color: var(--gold-mid); color: var(--gold-light); }
 
     /* map-canvas transition for smooth zoom-to */
     .map-canvas.animating { transition: transform 0.55s cubic-bezier(0.4,0,0.2,1); }
@@ -385,6 +391,10 @@
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3"/></svg>
         <span class="rail-label">Foreign</span>
       </button>
+      <button class="rail-btn" id="rail-unmapped" onclick="openUnmappedDrawer()" title="New locations awaiting placement" style="display:none">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10 2a6 6 0 0 0-6 6c0 4.5 6 10 6 10s6-5.5 6-10a6 6 0 0 0-6-6z"/><path d="M7 8h6M10 5v6"/></svg>
+        <span class="rail-label">Unmapped</span><span class="rail-count" id="unmapped-count">0</span>
+      </button>
       <div class="rail-divider"></div>
       <button class="rail-btn" id="rail-marks" onclick="toggleMarksPanel()" title="Player Marks">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="8" r="4"/><path d="M10 12v6"/><path d="M7 17h6" stroke-width="1"/></svg>
@@ -478,6 +488,7 @@
 <script src="characters.js"></script>
   <script src="nav.js?v=sup3"></script>
 <script src="tooltips.js"></script>
+<script src="living-codex.js?v=lc1"></script>
 <script src="battle.js"></script>
 <script src="feed-bridge.js"></script>
 <script>
@@ -584,6 +595,10 @@ let pendingPinType   = null;
 let pendingPlayer    = null;
 let marksTypeFilter  = null;
 let editMode         = false;
+let worldSB          = null;
+let worldIsStaff     = false;
+let livingCodex      = { characters: [], npcs: [], locations: [], entities: [], aliases: {} };
+let pendingCodexLocation = null;
 
 // Pan/zoom state
 let mapScale    = 1;
@@ -771,7 +786,23 @@ function renderPins() {
     </div>`;
   }).join('');
 
-  layer.innerHTML = canonHTML + playerHTML;
+  const livingHTML = LivingCodex.mappedTopLevel(livingCodex.locations).map(loc => {
+    const color = STATUS_COLORS[loc.status] || STATUS_COLORS.unknown;
+    const visible = activeRailFilter === 'all' || activeRailFilter === loc.category;
+    const isActive = selectedKey === `living-${loc.id}`;
+    return `<div class="canon-pin${isActive?' active':''}"
+      data-id="living-${escapeHtml(loc.id)}"
+      style="left:${loc.mapX}%;top:${loc.mapY}%;display:${visible?'block':'none'};color:${color}"
+      onclick="selectLivingLocation(event,'${escapeHtml(loc.id)}')" title="${escapeHtml(loc.label)}">
+      <div class="canon-pin-wrap">
+        <div class="canon-pin-pulse" style="color:${color}"></div>
+        <div class="canon-pin-pulse" style="color:${color}"></div>
+        ${canonPinSvg(loc.shape, color)}
+      </div><div class="canon-pin-label">${escapeHtml(loc.label)}</div>
+    </div>`;
+  }).join('');
+
+  layer.innerHTML = canonHTML + livingHTML + playerHTML;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -818,8 +849,43 @@ function selectCanonLocation(event, key) {
   document.getElementById('panel-body').innerHTML = `
     <div class="panel-section">About</div>
     <div class="panel-desc">${escapeHtml(loc.desc)}</div>
+    ${locationChildrenHTML(key)}
   `;
 
+  openPanel();
+}
+
+function locationChildrenHTML(parentId) {
+  const children = LivingCodex.childrenOf(livingCodex.locations, parentId);
+  if (!children.length) return '';
+  return `<div class="panel-section">Within this location</div><div class="panel-sublocations">${children.map(child =>
+    `<button class="panel-sublocation" onclick="selectLivingLocation(event,'${escapeHtml(child.id)}')">${escapeHtml(child.label)}${child.role ? ` · ${escapeHtml(child.role)}` : ''}</button>`
+  ).join('')}</div>`;
+}
+
+function selectLivingLocation(event, id) {
+  event.stopPropagation();
+  const loc = livingCodex.locations.find(item => item.origin === 'journal' && item.id === id);
+  if (!loc || !loc.curated) return;
+  selectedKey = `living-${id}`;
+  if (window.innerWidth <= 600) closeLocDrawer();
+  renderPins();
+  const color = STATUS_COLORS[loc.status] || STATUS_COLORS.unknown;
+  document.getElementById('panel-type-label').textContent = CATEGORY_LABELS[loc.category] || 'Location';
+  document.getElementById('panel-type-label').style.color = color;
+  const badge = document.getElementById('panel-status-badge');
+  badge.textContent = loc.parentId ? 'Within a known place' : (STATUS_LABELS[loc.status] || 'Recorded');
+  badge.className = 'panel-status-badge';
+  badge.style.color = color;
+  badge.style.borderColor = color + '66';
+  document.getElementById('panel-name').textContent = loc.label;
+  const parent = livingCodex.locations.find(item => item.id === loc.parentId);
+  document.getElementById('panel-subtitle').textContent = parent ? `Inside ${parent.label}` : (loc.role || 'Discovered in the Chronicle');
+  document.getElementById('panel-body').innerHTML = `
+    <div class="panel-section">About</div>
+    <div class="panel-desc">${escapeHtml(loc.descr || 'A newly recorded place. More will be written as the party learns it.')}</div>
+    ${locationChildrenHTML(id)}
+  `;
   openPanel();
 }
 
@@ -901,6 +967,7 @@ function startPlacing() {
 
 function choosePinType(typeId) {
   pendingPinType = typeId;
+  document.querySelector('.place-hint').textContent = 'Click the map to place pin — Esc to cancel';
   document.getElementById('pin-palette').classList.remove('open');
   placingMode = true;
   document.getElementById('map-wrap').classList.add('placing');
@@ -909,6 +976,7 @@ function choosePinType(typeId) {
 function cancelPlacing() {
   placingMode    = false;
   pendingPinType = null;
+  pendingCodexLocation = null;
   document.getElementById('pin-palette').classList.remove('open');
   document.getElementById('map-wrap').classList.remove('placing');
 }
@@ -1189,6 +1257,23 @@ function toggleEditMode() {
 function handleMapClick(e) {
   if (e.target.closest('.canon-pin') || e.target.closest('.player-pin')) return;
 
+  if (pendingCodexLocation && placingMode) {
+    const wrap = document.getElementById('map-wrap');
+    const rect = wrap.getBoundingClientRect();
+    const canvasX = (e.clientX - rect.left - mapX) / mapScale;
+    const canvasY = (e.clientY - rect.top - mapY) / mapScale;
+    const x = (canvasX / MAP_W) * 100;
+    const y = (canvasY / MAP_H) * 100;
+    if (x < 0 || x > 100 || y < 0 || y > 100) {
+      document.querySelector('.place-hint').textContent = 'Click inside the map image to place this location';
+      return;
+    }
+    showCodexPinForm(x, y);
+    placingMode = false;
+    document.getElementById('map-wrap').classList.remove('placing');
+    return;
+  }
+
   if (!placingMode) {
     selectedKey = null;
     closePanel();
@@ -1208,6 +1293,50 @@ function handleMapClick(e) {
 
   showPinNoteForm(x, y, pendingPinType);
   cancelPlacing();
+}
+
+function showCodexPinForm(x, y) {
+  const loc = pendingCodexLocation;
+  if (!loc) return;
+  document.getElementById('panel-type-label').textContent = 'New location pin';
+  document.getElementById('panel-type-label').style.color = 'var(--gold)';
+  const badge = document.getElementById('panel-status-badge');
+  badge.textContent = CATEGORY_LABELS[loc.category] || loc.category;
+  badge.className = 'panel-status-badge';
+  badge.style.color = 'var(--gold)';
+  badge.style.borderColor = 'var(--gold-dim)';
+  document.getElementById('panel-name').textContent = loc.label;
+  document.getElementById('panel-subtitle').textContent = 'Confirm this position on the world map';
+  document.getElementById('panel-body').innerHTML = `
+    <div class="panel-desc">This places the shared location pin at ${x.toFixed(2)}%, ${y.toFixed(2)}%.</div>
+    <br><button class="panel-save-btn" onclick="confirmCodexPin(${x.toFixed(2)},${y.toFixed(2)})">Confirm placement</button>
+    <button class="panel-cancel-btn" onclick="cancelCodexPlacement()">Cancel</button>`;
+  openPanel();
+}
+
+async function confirmCodexPin(x, y) {
+  const loc = pendingCodexLocation;
+  if (!loc || !worldSB || !worldIsStaff) return;
+  const res = await worldSB.from('entities').update({
+    map_x: Math.round(x * 100) / 100,
+    map_y: Math.round(y * 100) / 100,
+    map_state: 'placed',
+  }).eq('type', 'location').eq('id', loc.id).select('id').maybeSingle();
+  if (res.error || !res.data) {
+    alert('The location was not placed: ' + (res.error?.message || 'staff permission was not confirmed'));
+    return;
+  }
+  pendingCodexLocation = null;
+  await loadWorldCodex();
+  closePanel();
+  selectLivingLocation({ stopPropagation: () => {} }, loc.id);
+}
+
+function cancelCodexPlacement() {
+  pendingCodexLocation = null;
+  placingMode = false;
+  document.getElementById('map-wrap').classList.remove('placing');
+  closePanel();
 }
 
 function showPinNoteForm(x, y, typeId) {
@@ -1392,9 +1521,10 @@ function openLocDrawer(cat) {
 
   // Filter and render locations for this category
   const locs = CANON_LOCATIONS.filter(l => l.category === cat);
+  const living = LivingCodex.mappedTopLevel(livingCodex.locations).filter(l => l.category === cat);
   const list = document.getElementById('loc-drawer-list');
 
-  if (!locs.length) {
+  if (!locs.length && !living.length) {
     list.innerHTML = `<div style="padding:1rem 0.75rem;color:var(--muted);font-style:italic;font-size:0.82rem">None recorded yet.</div>`;
   } else {
     list.innerHTML = locs.map(loc => {
@@ -1404,6 +1534,12 @@ function openLocDrawer(cat) {
       return `<div class="loc-drawer-item" onclick="zoomToLocation('${loc.key}')">
         ${canonPinSvg(loc.shape, color).replace('class="canon-pin-icon"', 'class="loc-drawer-icon"')}
         <span class="loc-drawer-name">${data.name}</span>
+      </div>`;
+    }).join('') + living.map(loc => {
+      const color = STATUS_COLORS[loc.status] || STATUS_COLORS.unknown;
+      return `<div class="loc-drawer-item" onclick="zoomToLocation('${escapeHtml(loc.id)}')">
+        ${canonPinSvg(loc.shape, color).replace('class="canon-pin-icon"', 'class="loc-drawer-icon"')}
+        <span class="loc-drawer-name">${escapeHtml(loc.label)}</span><span class="loc-drawer-note">new</span>
       </div>`;
     }).join('');
   }
@@ -1416,6 +1552,33 @@ function openLocDrawer(cat) {
   drawer.classList.add('open');
 }
 
+function openUnmappedDrawer() {
+  if (!worldIsStaff) return;
+  const drawer = document.getElementById('loc-drawer');
+  activeDrawerCat = 'unmapped';
+  document.getElementById('loc-drawer-title').textContent = 'Unmapped locations';
+  const locs = LivingCodex.unmappedTopLevel(livingCodex.locations);
+  document.getElementById('loc-drawer-list').innerHTML = locs.length ? locs.map(loc => `
+    <div class="loc-drawer-item" onclick="armCodexLocation('${escapeHtml(loc.id)}')">
+      ${canonPinSvg(loc.shape, STATUS_COLORS[loc.status] || STATUS_COLORS.unknown).replace('class="canon-pin-icon"', 'class="loc-drawer-icon"')}
+      <span class="loc-drawer-name">${escapeHtml(loc.label)}</span><span class="loc-drawer-note">place pin</span>
+    </div>`).join('') : '<div style="padding:1rem 0.75rem;color:var(--muted);font-style:italic;font-size:0.82rem">Everything recorded has a home.</div>';
+  document.querySelectorAll('.rail-btn[id^="rail-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('rail-unmapped').classList.add('active');
+  drawer.classList.add('open');
+}
+
+function armCodexLocation(id) {
+  const loc = LivingCodex.unmappedTopLevel(livingCodex.locations).find(item => item.id === id);
+  if (!loc || !worldIsStaff) return;
+  pendingCodexLocation = loc;
+  pendingPinType = null;
+  placingMode = true;
+  closeLocDrawer();
+  document.querySelector('.place-hint').textContent = `Click the map to place ${loc.label} — Esc to cancel`;
+  document.getElementById('map-wrap').classList.add('placing');
+}
+
 function closeLocDrawer() {
   activeDrawerCat = null;
   document.getElementById('loc-drawer').classList.remove('open');
@@ -1425,7 +1588,9 @@ function closeLocDrawer() {
 }
 
 function zoomToLocation(key) {
-  const loc  = CANON_LOCATIONS.find(l => l.key === key);
+  const canon = CANON_LOCATIONS.find(l => l.key === key);
+  const dynamic = LivingCodex.mappedTopLevel(livingCodex.locations).find(l => l.id === key);
+  const loc = canon || (dynamic ? { key:dynamic.id, x:dynamic.mapX, y:dynamic.mapY } : null);
   if (!loc) return;
 
   const wrap    = document.getElementById('map-wrap');
@@ -1459,8 +1624,34 @@ function zoomToLocation(key) {
   // On mobile: just zoom to the pin — user taps it to open the detail sheet
   // On desktop: open the detail panel automatically as before
   if (window.innerWidth > 600) {
-    selectCanonLocation({ stopPropagation: () => {} }, key);
+    if (dynamic) selectLivingLocation({ stopPropagation: () => {} }, key);
+    else selectCanonLocation({ stopPropagation: () => {} }, key);
   }
+}
+
+async function loadWorldCodex() {
+  if (!worldSB) return;
+  try {
+    livingCodex = await LivingCodex.load(worldSB, { locationData: LOCATION_DATA });
+    const unmapped = LivingCodex.unmappedTopLevel(livingCodex.locations);
+    const btn = document.getElementById('rail-unmapped');
+    btn.style.display = worldIsStaff && unmapped.length ? '' : 'none';
+    btn.classList.toggle('has-unmapped', unmapped.length > 0);
+    document.getElementById('unmapped-count').textContent = unmapped.length;
+    renderPins();
+  } catch (e) {
+    console.warn('[living-codex] world locations unavailable:', e.message);
+  }
+}
+
+async function startWorldCodex() {
+  worldSB = window.__tok.sb;
+  const profile = window.__tok.ready ? await window.__tok.ready : null;
+  worldIsStaff = !!(profile && (profile.role === 'overseer' || profile.role === 'dm'));
+  await loadWorldCodex();
+  worldSB.channel('world-codex-live')
+    .on('postgres_changes', { event:'*', schema:'public', table:'entities' }, loadWorldCodex)
+    .subscribe();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1469,6 +1660,8 @@ function zoomToLocation(key) {
 loadIdentity();
 renderPins();
 loadPins();
+if (window.__tok && window.__tok.sb) startWorldCodex();
+else document.addEventListener('nav:ready', startWorldCodex, { once:true });
 initPanZoom();
 // Defer fitMap until after nav.js has injected and the browser has laid out
 // Two rAF frames ensures we're past any nav reflow

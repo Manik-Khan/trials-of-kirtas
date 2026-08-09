@@ -7,13 +7,17 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { entityStore } from './data/entityStore.js'
 
-export default function CurationQueue({ store, isStaff }) {
+export default function CurationQueue({ store, isStaff, refreshKey = 0 }) {
   const [queue, setQueue] = useState([])
   const [editing, setEditing] = useState(null)     // `${type}:${id}` being edited
   const [merging, setMerging] = useState(null)     // entity object in the dialog
   const [mergeInto, setMergeInto] = useState('')
   const [fixFeed, setFixFeed] = useState(false)
   const [footprint, setFootprint] = useState(null)
+  const [reviewing, setReviewing] = useState(null)
+  const [parentId, setParentId] = useState('')
+  const [category, setCategory] = useState('town')
+  const [shape, setShape] = useState('square')
   const [note, setNote] = useState('')
 
   const live = !!(store && store.loadCurationQueue)
@@ -21,13 +25,13 @@ export default function CurationQueue({ store, isStaff }) {
   const refresh = () => {
     if (live) {
       store.loadCurationQueue()
-        .then(rows => setQueue(rows.map(r => ({ type: r.type, id: r.id, name: r.name, descr: r.descr || '' }))))
+        .then(rows => setQueue(rows.map(r => ({ ...r, name: r.name, descr: r.descr || '' }))))
         .catch(e => console.error('[journal] curation load failed:', e))
     } else {
       setQueue(entityStore.createdStubs().map(e => ({ type: e.type, id: e.id, name: e.label, descr: '' })))
     }
   }
-  useEffect(refresh, [])              // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(refresh, [refreshKey])    // eslint-disable-line react-hooks/exhaustive-deps
 
   // canon candidates for the merge picker: the full pool minus the stub itself
   const canonFor = ent => [...entityStore.npcs(), ...entityStore.locations()]
@@ -36,11 +40,46 @@ export default function CurationQueue({ store, isStaff }) {
   const toast = msg => { setNote(msg); setTimeout(() => setNote(''), 3500) }
 
   const canonize = async ent => {
+    if (ent.type === 'location') {
+      setReviewing(ent)
+      setParentId(ent.parent_id || '')
+      setCategory(ent.map_category || 'town')
+      setShape(ent.map_shape || 'square')
+      return
+    }
     try {
       const r = live ? await store.canonizeEntity(ent.type, ent.id) : { pages: 0, feed: 0 }
+      const local = entityStore.resolve(ent.type, ent.id)
+      if (local) { local.curated = true; local.resolved = true }
       toast(`@${ent.name} canonized — chips flip solid everywhere (${r.pages} pages, ${r.feed} chat)`)
       refresh()
     } catch (e) { toast(`canonize failed: ${e.message}`) }
+  }
+
+  const confirmLocation = async () => {
+    const ent = reviewing
+    if (!ent) return
+    try {
+      if (live) {
+        await store.updateEntity(ent.type, ent.id, {
+          parent_id: parentId || null,
+          map_category: category,
+          map_shape: shape,
+          map_state: parentId ? 'nested' : 'unmapped',
+        })
+        await store.canonizeEntity(ent.type, ent.id)
+      }
+      const local = entityStore.resolve(ent.type, ent.id)
+      if (local) Object.assign(local, {
+        curated: true, resolved: true, parentId: parentId || null,
+        category, shape, mapState: parentId ? 'nested' : 'unmapped',
+      })
+      toast(parentId
+        ? `@${ent.name} confirmed inside @${locationParents.find(l => l.id === parentId)?.label || parentId}`
+        : `@${ent.name} confirmed — waiting in the World's Unmapped list for pin placement`)
+      setReviewing(null)
+      refresh()
+    } catch (e) { toast(`location confirmation failed: ${e.message}`) }
   }
 
   const saveEdit = async (ent, name, descr) => {
@@ -88,6 +127,8 @@ export default function CurationQueue({ store, isStaff }) {
   }
 
   const target = merging ? canonFor(merging).find(c => c.id === mergeInto) : null
+  const locationParents = useMemo(() => entityStore.locations()
+    .filter(e => e.id !== reviewing?.id && e.curated !== false), [reviewing, queue])
 
   if (!isStaff) return null
 
@@ -155,6 +196,47 @@ export default function CurationQueue({ store, isStaff }) {
             <div className="j-cq-btns">
               <button type="button" className="no" onClick={() => setMerging(null)}>Cancel</button>
               <button type="button" className="go" disabled={!target} onClick={doMerge}>Merge</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reviewing && (
+        <div className="j-cq-veil" onClick={e => { if (e.target === e.currentTarget) setReviewing(null) }}>
+          <div className="j-cq-dlg">
+            <h3>Confirm location</h3>
+            <p>Where does <span className="j-cq-from">@{reviewing.name}</span> belong?</p>
+            <div className="j-cq-fields">
+              <label>
+                Parent location
+                <select value={parentId} onChange={e => setParentId(e.target.value)}>
+                  <option value="">No parent — place on the world map later</option>
+                  {locationParents.map(l => <option key={`${l.type}:${l.id}`} value={l.id}>{l.label}</option>)}
+                </select>
+              </label>
+              {!parentId && <>
+                <label>
+                  Map category
+                  <select value={category} onChange={e => setCategory(e.target.value)}>
+                    {['city','town','fort','ruin','region','wilderness','foreign'].map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </label>
+                <label>
+                  Pin shape
+                  <select value={shape} onChange={e => setShape(e.target.value)}>
+                    {['square','diamond','triangle','doublering','crossring'].map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </label>
+              </>}
+            </div>
+            <div className="j-cq-preview">
+              {parentId
+                ? 'This becomes a nested place shown inside its parent location; it does not need a separate continent pin.'
+                : 'This joins the staff-only Unmapped list. A staff member will click it, then click the map to place its pin.'}
+            </div>
+            <div className="j-cq-btns">
+              <button type="button" className="no" onClick={() => setReviewing(null)}>Cancel</button>
+              <button type="button" className="go" onClick={confirmLocation}>Confirm location</button>
             </div>
           </div>
         </div>

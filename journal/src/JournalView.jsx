@@ -611,7 +611,7 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
               />
             )}
 
-            {isStaff && <CurationQueue store={store} isStaff={isStaff} />}
+            {isStaff && <CurationQueue store={store} isStaff={isStaff} refreshKey={tick} />}
             {!isStaff && stubs.length > 0 && (
               <section className="j-newents">
                 <div className="j-side-label">New to the world</div>

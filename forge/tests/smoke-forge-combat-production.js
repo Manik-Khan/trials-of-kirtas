@@ -19,8 +19,8 @@ function ok(name, value) {
 ok("production Blueprint exports the approved schema", BP.SCHEMA === "forge-blueprint/v1");
 ok("production Combat loads cache-stamped production assets",
   combatHtml.includes('href="combat.css?v=fc2"')
-  && combatHtml.includes('src="forge-blueprint.js?v=bp4"')
-  && combatHtml.includes('src="combat.js?v=fc3"')
+  && combatHtml.includes('src="forge-blueprint.js?v=bp5"')
+  && combatHtml.includes('src="combat.js?v=fc4"')
   && combatHtml.includes('src="forge-combat-local.js?v=fcl1"')
   && !combatHtml.includes("_edits/") && !combatHtml.includes("mock-forge"));
 ok("production renderer consumes the production Blueprint authority",

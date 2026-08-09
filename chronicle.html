@@ -1791,6 +1791,16 @@ function updateInlineFocus(items) {
   items.forEach((el,i)=>el.classList.toggle('focused', i===inlineFocusIdx));
 }
 
+function inlineEsc(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
+}
+function mentionAction(fn, type, key, name) {
+  const arg = value => encodeURIComponent(String(value)).replace(/'/g, '%27');
+  return `${fn}('${arg(type)}',decodeURIComponent('${arg(key)}'),decodeURIComponent('${arg(name)}'))`;
+}
+
 function showInlineDropdown() {
   const dd = document.getElementById('inline-dropdown');
   inlineFocusIdx = 0;
@@ -1802,11 +1812,13 @@ function showInlineDropdown() {
     if (!chars.length && !npcs.length && !locs.length) {
       // No known match — offer to insert as unresolved mention
       if (inlineQuery.length > 0) {
-        const display = inlineRawQuery.charAt(0).toUpperCase() + inlineRawQuery.slice(1);
+        const rawDisplay = inlineRawQuery.charAt(0).toUpperCase() + inlineRawQuery.slice(1);
+        const display = inlineEsc(rawDisplay);
+        const key = LivingCodex.slug(inlineRawQuery);
         dd.innerHTML = `
           <div class="inline-dropdown-section">Unknown — add as:</div>
-          <div class="inline-dropdown-item" onclick="insertUnresolvedMention('npc','${LivingCodex.slug(inlineRawQuery)}','${display}')"><span class="inline-dropdown-icon">👤</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(new NPC)</em></span></div>
-          <div class="inline-dropdown-item" onclick="insertUnresolvedMention('location','${LivingCodex.slug(inlineRawQuery)}','${display}')"><span class="inline-dropdown-icon">📍</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(new location)</em></span></div>`;
+          <div class="inline-dropdown-item" onclick="${mentionAction('insertUnresolvedMention','npc',key,rawDisplay)}"><span class="inline-dropdown-icon">👤</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(new NPC)</em></span></div>
+          <div class="inline-dropdown-item" onclick="${mentionAction('insertUnresolvedMention','location',key,rawDisplay)}"><span class="inline-dropdown-icon">📍</span><span class="inline-dropdown-name">${display} <em style="color:var(--muted)">(new location)</em></span></div>`;
         dd.style.display = 'block';
         const bounds = quill.getBounds(quill.getSelection()?.index||0);
         const editorRect = document.getElementById('quill-editor').getBoundingClientRect();
@@ -1835,15 +1847,15 @@ function showInlineDropdown() {
     let html = '';
     if (chars.length) {
       html += `<div class="inline-dropdown-section">Player characters</div>`;
-      html += chars.slice(0,5).map(n=>`<div class="inline-dropdown-item" onclick="insertMention('character','${n.key}','${n.name}')"><span class="inline-dropdown-icon">◆</span><span class="inline-dropdown-name">${n.name}</span><span class="inline-dropdown-type">Character</span></div>`).join('');
+      html += chars.slice(0,5).map(n=>`<div class="inline-dropdown-item" onclick="${mentionAction('insertMention','character',n.key,n.name)}"><span class="inline-dropdown-icon">◆</span><span class="inline-dropdown-name">${inlineEsc(n.name)}</span><span class="inline-dropdown-type">Character</span></div>`).join('');
     }
     if (npcs.length) {
       html += `<div class="inline-dropdown-section">NPCs</div>`;
-      html += npcs.slice(0,5).map(n=>`<div class="inline-dropdown-item" onclick="${n.resolved ? 'insertMention' : 'insertUnresolvedMention'}('npc','${n.key}','${n.name}')"><span class="inline-dropdown-icon">👤</span><span class="inline-dropdown-name">${n.name}${n.resolved ? '' : ' <em style="color:var(--muted)">(awaiting confirmation)</em>'}</span><span class="inline-dropdown-type">NPC</span></div>`).join('');
+      html += npcs.slice(0,5).map(n=>`<div class="inline-dropdown-item" onclick="${mentionAction(n.resolved ? 'insertMention' : 'insertUnresolvedMention','npc',n.key,n.name)}"><span class="inline-dropdown-icon">👤</span><span class="inline-dropdown-name">${inlineEsc(n.name)}${n.resolved ? '' : ' <em style="color:var(--muted)">(awaiting confirmation)</em>'}</span><span class="inline-dropdown-type">NPC</span></div>`).join('');
     }
     if (locs.length) {
       html += `<div class="inline-dropdown-section">Locations</div>`;
-      html += locs.slice(0,5).map(l=>`<div class="inline-dropdown-item" onclick="${l.resolved ? 'insertMention' : 'insertUnresolvedMention'}('location','${l.key}','${l.name}')"><span class="inline-dropdown-icon">📍</span><span class="inline-dropdown-name">${l.name}${l.resolved ? '' : ' <em style="color:var(--muted)">(awaiting confirmation)</em>'}</span><span class="inline-dropdown-type">Location</span></div>`).join('');
+      html += locs.slice(0,5).map(l=>`<div class="inline-dropdown-item" onclick="${mentionAction(l.resolved ? 'insertMention' : 'insertUnresolvedMention','location',l.key,l.name)}"><span class="inline-dropdown-icon">📍</span><span class="inline-dropdown-name">${inlineEsc(l.name)}${l.resolved ? '' : ' <em style="color:var(--muted)">(awaiting confirmation)</em>'}</span><span class="inline-dropdown-type">Location</span></div>`).join('');
     }
     dd.innerHTML = html;
   } else {

@@ -1,5 +1,5 @@
 // smoke-book.mjs — the book model: feed rows → chapters. Pure, no DOM.
-import { buildBook, rowToBookEntry } from './src/data/bookModel.js'
+import { buildBook, rowToBookEntry, facetCounts, entryMatches } from './src/data/bookModel.js'
 let pass = 0, fail = 0
 const t = (n, c) => { c ? (pass++, console.log('  ✓ ' + n)) : (fail++, console.log('  ✗ ' + n)) }
 const R = (o) => ({ channel: 'chronicle', kind: 'message', hidden: false, meta: {}, ...o })
@@ -44,6 +44,19 @@ t('narrator hover reveals the DM alias',
 t('unknown seats fall back gracefully to actor_name',
   (() => { const e = rowToBookEntry(R({ id: 23, actor_key: 'guest-seat', actor_name: 'Guest', session: 4, body: '', created_at: '2026-07-01T00:00:00Z' })); return e.character === 'Guest' && e.player === 'Guest' })())
 t('rowToBookEntry survives null meta/session', (() => { const e = rowToBookEntry({ id: 9, body: '', created_at: '2026-07-01T00:00:00Z', meta: null, session: null }); return e.session === 0 && e.kind === 'narrator' })())
+t('player-character mentions facet separately from NPCs', (() => {
+  const e = rowToBookEntry(R({ id: 24, actor_key: 'dm', session: 4,
+    body: '<p><span data-mention-type="character" data-mention-key="chonkalius-a1b2">Chonkalius</span></p>',
+    created_at: '2026-07-01T00:00:00Z' }))
+  const f = facetCounts([e])
+  return f.characters['chonkalius-a1b2'] === 1 && !f.npcs['chonkalius-a1b2']
+})())
+t('character facet finds Chonkalius without an NPC filter', (() => {
+  const e = rowToBookEntry(R({ id: 25, actor_key: 'dm', session: 4,
+    body: '<p><span data-mention-type="character" data-mention-key="chonkalius-a1b2">Chonkalius</span></p>',
+    created_at: '2026-07-01T00:00:00Z' }))
+  return entryMatches(e, { characters: { 'chonkalius-a1b2': 1 }, npcs: {}, tags: {} })
+})())
 
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)

@@ -19,16 +19,16 @@ const ALIASES = { 'npc:sir-belamy': 'ser-bellamy' }
 
 // ── the matcher ──
 {
-  const items = buildItems('sir bel', NPCS, LOCS, ALIASES)
+  const items = buildItems('sir bel', [], NPCS, LOCS, ALIASES)
   t('typing the retired key surfaces CANON (no Create rows)',
     items.some(i => i.id === 'ser-bellamy' && i.resolved) && !items.some(i => i.section === 'Create'))
-  const items2 = buildItems('sir-belamy', NPCS, LOCS, ALIASES)
+  const items2 = buildItems('sir-belamy', [], NPCS, LOCS, ALIASES)
   t('dashed form of the alias matches too', items2.some(i => i.id === 'ser-bellamy'))
-  const items3 = buildItems('sir bel', NPCS, LOCS, {})
+  const items3 = buildItems('sir bel', [], NPCS, LOCS, {})
   t('without the alias map the same query falls through to Create (the old failure)',
     items3.some(i => i.section === 'Create'))
   t('aliases never leak across types',
-    !buildItems('sir bel', [], LOCS, ALIASES).some(i => i.resolved))
+    !buildItems('sir bel', [], [], LOCS, ALIASES).some(i => i.resolved))
 }
 
 // ── the store ──
@@ -51,7 +51,7 @@ const ALIASES = { 'npc:sir-belamy': 'ser-bellamy' }
   t('insert decision intercepts the alias: CANON id + label, resolved, not created',
     r.id === 'ser-bellamy' && r.label === 'Ser Bellamy' && r.resolved === true && r.created === false)
   const r2 = resolveMentionInsert({ id: 'brand-new', type: 'npc', label: 'Brand New', resolved: false }, entityStore)
-  t('genuinely new entities still create', r2.created === true && r2.id === 'brand-new' && r2.resolved === true)
+  t('genuinely new entities create but stay unresolved until confirmation', r2.created === true && r2.id === 'brand-new' && r2.resolved === false)
   const r3 = resolveMentionInsert({ id: 'darius', type: 'npc', label: 'Darius', resolved: true }, entityStore)
   t('already-resolved picks pass through untouched', r3.id === 'darius' && r3.created === false)
 }

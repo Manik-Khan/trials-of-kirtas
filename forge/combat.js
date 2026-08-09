@@ -262,6 +262,7 @@ function worldX(c) { return c - state.blueprint.grid.cols / 2 + 0.5; }
 function worldZ(r) { return r - state.blueprint.grid.rows / 2 + 0.5; }
 function rise(elevationFt) { return Number(elevationFt || 0) * 0.1; }
 function cellInfo(c, r) { return state.map.meta.regions[BP.idx(state.map.cols, c, r)]; }
+function cellElevationFt(c, r) { return Number(state.map.h[BP.idx(state.map.cols, c, r)]) || 0; }
 function isDiscovered(region) { return region && state.discovered.has(region); }
 function isAuthoringVisible(info) { return !!info && (isDiscovered(info.region) || state.mode === "build"); }
 function chunkBounds(chunkC, chunkR) {
@@ -368,7 +369,7 @@ function architectureSets(bounds) {
   for (let r = bounds.minR; r < bounds.maxR; r++) for (let c = bounds.minC; c < bounds.maxC; c++) {
     const info = cellInfo(c, r);
     if (!isAuthoringVisible(info)) continue;
-    const y = rise(info.elevationFt);
+    const y = rise(cellElevationFt(c, r));
     (state.blueprint.source?.structureReview ? [] : boundaryEdges(c, r)).forEach((side) => {
       if (explicitArchitectureBoundaryAt(c, r, side)) return;
       const near = side === "s" || side === "e";
@@ -470,7 +471,7 @@ function addSharedMesh(group, geometry, materialValue, position, rotation, scale
 function addFinishedProp(group, item) {
   const info = cellInfo(item.c, item.r);
   const root = new THREE.Group();
-  root.position.set(worldX(item.c), rise(info.elevationFt) + 0.08, worldZ(item.r));
+  root.position.set(worldX(item.c), rise(cellElevationFt(item.c, item.r)) + 0.08, worldZ(item.r));
   root.rotation.y = BP.normalizeRotation(item.rotation) * Math.PI / 180;
   group.add(root);
   const p = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -613,7 +614,7 @@ function buildChunk(chunkC, chunkR, animate = false) {
   for (let r = bounds.minR; r < bounds.maxR; r++) for (let c = bounds.minC; c < bounds.maxC; c++) {
     const info = cellInfo(c, r);
     if (!info) continue;
-    const record = { c, r, floor: true, y: isAuthoringVisible(info) ? rise(info.elevationFt) : 0 };
+    const record = { c, r, floor: true, y: isAuthoringVisible(info) ? rise(cellElevationFt(c, r)) : 0 };
     if (!isDiscovered(info.region)) unknown.push(record);
     else (floors[info.material] || (floors[info.material] = [])).push(record);
   }
@@ -653,13 +654,13 @@ function buildChunk(chunkC, chunkR, animate = false) {
   chunkProps.forEach((item) => (byKind[item.kind] || (byKind[item.kind] = [])).push(item));
   function propTransform(matrix, item, height) {
     const info = cellInfo(item.c, item.r);
-    matrix.makeTranslation(worldX(item.c), rise(info.elevationFt) + height / 2 + 0.08, worldZ(item.r));
+    matrix.makeTranslation(worldX(item.c), rise(cellElevationFt(item.c, item.r)) + height / 2 + 0.08, worldZ(item.r));
   }
   addInstances(group, pillarGeometry, mats.wallTop, byKind.pillar || [], (m, item) => propTransform(m, item, 1.55));
   addInstances(group, rubbleGeometry, mats.rubble, byKind.rubble || [], (m, item) => {
     const info = cellInfo(item.c, item.r);
     m.makeRotationY((item.rotation || 0) * Math.PI / 180);
-    m.setPosition(worldX(item.c), rise(info.elevationFt) + 0.25, worldZ(item.r));
+    m.setPosition(worldX(item.c), rise(cellElevationFt(item.c, item.r)) + 0.25, worldZ(item.r));
   });
   addInstances(group, crateGeometry, mats.wood, byKind.crates || [], (m, item) => propTransform(m, item, 0.55));
   addInstances(group, poolGeometry, mats.water, byKind.pool || [], (m, item) => propTransform(m, item, 0.03));
@@ -672,7 +673,7 @@ function buildChunk(chunkC, chunkR, animate = false) {
   ["pc", "foe"].forEach((side) => {
     addInstances(group, tokenGeometry, side === "pc" ? mats.pc : mats.foe, chunkSpawns.filter((item) => item.side === side), (m, item) => {
       const info = cellInfo(item.c, item.r);
-      m.makeTranslation(worldX(item.c), rise(info.elevationFt) + 0.48, worldZ(item.r));
+      m.makeTranslation(worldX(item.c), rise(cellElevationFt(item.c, item.r)) + 0.48, worldZ(item.r));
     });
   });
   if (animate) {
@@ -691,7 +692,7 @@ function buildLights() {
     if (!isDiscovered(record.discoveryRegion)) return;
     const info = cellInfo(record.c, record.r);
     const lamp = new THREE.PointLight(record.color, state.quality === "cinematic" ? record.intensity * 2 : record.intensity, 7, 2);
-    lamp.position.set(worldX(record.c), rise(info && info.elevationFt) + 1.3, worldZ(record.r));
+    lamp.position.set(worldX(record.c), rise(info ? cellElevationFt(record.c, record.r) : 0) + 1.3, worldZ(record.r));
     lamp.castShadow = state.quality === "cinematic";
     lightRoot.add(lamp);
   });
@@ -716,7 +717,7 @@ function buildGrid() {
   for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
     const info = cellInfo(c, r);
     if (!isAuthoringVisible(info)) continue;
-    const x = worldX(c), z = worldZ(r), y = rise(info.elevationFt) + 0.075;
+    const x = worldX(c), z = worldZ(r), y = rise(cellElevationFt(c, r)) + 0.075;
     points.push(
       x - 0.47, y, z - 0.47, x + 0.47, y, z - 0.47,
       x + 0.47, y, z - 0.47, x + 0.47, y, z + 0.47,
@@ -741,7 +742,7 @@ function buildFlags() {
     if (!group.anchor) return;
     const info = cellInfo(group.anchor.c, group.anchor.r);
     if (!info || !isDiscovered(info.region)) return;
-    const color = groupColor(group), y = rise(info.elevationFt) + 0.1;
+    const color = groupColor(group), y = rise(cellElevationFt(group.anchor.c, group.anchor.r)) + 0.1;
     const pole = new THREE.Mesh(
       new THREE.CylinderGeometry(0.035, 0.045, 1.35, 7),
       new THREE.MeshStandardMaterial({ color: 0x3d3328, roughness: 0.8 })
@@ -763,7 +764,7 @@ function buildAreaOverlay() {
   for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
     const info = cellInfo(c, r);
     if (!info || info.region !== state.areaFocus) continue;
-    const y = rise(info.elevationFt) + 0.1, x = worldX(c), z = worldZ(r);
+    const y = rise(cellElevationFt(c, r)) + 0.1, x = worldX(c), z = worldZ(r);
     cells.push({ c, r, y });
     [
       { dc: 0, dr: -1, a: [x - 0.48, z - 0.48], b: [x + 0.48, z - 0.48], rotation: 0 },
@@ -926,7 +927,7 @@ function drawSelection() {
       reachable.forEach((cell, index) => {
         const info = cellInfo(cell.c, cell.r);
         matrix.makeScale(0.72, 0.09, 0.72);
-        matrix.setPosition(worldX(cell.c), rise(info?.elevationFt || 0) + 0.105, worldZ(cell.r));
+        matrix.setPosition(worldX(cell.c), rise(cellElevationFt(cell.c, cell.r)) + 0.105, worldZ(cell.r));
         mesh.setMatrixAt(index, matrix);
       });
       mesh.instanceMatrix.needsUpdate = true; mesh.renderOrder = 38; mesh.userData.sharedGeometry = true;
@@ -942,14 +943,14 @@ function drawSelection() {
   selectedCells.forEach((cell) => {
     const area = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.82), mats.select);
     area.rotation.x = -Math.PI / 2;
-    area.position.set(worldX(cell.c), rise(cell.info.elevationFt) + 0.085, worldZ(cell.r));
+    area.position.set(worldX(cell.c), rise(cellElevationFt(cell.c, cell.r)) + 0.085, worldZ(cell.r));
     area.renderOrder = 39;
     selectionRoot.add(area);
   });
   const previewCells = state.linePreview.concat(state.roomPreview ? roomPreviewCells() : []);
   previewCells.forEach((cell) => {
     const info = cellInfo(cell.c, cell.r);
-    const y = rise(info?.elevationFt || 0) + 0.11;
+    const y = rise(info ? cellElevationFt(cell.c, cell.r) : 0) + 0.11;
     const preview = cell.edge
       ? edgeSelectionMesh(cell.c, cell.r, cell.edge, y, mats.selectAxis)
       : new THREE.Mesh(new THREE.PlaneGeometry(0.76, 0.76), mats.selectAxis);
@@ -969,7 +970,7 @@ function drawSelection() {
     positionBuildHandles();
     return;
   }
-  const selectedY = (isDiscovered(info.region) ? rise(info.elevationFt) : 0) + 0.09;
+  const selectedY = (isDiscovered(info.region) ? rise(cellElevationFt(state.selected.c, state.selected.r)) : 0) + 0.09;
   const mesh = state.selected.edge
     ? edgeSelectionMesh(state.selected.c, state.selected.r, state.selected.edge, selectedY, mats.select)
     : new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.8), mats.select);
@@ -1306,6 +1307,44 @@ function drawArtwork() {
   ctx.font = Math.max(11, cell * 0.6) + "px Georgia";
   ctx.fillText("ARTWORK · " + state.blueprint.name, ox, Math.max(18, oy - cell * 0.7));
 }
+function drawBlueprintConnectors(ctx, cell, ox, oy) {
+  (state.blueprint.connectors || []).filter((connector) => connector.state !== "closed").forEach((connector) => {
+    const path = connector.path || [];
+    if (path.length < 2) return;
+    ctx.save();
+    ctx.strokeStyle = "rgba(50,111,104,.72)";
+    ctx.lineWidth = Math.max(1.5, cell * 0.12);
+    ctx.setLineDash([Math.max(3, cell * 0.24), Math.max(3, cell * 0.18)]);
+    ctx.beginPath();
+    path.forEach((point, index) => {
+      const x = ox + (point.c + 0.5) * cell, y = oy + (point.r + 0.5) * cell;
+      if (!index) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke(); ctx.setLineDash([]);
+    const stairPath = connector.stairPath?.length ? connector.stairPath : path.filter((point, index) => {
+      if (!index) return path[1] && Number(path[1].elevationFt) !== Number(point.elevationFt);
+      return Number(path[index - 1].elevationFt) !== Number(point.elevationFt);
+    });
+    stairPath.forEach((point, index) => {
+      const x = ox + point.c * cell, y = oy + point.r * cell;
+      const before = stairPath[Math.max(0, index - 1)], after = stairPath[Math.min(stairPath.length - 1, index + 1)];
+      const horizontal = before.c !== after.c;
+      ctx.fillStyle = "rgba(190,142,57,.42)"; ctx.fillRect(x + 1, y + 1, cell - 2, cell - 2);
+      ctx.strokeStyle = "#75572e"; ctx.lineWidth = Math.max(1, cell * 0.06);
+      for (let tread = 2; tread <= 8; tread += 2) {
+        ctx.beginPath();
+        if (horizontal) { ctx.moveTo(x + cell * tread / 10, y + cell * 0.12); ctx.lineTo(x + cell * tread / 10, y + cell * 0.88); }
+        else { ctx.moveTo(x + cell * 0.12, y + cell * tread / 10); ctx.lineTo(x + cell * 0.88, y + cell * tread / 10); }
+        ctx.stroke();
+      }
+    });
+    [connector.lowLanding, connector.highLanding].filter(Boolean).forEach((landing) => {
+      ctx.fillStyle = "#3d3120"; ctx.font = Math.max(9, cell * 0.38) + "px Arial"; ctx.textAlign = "center";
+      ctx.fillText((Number(landing.elevationFt) || 0) + " ft", ox + (landing.c + 0.5) * cell, oy + landing.r * cell - 3);
+    });
+    ctx.restore();
+  });
+}
 function drawScrawl() {
   const canvas = ui.scrawlStage, ctx = canvas.getContext("2d");
   const width = canvas.width, height = canvas.height;
@@ -1327,12 +1366,13 @@ function drawScrawl() {
     if (!discovered) {
       ctx.strokeStyle = "rgba(53,58,55,.24)"; ctx.lineWidth = Math.max(1, cell * 0.06);
       ctx.beginPath(); ctx.moveTo(ox + c * cell, oy + (r + 1) * cell); ctx.lineTo(ox + (c + 1) * cell, oy + r * cell); ctx.stroke();
-    } else if (info.elevationFt) {
+    } else if (cellElevationFt(c, r)) {
       ctx.fillStyle = "rgba(246,231,190,.42)";
       ctx.fillRect(ox + c * cell + cell * 0.1, oy + r * cell + cell * 0.1, cell * 0.8, cell * 0.8);
     }
   }
   ctx.globalAlpha = 1;
+  drawBlueprintConnectors(ctx, cell, ox, oy);
   for (let r = 0; r < state.map.rows; r++) for (let c = 0; c < state.map.cols; c++) {
     const info = cellInfo(c, r);
     if (!isAuthoringVisible(info)) continue;

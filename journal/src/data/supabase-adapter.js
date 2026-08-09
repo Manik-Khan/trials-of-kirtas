@@ -118,10 +118,13 @@ export function makeJournalStore({ sb, uid, characterKey }) {
     // Canon comes from tooltips.js globals when the page loads them;
     // play-created rows merge on top. Callers pass the canon arrays in.
     async loadEntities({ canonNPCs = [], canonLocations = [] } = {}) {
-      const [res, al] = await Promise.all([
+      let [res, al] = await Promise.all([
         sb.from('entities').select('id, type, name, descr, status, curated, role, parent_id, map_x, map_y, map_category, map_shape, map_state'),
         sb.from('entity_aliases').select('type, alias_id, canonical_id'),
       ])
+      if (res.error && /column|schema cache/i.test(res.error.message || '')) {
+        res = await sb.from('entities').select('id, type, name, descr, status, curated')
+      }
       if (res.error) throw new Error(`loadEntities: ${res.error.message}`)
       const rows = res.data || []
       // typo → canon map written by merge_entity; consulted at typing time so

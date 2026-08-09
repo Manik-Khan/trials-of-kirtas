@@ -1089,7 +1089,10 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
   border: 1px solid var(--sh-hairline); border-radius: 0;
   padding: 8px 10px; outline: none; caret-color: var(--sh-accent);
 }
-.j-cq-fields input:focus, .j-cq-fields textarea:focus { border-color: var(--sh-accent); }
+.j-cq-fields input:focus, .j-cq-fields textarea:focus, .j-cq-fields select:focus { border-color: var(--sh-accent); }
+.j-cq-fields label { display: flex; flex-direction: column; gap: 5px; font-family: var(--sh-font-utility); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sh-ink-faint); }
+.idx-body .j-curation { margin-top: 28px; padding-bottom: 30px; }
+.idx-body .j-cq-row { flex-wrap: wrap; }
 .j-cq-check { display: flex; gap: 8px; align-items: baseline; font-family: var(--sh-font-body); font-size: 14px; color: var(--sh-ink-soft); }
 .j-cq-check input { accent-color: var(--sh-accent); }
 .j-cq-hint { font-family: var(--sh-font-body); font-style: italic; font-size: 13px; color: var(--sh-ink-faint); }

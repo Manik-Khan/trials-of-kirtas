@@ -365,23 +365,202 @@
     }
     return edges;
   }
-  function stairPath(from, to, fromFt, toFt) {
-    var x = from[0], y = from[1], tx = to[0], ty = to[1], cells = [], guard = 0;
-    while (guard++ < 200) {
-      cells.push({ c: x, r: y });
-      if (x === tx && y === ty) break;
-      if (x !== tx) x += x < tx ? 1 : -1;
-      else if (y !== ty) y += y < ty ? 1 : -1;
-    }
-    return cells.map(function (cell, index) {
-      var amount = cells.length <= 1 ? 1 : index / (cells.length - 1);
-      return { c: cell.c, r: cell.r, elevationFt: Math.round((fromFt + (toFt - fromFt) * amount) / 5) * 5 };
+  var PORTAL_STEPS = [
+    { side: "N", dc: 0, dr: -1 }, { side: "E", dc: 1, dr: 0 },
+    { side: "S", dc: 0, dr: 1 }, { side: "W", dc: -1, dr: 0 }
+  ];
+  function generatedRoom(space) {
+    var bounds = spaceBounds(space);
+    return bounds && {
+      id: space.id, label: space.label, c: bounds.minX, r: bounds.minY,
+      w: bounds.maxX - bounds.minX, h: bounds.maxY - bounds.minY,
+      elevationFt: Number(space.elevationFt) || 0,
+      discoveryRegion: space.discoveryRegion, material: space.material
+    };
+  }
+  function generatedRoomCenter(room) {
+    return { c: room.c + (room.w - 1) / 2, r: room.r + (room.h - 1) / 2 };
+  }
+  function generatedRoomCells(room) {
+    var cells = [];
+    for (var r = room.r; r < room.r + room.h; r++) for (var c = room.c; c < room.c + room.w; c++) cells.push({ c: c, r: r });
+    return cells;
+  }
+  function generatedInside(grid, cell) {
+    return cell.c >= 0 && cell.r >= 0 && cell.c < grid.cols && cell.r < grid.rows;
+  }
+  function generatedStep(side) {
+    return PORTAL_STEPS.find(function (step) { return step.side === side; });
+  }
+  function generatedPortalKey(portal) {
+    return portal.roomId + ":" + portal.c + "," + portal.r + "," + portal.side;
+  }
+  function generatedSidePreference(room, target) {
+    var a = generatedRoomCenter(room), b = generatedRoomCenter(target), dx = b.c - a.c, dy = b.r - a.r;
+    if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? ["E", dy >= 0 ? "S" : "N", dy >= 0 ? "N" : "S", "W"]
+      : ["W", dy >= 0 ? "S" : "N", dy >= 0 ? "N" : "S", "E"];
+    return dy >= 0 ? ["S", dx >= 0 ? "E" : "W", dx >= 0 ? "W" : "E", "N"]
+      : ["N", dx >= 0 ? "E" : "W", dx >= 0 ? "W" : "E", "S"];
+  }
+  function generatedPortalCandidates(room, target, used) {
+    var targetCenter = generatedRoomCenter(target), out = [];
+    generatedSidePreference(room, target).forEach(function (side) {
+      var vertical = side === "E" || side === "W";
+      var start = vertical ? room.r : room.c, length = vertical ? room.h : room.w;
+      var desired = Math.round(vertical ? targetCenter.r : targetCenter.c);
+      desired = Math.max(start, Math.min(start + length - 1, desired));
+      [0, -1, 1, -2, 2, -3, 3, -4, 4].forEach(function (offset) {
+        var along = desired + offset;
+        if (along < start || along >= start + length) return;
+        var portal = {
+          roomId: room.id,
+          c: vertical ? (side === "E" ? room.c + room.w - 1 : room.c) : along,
+          r: vertical ? along : (side === "S" ? room.r + room.h - 1 : room.r),
+          side: side
+        };
+        if (!used[generatedPortalKey(portal)]) out.push(portal);
+      });
     });
+    return out;
+  }
+  function generatedOutside(portal, distance) {
+    var step = generatedStep(portal.side);
+    return { c: portal.c + step.dc * distance, r: portal.r + step.dr * distance };
+  }
+  function generatedRoute(grid, start, goal, blocked, claimed, elevationFt) {
+    var queue = [start], head = 0, cameFrom = {}, seen = {};
+    seen[key(start.c, start.r)] = true;
+    while (head < queue.length) {
+      var current = queue[head++], currentKey = key(current.c, current.r);
+      if (current.c === goal.c && current.r === goal.r) {
+        var path = [], cursor = currentKey;
+        while (cursor) {
+          var parts = cursor.split(","); path.push({ c: Number(parts[0]), r: Number(parts[1]) }); cursor = cameFrom[cursor];
+        }
+        return path.reverse();
+      }
+      PORTAL_STEPS.slice().sort(function (a, b) {
+        return Math.abs(current.c + a.dc - goal.c) + Math.abs(current.r + a.dr - goal.r)
+          - Math.abs(current.c + b.dc - goal.c) - Math.abs(current.r + b.dr - goal.r);
+      }).forEach(function (step) {
+        var next = { c: current.c + step.dc, r: current.r + step.dr }, nextKey = key(next.c, next.r);
+        if (!generatedInside(grid, next) || seen[nextKey] || blocked[nextKey]) return;
+        if (claimed[nextKey] !== undefined && claimed[nextKey] !== elevationFt) return;
+        seen[nextKey] = true; cameFrom[nextKey] = currentKey; queue.push(next);
+      });
+    }
+    return null;
+  }
+  function chooseGeneratedConnection(grid, roomA, roomB, state) {
+    var low = roomA.elevationFt <= roomB.elevationFt ? roomA : roomB;
+    var high = low === roomA ? roomB : roomA;
+    var tiers = Math.abs(high.elevationFt - low.elevationFt) / 5;
+    var lowCandidates = generatedPortalCandidates(low, high, state.used);
+    var highCandidates = generatedPortalCandidates(high, low, state.used);
+    for (var li = 0; li < lowCandidates.length; li++) for (var hi = 0; hi < highCandidates.length; hi++) {
+      var lowPortal = lowCandidates[li], highPortal = highCandidates[hi];
+      var lowOutside = generatedOutside(lowPortal, 1), stairCells = [], approach;
+      if (!generatedInside(grid, lowOutside) || state.owner[key(lowOutside.c, lowOutside.r)]) continue;
+      if (tiers) {
+        for (var distance = tiers; distance >= 0; distance--) {
+          var stairCell = distance ? generatedOutside(highPortal, distance) : { c: highPortal.c, r: highPortal.r };
+          stairCells.push({ c: stairCell.c, r: stairCell.r, elevationFt: high.elevationFt - distance * 5 });
+        }
+        approach = generatedOutside(highPortal, tiers + 1);
+      } else approach = generatedOutside(highPortal, 1);
+      var reserved = tiers ? stairCells.slice(0, -1).concat([approach]) : [approach];
+      if (reserved.some(function (cell) { return cell.c === lowOutside.c && cell.r === lowOutside.r; })) continue;
+      if (!reserved.every(function (cell) {
+        var cellKey = key(cell.c, cell.r);
+        return generatedInside(grid, cell) && !state.owner[cellKey]
+          && (tiers ? state.claimed[cellKey] === undefined : state.claimed[cellKey] === undefined || state.claimed[cellKey] === low.elevationFt);
+      })) continue;
+      var blocked = Object.assign({}, state.owner);
+      reserved.forEach(function (cell) { blocked[key(cell.c, cell.r)] = "reserved-stair-runway"; });
+      delete blocked[key(lowOutside.c, lowOutside.r)]; delete blocked[key(approach.c, approach.r)];
+      var middle = generatedRoute(grid, lowOutside, approach, blocked, state.claimed, low.elevationFt);
+      if (!middle) continue;
+      var path = [{ c: lowPortal.c, r: lowPortal.r, elevationFt: low.elevationFt }]
+        .concat(middle.map(function (cell) { return { c: cell.c, r: cell.r, elevationFt: low.elevationFt }; }));
+      if (tiers) stairCells.forEach(function (cell) {
+        var last = path[path.length - 1];
+        if (last.c !== cell.c || last.r !== cell.r) path.push(cell);
+      });
+      else path.push({ c: highPortal.c, r: highPortal.r, elevationFt: high.elevationFt });
+      if (path.some(function (cell) {
+        var existing = state.claimed[key(cell.c, cell.r)];
+        return existing !== undefined && existing !== cell.elevationFt;
+      })) continue;
+      return {
+        roomA: roomA.id, roomB: roomB.id, lowRoomId: low.id, highRoomId: high.id,
+        lowFt: low.elevationFt, highFt: high.elevationFt, lowPortal: lowPortal, highPortal: highPortal,
+        portals: [lowPortal, highPortal], path: path, stairPath: stairCells, approach: approach,
+        lowLanding: tiers ? stairCells[0] : lowOutside,
+        highLanding: { c: highPortal.c, r: highPortal.r, elevationFt: high.elevationFt },
+        kind: tiers ? "stairs" : "passage", tiers: tiers
+      };
+    }
+    return null;
+  }
+  function generatedPathSegments(path) {
+    var segments = [], start = 0, priorDirection = null;
+    for (var i = 1; i < path.length; i++) {
+      var direction = (path[i].c - path[i - 1].c) + "," + (path[i].r - path[i - 1].r);
+      if (priorDirection && direction !== priorDirection) { segments.push([path[start], path[i - 1]]); start = i - 1; }
+      priorDirection = direction;
+    }
+    if (path.length > 1) segments.push([path[start], path[path.length - 1]]);
+    return segments;
+  }
+  function planGeneratedConnections(grid, spaces, edges) {
+    var rooms = spaces.map(generatedRoom), byId = {}, owner = {}, claimed = {}, used = {};
+    rooms.forEach(function (room) {
+      byId[room.id] = room;
+      generatedRoomCells(room).forEach(function (cell) {
+        owner[key(cell.c, cell.r)] = room.id; claimed[key(cell.c, cell.r)] = room.elevationFt;
+      });
+    });
+    var corridors = [], connectors = [], modules = [];
+    for (var edgeIndex = 0; edgeIndex < edges.length; edgeIndex++) {
+      var first = rooms[edges[edgeIndex][0]], second = rooms[edges[edgeIndex][1]];
+      var connection = chooseGeneratedConnection(grid, first, second, { owner: owner, claimed: claimed, used: used });
+      if (!connection) return { ok: false, reason: "No legal portal and stair runway for " + first.label + " → " + second.label };
+      connection.id = "generated-connection-" + (edgeIndex + 1);
+      connection.portals.forEach(function (portal, portalIndex) {
+        used[generatedPortalKey(portal)] = true;
+        var room = byId[portal.roomId];
+        modules.push({
+          id: connection.id + "-portal-" + (portalIndex + 1), kind: "door",
+          c: portal.c, r: portal.r, edge: portal.side, rotation: edgeRotation(portal.side),
+          discoveryRegion: room.discoveryRegion, variant: "oak", connectorId: connection.id
+        });
+      });
+      connection.path.forEach(function (cell) { claimed[key(cell.c, cell.r)] = cell.elevationFt; });
+      var lowRoom = byId[connection.lowRoomId], segmentIds = [];
+      generatedPathSegments(connection.path).forEach(function (segment, segmentIndex) {
+        var corridorId = "generated-passage-" + (edgeIndex + 1) + "-" + (segmentIndex + 1);
+        segmentIds.push(corridorId);
+        corridors.push(corridor(
+          corridorId, "Passage " + (edgeIndex + 1),
+          [segment[0].c, segment[0].r], [segment[1].c, segment[1].r], 1,
+          lowRoom.discoveryRegion, lowRoom.material, connection.lowFt
+        ));
+        corridors[corridors.length - 1].connectionId = connection.id;
+        corridors[corridors.length - 1].fromSpaceId = connection.roomA;
+        corridors[corridors.length - 1].toSpaceId = connection.roomB;
+      });
+      connection.corridorIds = segmentIds;
+      connection.state = "open"; connection.oneWay = false; connection.widthFt = 5; connection.requires = {};
+      connection.discoveryRegion = byId[connection.highRoomId].discoveryRegion;
+      connectors.push(connection);
+    }
+    return { ok: true, corridors: corridors, connectors: connectors, architecture: modules };
   }
   function produceSeeded(options) {
     options = options || {};
     var seed = Number.isFinite(Number(options.seed)) ? Math.abs(Math.trunc(Number(options.seed))) : 1847;
     var candidate = Math.max(0, Math.trunc(Number(options.candidate) || 0));
+    var attempt = Math.max(0, Math.trunc(Number(options._portalAttempt) || 0));
     var size = ["small", "medium", "large"].indexOf(options.size) >= 0 ? options.size : "medium";
     var density = Math.max(3, Math.min(9, Math.round(Number(options.density) || 6)));
     var requested = ["processional", "vault", "warren"].indexOf(options.topology) >= 0 ? options.topology : "surprise";
@@ -389,12 +568,12 @@
     var topology = requested === "surprise" || requested === "auto"
       ? topologyKeys[(seed + candidate) % topologyKeys.length]
       : requested;
-    var layoutSeed = seed * 97 + candidate * 1009 + 17;
-    var heightSeed = seed * 193 + candidate * 1013 + 29;
-    var semanticsSeed = seed * 389 + candidate * 1019 + 43;
-    var decorSeed = seed * 769 + candidate * 1021 + 71;
+    var layoutSeed = seed * 97 + candidate * 1009 + 17 + attempt * 1543;
+    var heightSeed = seed * 193 + candidate * 1013 + 29 + attempt * 1549;
+    var semanticsSeed = seed * 389 + candidate * 1019 + 43 + attempt * 1553;
+    var decorSeed = seed * 769 + candidate * 1021 + 71 + attempt * 1559;
     var random = seededRandom(layoutSeed), heightRandom = seededRandom(heightSeed);
-    var semanticRandom = seededRandom(semanticsSeed), decorRandom = seededRandom(decorSeed);
+    var semanticRandom = seededRandom(semanticsSeed);
     var grid = blueprintGrid(size), slots = graphSlots(grid, topology, random);
     var count = topology === "vault" ? Math.max(4, density) : density;
     var labels = ["Arrival", "Crossing", "Sanctum", "Gallery", "Reliquary", "Watch", "Crypt", "Court", "Choir"];
@@ -420,42 +599,9 @@
       );
     });
     var edges = graphEdges(topology, spaces.length, random);
-    var corridors = [], modules = [], connectors = [];
-    edges.forEach(function (edge, index) {
-      var first = spaces[edge[0]], second = spaces[edge[1]];
-      var firstBounds = spaceBounds(first), secondBounds = spaceBounds(second);
-      if (!firstBounds || !secondBounds) return;
-      var anchors = {
-        from: {
-          c: Math.floor((firstBounds.minX + firstBounds.maxX - 1) / 2),
-          r: Math.floor((firstBounds.minY + firstBounds.maxY - 1) / 2)
-        },
-        to: {
-          c: Math.floor((secondBounds.minX + secondBounds.maxX - 1) / 2),
-          r: Math.floor((secondBounds.minY + secondBounds.maxY - 1) / 2)
-        }
-      };
-      var passage = corridor(
-        "generated-passage-" + (index + 1),
-        "Passage " + (index + 1),
-        [anchors.from.c, anchors.from.r],
-        [anchors.to.c, anchors.to.r],
-        decorRandom() > 0.72 ? 2 : 1,
-        second.discoveryRegion,
-        first.material,
-        Math.min(first.elevationFt, second.elevationFt)
-      );
-      corridors.push(passage);
-      modules.push(architecture("door", anchors.to.c, anchors.to.r, 0, second.discoveryRegion, "oak"));
-      if (first.elevationFt !== second.elevationFt) {
-        connectors.push({
-          id: "generated-stairs-" + (index + 1), kind: "stairs", label: "Stairs " + (index + 1),
-          state: "open", oneWay: false, widthFt: passage.width * 5,
-          discoveryRegion: second.discoveryRegion, requires: {},
-          path: stairPath(passage.from, passage.to, first.elevationFt, second.elevationFt)
-        });
-      }
-    });
+    var connectionPlan = planGeneratedConnections(grid, spaces, edges);
+    if (!connectionPlan.ok && attempt < 12) return produceSeeded(Object.assign({}, options, { _portalAttempt: attempt + 1 }));
+    if (!connectionPlan.ok) throw new Error(connectionPlan.reason);
     var regions = spaces.map(function (space) {
       return { id: space.discoveryRegion, label: space.label };
     });
@@ -465,10 +611,10 @@
       topology === "processional" ? "generated processional route"
         : topology === "vault" ? "generated loop and hub"
         : "generated branching graph",
-      spaces, corridors, modules, [], [], [], regions
+      spaces, connectionPlan.corridors, connectionPlan.architecture, [], [], [], regions
     );
     out.grid = grid;
-    out.connectors = connectors;
+    out.connectors = connectionPlan.connectors;
     out.graph = {
       nodes: spaces.map(function (space) { return { id: space.id, semantic: space.label }; }),
       edges: edges.map(function (edge) { return { from: spaces[edge[0]].id, to: spaces[edge[1]].id }; })
@@ -478,48 +624,21 @@
       candidate: candidate,
       generator: "graph-first/v1",
       deterministic: true,
+      generationAttempt: attempt + 1,
+      rejectedLayouts: attempt,
       controls: { size: size, topology: requested, density: density, verticality: verticality },
       subSeeds: { layout: layoutSeed, height: heightSeed, semantics: semanticsSeed, decor: decorSeed }
     });
     var compiled = compile(out, {});
-    var connected = tacticalConnectivity(compiled), repairs = 0;
-    while (!connected.ok && connected.open && repairs < 64) {
-      var missing = {};
-      connected.missing.forEach(function (cellKey) { missing[cellKey] = true; });
-      var boundary = null;
-      connected.missing.some(function (cellKey) {
-        var parts = cellKey.split(",").map(Number), to = { c: parts[0], r: parts[1] };
-        return CARDINAL.some(function (step) {
-          var from = { c: to.c + step[0], r: to.r + step[1] }, fromKey = key(from.c, from.r);
-          if (from.c < 0 || from.r < 0 || from.c >= compiled.cols || from.r >= compiled.rows
-            || compiled.wall[idx(compiled.cols, from.c, from.r)] || missing[fromKey]) return false;
-          boundary = { from: from, to: to }; return true;
-        });
-      });
-      if (!boundary) break;
-      repairs++;
-      var fromIndex = idx(compiled.cols, boundary.from.c, boundary.from.r);
-      var toIndex = idx(compiled.cols, boundary.to.c, boundary.to.r);
-      out.connectors.push({
-        id: "generated-stairs-repair-" + repairs, kind: "stairs", label: "Stairs repair " + repairs,
-        state: "open", oneWay: false, widthFt: 5,
-        discoveryRegion: compiled.meta.regions[toIndex] && compiled.meta.regions[toIndex].region,
-        requires: {},
-        path: [
-          { c: boundary.from.c, r: boundary.from.r, elevationFt: compiled.h[fromIndex] },
-          { c: boundary.to.c, r: boundary.to.r, elevationFt: compiled.h[toIndex] }
-        ]
-      });
-      compiled = compile(out, {});
-      connected = tacticalConnectivity(compiled);
-    }
+    var connected = tacticalConnectivity(compiled);
     if (!connected.ok) throw new Error("Generated battlefield could not be connected across its elevation changes.");
     out.source.audit = {
       connected: connected.ok,
       reachable: connected.reachable,
       open: connected.open,
-      repaired: repairs > 0,
-      repairCount: repairs
+      architecture: "portal-owned/v1",
+      repaired: false,
+      repairCount: 0
     };
     return out;
   }
@@ -684,7 +803,12 @@
         if (!Number.isInteger(c) || !Number.isInteger(r) || !Number.isFinite(heightFt)
           || c < 0 || r < 0 || c >= cols || r >= rows) return;
         var i = idx(cols, c, r);
-        if (regions[i]) map.h[i] = Math.max(0, heightFt);
+        if (regions[i]) {
+          map.h[i] = Math.max(0, heightFt);
+          regions[i].elevationFt = map.h[i];
+          regions[i].connector = connector.id;
+          regions[i].connectors = (regions[i].connectors || []).concat(connector.id);
+        }
       });
     });
     var interpretedBlocked = blueprint.source && blueprint.source.interpretation
@@ -743,7 +867,7 @@
         a: { c: item.c, r: item.r },
         b: { c: item.c + step[0], r: item.r + step[1] },
         edge: edge,
-        bottomFt: 0,
+        bottomFt: map.h[idx(cols, item.c, item.r)] || 0,
         heightFt: Number(def.heightFt) || 0,
         thicknessFt: item.kind === "lowWall" ? 0.5 : 0.75,
         kind: item.kind === "lowWall" ? "low-wall" : item.kind,
@@ -752,7 +876,7 @@
         grantsCover: item.kind === "wall" || item.kind === "lowWall",
         passableWhenOpen: item.kind === "door",
         state: item.kind === "door" ? "open" : null,
-        connectorId: null,
+        connectorId: item.connectorId || null,
         render: { rotation: edgeRotation(edge), variant: item.variant || "straight" }
       };
     });

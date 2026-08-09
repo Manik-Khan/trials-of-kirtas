@@ -2,3 +2,6 @@
 .superpowers/
 .Codex/
 .DS_Store
+/node_modules/
+/journal/node_modules/
+/journal/dist/

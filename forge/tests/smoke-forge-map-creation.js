@@ -32,6 +32,43 @@ ok("generated elevation changes own explicit stair paths",
       connector.kind === "stairs" && connector.path.length > 1
       && new Set(connector.path.map((cell) => cell.elevationFt)).size > 1);
   }));
+ok("every generated graph edge owns one first-class connection",
+  candidates.every((blueprint) => blueprint.connectors.length === blueprint.graph.edges.length
+    && blueprint.connectors.every((connector) => connector.portals.length === 2 && connector.corridorIds.length > 0)));
+ok("generated portals are perimeter architecture rather than centered room doors",
+  candidates.every((blueprint) => blueprint.architecture.length === blueprint.connectors.length * 2
+    && blueprint.architecture.every((item) => item.kind === "door" && BP.normalizeEdge(item.edge) && item.connectorId)));
+ok("each generated stair owns visible low and high landings",
+  candidates.every((blueprint) => blueprint.connectors.filter((connector) => connector.kind === "stairs").every((connector) =>
+    connector.stairPath.length === connector.tiers + 1
+    && new Set(connector.path.map((cell) => `${cell.c},${cell.r}`)).size === connector.path.length
+    && connector.lowLanding.elevationFt === connector.lowFt
+    && connector.highLanding.elevationFt === connector.highFt)));
+ok("stair runways remain outside room interiors until their high portal",
+  candidates.every((blueprint) => blueprint.connectors.every((connector) => connector.stairPath.slice(0, -1).every((cell) =>
+    !blueprint.spaces.some((space) => BP.pointInPolygon(cell.c, cell.r, space.polygon))))));
+ok("generated maps never expose a post-layout repair stair",
+  candidates.every((blueprint) => blueprint.source.audit.repairCount === 0
+    && !blueprint.connectors.some((connector) => connector.id.includes("repair"))));
+const retried = BP.produceSeeded({ ...options, seed: 3, candidate: 2, size: "large", density: 8, verticality: "dramatic" });
+ok("an invalid first arrangement regenerates deterministically instead of improvising stairs",
+  retried.source.generationAttempt > 1 && retried.source.rejectedLayouts === retried.source.generationAttempt - 1
+  && BP.stableStringify(retried) === BP.stableStringify(BP.produceSeeded({ ...options, seed: 3, candidate: 2, size: "large", density: 8, verticality: "dramatic" })));
+ok("compiled portal edges retain their connection identity and remain passable",
+  candidates.every((blueprint) => {
+    const blockers = BP.compile(blueprint, {}).meta.edgeBlockers;
+    return blockers.length === blueprint.architecture.length
+      && blockers.every((edge) => edge.kind === "door" && edge.connectorId && edge.passableWhenOpen && edge.state === "open");
+  }));
+ok("compiled connector cells share one height authority with movement and rendering",
+  candidates.every((blueprint) => {
+    const map = BP.compile(blueprint, {});
+    return blueprint.connectors.every((connector) => connector.path.every((cell) => {
+      const i = BP.idx(map.cols, cell.c, cell.r), region = map.meta.regions[i];
+      return map.h[i] === cell.elevationFt && region?.elevationFt === cell.elevationFt
+        && region?.connectors?.includes(connector.id);
+    }));
+  }));
 const vaultMap = BP.compile(candidates[2], {});
 const vaultOpen = [];
 for (let r = 0; r < vaultMap.rows; r++) for (let c = 0; c < vaultMap.cols; c++) {
@@ -140,5 +177,14 @@ ok("the production Board renders generated connector stairs",
   combatJs.includes("function addConnectorStairs")
   && combatJs.includes("stairStepGeometry")
   && combatJs.includes("addConnectorStairs(group, bounds)"));
+ok("Blueprint draws the same connector paths stairs and landings as Board",
+  combatJs.includes("function drawBlueprintConnectors")
+  && combatJs.includes("connector.stairPath")
+  && combatJs.includes("connector.lowLanding")
+  && combatJs.includes("drawBlueprintConnectors(ctx, cell, ox, oy)"));
+ok("Board geometry reads compiled tactical heights for connector cells",
+  combatJs.includes("function cellElevationFt")
+  && combatJs.includes("floor: true, y: isAuthoringVisible(info) ? rise(cellElevationFt(c, r))")
+  && !combatJs.includes("floor: true, y: isAuthoringVisible(info) ? rise(info.elevationFt)"));
 
 console.log(`\n${passed} Forge map-creation checks passed`);

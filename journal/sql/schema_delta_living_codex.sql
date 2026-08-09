@@ -105,7 +105,6 @@ begin
     ids := array[
       c.key,
       trim(both '-' from regexp_replace(lower(c.name), '[^a-z0-9]+', '-', 'g')),
-      split_part(trim(both '-' from regexp_replace(lower(c.name), '[^a-z0-9]+', '-', 'g')), '-', 1),
       regexp_replace(c.key, '-[a-z0-9]{4}$', '')
     ];
     foreach old_id in array ids loop

@@ -21,15 +21,15 @@ const { NPCS, LOCATIONS } = await import('./src/data/sample.js')
 
 t('sample data loaded', NPCS.length === 12 && LOCATIONS.length === 16)
 t('empty query → npcs then locations, 5 each', (() => {
-  const i = buildItems('', NPCS, LOCATIONS)
+  const i = buildItems('', [], NPCS, LOCATIONS)
   return i.length === 10 && i[0].section === 'NPCs' && i[5].section === 'Locations'
 })())
-t('substring match on name', buildItems('rey', NPCS, LOCATIONS).some(i => i.id === 'reykoldt'))
-t('substring match on key', buildItems('tiersg', NPCS, LOCATIONS).some(i => i.label === 'Tiersgard'))
-t('multi-word query matches', buildItems('lord rey', NPCS, LOCATIONS).some(i => i.id === 'reykoldt'))
-t('case-insensitive', buildItems('TIERS', NPCS, LOCATIONS).length > 0)
+t('substring match on name', buildItems('rey', [], NPCS, LOCATIONS).some(i => i.id === 'reykoldt'))
+t('substring match on key', buildItems('tiersg', [], NPCS, LOCATIONS).some(i => i.label === 'Tiersgard'))
+t('multi-word query matches', buildItems('lord rey', [], NPCS, LOCATIONS).some(i => i.id === 'reykoldt'))
+t('case-insensitive', buildItems('TIERS', [], NPCS, LOCATIONS).length > 0)
 t('no match → 2 unresolved creates (npc + location)', (() => {
-  const i = buildItems('Ser Bellamy of the Vale', NPCS, LOCATIONS)
+  const i = buildItems('Ser Bellamy of the Vale', [], NPCS, LOCATIONS)
   return i.length === 2 && i.every(x => !x.resolved) &&
     i[0].type === 'npc' && i[1].type === 'location' &&
     i[0].id === 'ser-bellamy-of-the-vale' && i[0].label === 'Ser Bellamy of the Vale'
@@ -128,7 +128,7 @@ stubs.forEach(st => entityStore.add(st))
 t('stubs joined the pool (npc 13, loc 17)', entityStore.npcs().length === 13 && entityStore.locations().length === 17)
 t('created stubs queue for curation', entityStore.createdStubs().length === 2)
 t('duplicate add is a no-op', entityStore.add({id:'ser-bellamy',type:'npc',label:'Ser Bellamy'}) === false && entityStore.npcs().length === 13)
-t('new stub is now @-matchable', buildItems('bellamy', entityStore.npcs(), entityStore.locations()).some(i => i.id==='ser-bellamy' && i.resolved))
+t('new stub is @-matchable but stays dashed until confirmed', buildItems('bellamy', entityStore.characters(), entityStore.npcs(), entityStore.locations()).some(i => i.id==='ser-bellamy' && !i.resolved))
 
 
 // ── 4. Phase 2.5: vault, wikilinks, outline, page backlinks ──

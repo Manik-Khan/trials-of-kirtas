@@ -15,6 +15,7 @@ import { buildBook, buildFights, fightsBySession, facetCounts, filterBookEntries
 import { chaptersToVolumes, flattenVolumeEntries, nextOpen, keyOpen } from './shelf/shelfModel.js'
 import { seatColor } from './comments/accents.js'
 import RecordsModeSwitch from './RecordsModeSwitch.jsx'
+import CurationQueue from './CurationQueue.jsx'
 
 const fmtTime = ts => new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 const entrySeat = e => e.seat || e.characterKey || 'narrator'
@@ -161,11 +162,12 @@ function Facet({ label, children }) {
 
 // The Index — the intro spine, now a slim overlay off the left edge. Sticky, so
 // it stays at the head of the book; opening it leaves the reader's session put.
-function IndexOverlay({ open, fs, facets, seatNames, volumes, results, accents, recordsMode, onRecordsModeChange, onToggle, onClose, onQ, onAuthor, onTag, onNpc, onClear, onJump }) {
+function IndexOverlay({ open, fs, facets, seatNames, volumes, results, accents, recordsMode, onRecordsModeChange, onToggle, onClose, onQ, onAuthor, onTag, onCharacter, onNpc, onClear, onJump, store, isStaff }) {
   const active = indexActive(fs)
   const chips = []
   if (fs.author) chips.push({ k: 'author', label: shortName(seatNames[fs.author] || fs.author) })
   Object.keys(fs.tags).forEach(t => chips.push({ k: 'tag:' + t, label: '#' + t }))
+  Object.keys(fs.characters).forEach(n => chips.push({ k: 'character:' + n, label: n }))
   Object.keys(fs.npcs).forEach(n => chips.push({ k: 'npc:' + n, label: n }))
   if (fs.q) chips.push({ k: 'q', label: '“' + fs.q + '”' })
   return (
@@ -213,9 +215,16 @@ function IndexOverlay({ open, fs, facets, seatNames, volumes, results, accents, 
                 ))}
               </Facet>
             )}
+            {Object.keys(facets.characters).length > 0 && (
+              <Facet label="Characters mentioned">
+                {Object.keys(facets.characters).map(n => (
+                  <button key={n} type="button" className={`idx-chip${fs.characters[n] ? ' is-on' : ''}`} onClick={() => onCharacter(n)}>◆ {n} <span className="idx-ct">{facets.characters[n]}</span></button>
+                ))}
+              </Facet>
+            )}
             <div className="idx-results">
               {!active ? (
-                <p className="idx-prompt">Search the record above, or choose an author, tag, or NPC — a result takes you to it in the book.</p>
+                <p className="idx-prompt">Search the record above, or choose an author, tag, character, or NPC — a result takes you to it in the book.</p>
               ) : (
                 <>
                   <div className="idx-active">
@@ -238,6 +247,7 @@ function IndexOverlay({ open, fs, facets, seatNames, volumes, results, accents, 
                 </>
               )}
             </div>
+            {isStaff && <CurationQueue store={store} isStaff={isStaff} refreshKey={results.length + volumes.length} />}
           </div>
         </div>
       </aside>
@@ -315,7 +325,7 @@ export default function ChronicleView({ live = false, store = null, accents = {}
 
   // ── Index: flat entry pool + facets + filtered results ──
   const [ixOpen, setIxOpen] = useState(false)
-  const [fs, setFs] = useState({ author: null, tags: {}, npcs: {}, q: '' })
+  const [fs, setFs] = useState({ author: null, tags: {}, characters: {}, npcs: {}, q: '' })
   const [scrolled, setScrolled] = useState(false)
   const flat = useMemo(() => flattenVolumeEntries(volumes), [volumes])
   const facets = useMemo(() => facetCounts(flat), [flat])
@@ -325,13 +335,14 @@ export default function ChronicleView({ live = false, store = null, accents = {}
     return m
   }, [flat])
   const results = useMemo(() => filterBookEntries(flat, fs), [flat, fs])
-  const clearIndex = () => setFs({ author: null, tags: {}, npcs: {}, q: '' })
+  const clearIndex = () => setFs({ author: null, tags: {}, characters: {}, npcs: {}, q: '' })
   const removeChip = key => {
     if (key === '*') return clearIndex()
     setFs(s => {
       if (key === 'author') return { ...s, author: null }
       if (key === 'q') return { ...s, q: '' }
       if (key.startsWith('tag:')) { const tags = { ...s.tags }; delete tags[key.slice(4)]; return { ...s, tags } }
+      if (key.startsWith('character:')) { const characters = { ...s.characters }; delete characters[key.slice(10)]; return { ...s, characters } }
       if (key.startsWith('npc:')) { const npcs = { ...s.npcs }; delete npcs[key.slice(4)]; return { ...s, npcs } }
       return s
     })
@@ -491,10 +502,12 @@ export default function ChronicleView({ live = false, store = null, accents = {}
           open={ixOpen} fs={fs} facets={facets} seatNames={seatNames}
           volumes={volumes} results={results} accents={accents}
           recordsMode={recordsMode} onRecordsModeChange={onRecordsModeChange}
+          store={store} isStaff={isStaff}
           onToggle={() => setIxOpen(o => !o)} onClose={() => setIxOpen(false)}
           onQ={v => setFs(s => ({ ...s, q: v }))}
           onAuthor={k => setFs(s => ({ ...s, author: s.author === k ? null : k }))}
           onTag={t => setFs(s => { const tags = { ...s.tags }; tags[t] ? delete tags[t] : (tags[t] = 1); return { ...s, tags } })}
+          onCharacter={n => setFs(s => { const characters = { ...s.characters }; characters[n] ? delete characters[n] : (characters[n] = 1); return { ...s, characters } })}
           onNpc={n => setFs(s => { const npcs = { ...s.npcs }; npcs[n] ? delete npcs[n] : (npcs[n] = 1); return { ...s, npcs } })}
           onClear={removeChip} onJump={jumpTo}
         />

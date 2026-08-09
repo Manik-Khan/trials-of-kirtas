@@ -115,6 +115,16 @@
       transition: transform 0.6s ease;
     }
     .npc-card:hover .portrait-img { transform: scale(1.04); }
+    .portrait-monogram {
+      position: relative; z-index: 2;
+      align-self: center;
+      font-family: var(--font-display); font-size: 5rem;
+      color: var(--gold); opacity: 0.72;
+      text-shadow: 0 2px 18px rgba(0,0,0,0.65);
+    }
+    .npc-card.is-living .portrait-zone { background: radial-gradient(circle at 50% 42%, rgba(184,149,42,0.16), var(--look-card-bg, #1a1a1a) 68%); }
+    .npc-card.is-living .wipe::before { background: var(--gold); }
+    .codex-status { grid-column: 1 / -1; color: var(--aged); font-style: italic; text-align: center; }
 
     /* faction color wipe */
     .wipe {
@@ -493,6 +503,7 @@
 
 <script src="characters.js"></script>
 <script src="nav.js?v=sup3"></script>
+<script src="living-codex.js?v=lc1"></script>
 <script src="battle.js"></script>
 <script src="feed-bridge.js"></script>
 <script>
@@ -519,6 +530,55 @@
     const zone = card.querySelector('[data-filter-target]');
     if (zone) zone.style.filter = `url(#burnt-${seed})`;
   });
+
+  function npcEsc(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, c => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[c]));
+  }
+
+  async function paintLivingNPCs() {
+    const grid = document.getElementById('npcGrid');
+    grid.querySelectorAll('.npc-card.is-living, .codex-status').forEach(el => el.remove());
+    try {
+      const codex = await LivingCodex.load(window.__tok.sb);
+      const staticNames = new Set([...grid.querySelectorAll('.card-name')].map(el => LivingCodex.slug(el.textContent)));
+      const living = codex.entities.filter(e => e.type === 'npc' && e.curated && !staticNames.has(LivingCodex.slug(e.label)))
+        .filter(e => !codex.characters.some(c => LivingCodex.samePerson(e, c)));
+      for (const npc of living) {
+        const status = npc.status && npc.status !== 'unknown' ? npc.status : 'Recorded in the Chronicle';
+        grid.insertAdjacentHTML('beforeend', `
+          <div class="npc-card is-living" data-entity-id="${npcEsc(npc.id)}">
+            <div class="portrait-zone">
+              <div class="portrait-bg"></div>
+              <div class="portrait-monogram">${npcEsc(npc.label.charAt(0).toUpperCase())}</div>
+              <div class="portrait-dots"></div><div class="portrait-fade"></div>
+              <div class="wipe"></div><div class="house-badge">From the Chronicle</div>
+              <div class="faction-bar" style="background:var(--gold)"></div>
+            </div>
+            <div class="brush-wrap"><div class="card-text">
+              <p class="card-role">${npcEsc(npc.role || 'Newly encountered')}</p>
+              <p class="card-name">${npcEsc(npc.label)}</p>
+              <p class="card-faction">Living Codex</p><div class="card-rule"></div>
+              <p class="card-desc">${npcEsc(npc.descr || 'Remembered during play. More will be written as the party learns it.')}</p>
+              <span class="card-status"><span class="status-dot dot-unknown"></span>${npcEsc(status)}</span>
+            </div></div>
+          </div>`);
+      }
+      if (!living.length) grid.insertAdjacentHTML('beforeend', '<p class="codex-status">No newly confirmed NPCs yet.</p>');
+    } catch (e) {
+      grid.insertAdjacentHTML('beforeend', `<p class="codex-status">The living roster could not refresh (${npcEsc(e.message)}). The established figures remain available.</p>`);
+    }
+  }
+
+  function startLivingNPCs() {
+    paintLivingNPCs();
+    window.__tok.sb.channel('npc-codex-live')
+      .on('postgres_changes', { event:'*', schema:'public', table:'entities' }, paintLivingNPCs)
+      .subscribe();
+  }
+  if (window.__tok && window.__tok.sb) startLivingNPCs();
+  else document.addEventListener('nav:ready', startLivingNPCs, { once:true });
 
 
 </script>

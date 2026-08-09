@@ -51,7 +51,7 @@ export function rowToBookEntry(r) {
     section,                                          // a DM-posted sub-heading ("The Parlay")
     location: m.location || null,
     fromJournal: m.fromJournal || null,
-    // facet fuel: #tags (feed.tags column) + NPC/location @mentions parsed from the body
+    // facet fuel: #tags (feed.tags column) + character/NPC/location @mentions parsed from the body
     tags: Array.isArray(r.tags) ? r.tags : (Array.isArray(m.tags) ? m.tags : []),
     mentions: extractMentions(r.body || ''),
     sharedLate: written != null && !Number.isNaN(written) && created - written > DAY,
@@ -173,14 +173,17 @@ export function fightsBySession(fights) {
 function stripHtml(s) { return String(s || '').replace(/<[^>]*>/g, ' ') }
 
 export function facetCounts(entries) {
-  const authors = {}, tags = {}, npcs = {}
+  const authors = {}, tags = {}, characters = {}, npcs = {}
   for (const e of entries || []) {
     if (e.kind === 'section') continue
     if (e.seat) authors[e.seat] = (authors[e.seat] || 0) + 1
     for (const t of e.tags || []) tags[t] = (tags[t] || 0) + 1
-    for (const mn of e.mentions || []) if (mn.type === 'npc') npcs[mn.key] = (npcs[mn.key] || 0) + 1
+    for (const mn of e.mentions || []) {
+      if (mn.type === 'character') characters[mn.key] = (characters[mn.key] || 0) + 1
+      if (mn.type === 'npc') npcs[mn.key] = (npcs[mn.key] || 0) + 1
+    }
   }
-  return { authors, tags, npcs }
+  return { authors, tags, characters, npcs }
 }
 
 export function entryMatches(e, s) {
@@ -191,6 +194,8 @@ export function entryMatches(e, s) {
   if (tk.length && !tk.every(t => (e.tags || []).includes(t))) return false
   const nk = Object.keys(s.npcs || {})
   if (nk.length && !nk.every(k => (e.mentions || []).some(mn => mn.type === 'npc' && mn.key === k))) return false
+  const ck = Object.keys(s.characters || {})
+  if (ck.length && !ck.every(k => (e.mentions || []).some(mn => mn.type === 'character' && mn.key === k))) return false
   if (s.q) {
     const hay = (String(e.character || '') + ' ' + stripHtml(e.html)).toLowerCase()
     if (!hay.includes(String(s.q).toLowerCase())) return false
@@ -200,7 +205,8 @@ export function entryMatches(e, s) {
 
 export function indexActive(s) {
   s = s || {}
-  return !!(s.author || (s.q && s.q.trim()) || Object.keys(s.tags || {}).length || Object.keys(s.npcs || {}).length)
+  return !!(s.author || (s.q && s.q.trim()) || Object.keys(s.tags || {}).length
+    || Object.keys(s.characters || {}).length || Object.keys(s.npcs || {}).length)
 }
 
 export function filterBookEntries(entries, s) {

@@ -29,6 +29,11 @@ window.__alerts = [];
 window.alert = m => window.__alerts.push(String(m));
 window.confirm = () => true;
 window.whenReady = fn => fn();
+window.LivingCodex = {
+  slug: s => String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+  load: async () => ({ characters: [], npcs: [], locations: [], entities: [], aliases: {} }),
+  remember: async (sb, entity) => entity,
+};
 
 /* Quill stub — __delta tracks whether content arrived via the clipboard
    pipeline (setContents) vs raw innerHTML= (the desync path leaves it []). */
@@ -88,6 +93,10 @@ const settle = () => new Promise(r => setTimeout(r, 30)); // let the async init 
   // ── ⑤ entryHasChips discrimination ─────────────────────────────────────
   {
     const w = boot({ data: [], error: null }); await settle();
+    await T('mention action safely carries apostrophes in discovered names', () => {
+      const action = w.eval(`mentionAction('insertMention','npc','verens-watch',"Veren's Watch")`);
+      ok(action.includes("decodeURIComponent('Veren%27s%20Watch')"), 'name is encoded inside the inline action');
+    });
     await T('chip guard: composer tok-mention span detected', () =>
       ok(w.eval(`entryHasChips('<span data-mention-type="npc" data-mention-key="k" class="tok-mention npc-link">@K</span>')`)));
     await T('chip guard: pageLink chip detected', () =>
