@@ -1296,7 +1296,7 @@ the same generated battlefield. This slice does not yet put `surfaceId` on
 live creatures or replay events, and therefore does not authorize simultaneous
 above/below combat in a production fight.
 
-### Current production boundary and next session · August 8
+### Current production boundary and persistence candidate · August 8
 
 The settled Blueprint/compiler, Scrawl/Build tools, graph-first generator,
 local artwork review, modular Board, real-character selection, and disposable
@@ -1305,7 +1305,8 @@ last visible post-layout stair repair and M approved the generated result in the
 field. Do not reopen those completed proof steps as a new renderer or generator
 project.
 
-The next slice is persistence, in this order:
+The first persistence candidate now implements this order through shared
+restore, while deliberately stopping before shared combat writes:
 
 1. define one versioned local snapshot containing the exact Blueprint and
    fingerprint, renderer choice, deployment, and disposable-fight runtime;
@@ -1313,8 +1314,34 @@ The next slice is persistence, in this order:
    sheets, or authored map spawns;
 3. preserve legacy saved rows through an explicit compatibility read;
 4. attach the same exact snapshot to the existing Forge session/event spine;
-5. prove two-device restore/reconnect before enabling shared writes or reactions
-   on the new Combat surface.
+5. **field gate open:** prove signed-in two-device restore/reconnect before
+   enabling shared writes or reactions on the new Combat surface.
+
+`forge/forge-combat-snapshot.js` owns versioned
+`forge-combat-snapshot/v1`. It stores the exact Blueprint and Blueprint/
+structural/tactical-field fingerprints, Build edits, renderer view and quality,
+deployment groups and resolved record, discovery/grid presentation, selected
+party, and local-fight runtime without storing a second authored map inside the
+fight. Restore verifies every fingerprint, recompiles the tactical field from
+the exact authored document, and returns mutation-isolated runtime copies.
+
+`forge/combat.html` can save/reopen that record in browser storage. Opening a
+shared table stores the same record in the existing `forge_sessions.map` JSONB,
+uses the existing protocol vocabulary to append `session_started` followed by
+one full-state `restore`, and reconnects through the normal bus/pipeline replay.
+Legacy session maps take an explicit compatibility route back to the existing
+Workshop. Movement, attacks, turns, and reactions remain disabled on the new
+shared surface until the live two-device gate passes.
+
+Automated validation is **403/403** across the affected exact-snapshot,
+two-client/late-reconnect, production Combat, local fight, snapshot authority,
+deployment, protocol, replay, reconnect transport, generator, map bridge,
+tactics, LoS/cover, placement, flora, and map-creation suites. The real Combat
+page loaded every cache-stamped runtime module with HTTP 200, rendered its
+Blueprint canvas, exposed Save snapshot, Reopen saved, and the gated
+shared-table door without a layout collision, and logged no warning or error.
+The browser was not signed in and could not form a real-character fight, so the
+snapshot-button round trip and shared session remain live field gates.
 
 Multi-surface work remains a separate guarded queue. Under `?surfaces=1`, later
 normalize live unit positions to `{c,r,surfaceId,elevationFt}`, key occupancy by

@@ -177,8 +177,12 @@ map creation, production/local Combat, Blueprint/Diorama, portal architecture,
 tactics, LoS/cover, map bridge, and engine suites. A 900-map deterministic
 generation sweep produced no invalid, disconnected, exhausted, or
 height-disagreeing field. M's August 8 Forge field replay approved the result.
-Exact ownership, evidence, and the next persistence/reconnect slice are in
-`CONTEXT_Forge.md` and the current Forge handoff.
+Exact ownership and evidence are in `CONTEXT_Forge.md` and the current Forge
+handoff. The first exact persistence candidate now saves and reopens one
+versioned Blueprint/renderer/deployment/local-fight snapshot, attaches that
+same snapshot to the existing session event log through its full-state restore
+fact, and keeps shared combat writes locked. Signed-in two-device reconnect is
+the remaining promotion gate.
 
 ---
 

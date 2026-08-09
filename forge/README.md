@@ -69,6 +69,10 @@ unfinished job, tracked in `CONTEXT_Forge.md` §3.
   real character selection, and disposable local Combat surface. Blueprint and
   Board draw the same connector routes/stairs/landings, and all rendered pieces
   read the compiler's `map.h` height authority.
+- **`forge-combat-snapshot.js`** — exact `forge-combat-snapshot/v1` persistence
+  for Blueprint, Build edits, renderer choice, deployment, presentation, and
+  disposable-fight runtime. The same record can seed the existing session/event
+  replay through a full-state restore; shared combat writes remain field-gated.
 - **`import.html` / `import.js`** — the production local artwork calibration and
   structure-review surface.
 

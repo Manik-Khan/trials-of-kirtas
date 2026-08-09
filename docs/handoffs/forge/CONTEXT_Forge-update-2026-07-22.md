@@ -1727,11 +1727,27 @@ Do not remove the query guard or migrate live rules in the compatibility step.
 6. **Corrected August 8 after field review.** The normal non-session Forge entry
    now opens Map → Characters → Combat. Live sessions, Workshop developer views,
    and `?legacy=1` remain on the legacy renderer.
-7. **NEXT SESSION.** Persist the exact Blueprint, renderer choice, deployment,
-   and local-fight snapshot without mutating the authored document. Reopen that
-   exact local snapshot first; then connect the existing session/event spine and
-   prove shared restore plus two-device reconnect. Do not widen this slice into
-   multi-surface occupancy or new combat rules.
+7. **IMPLEMENTED CANDIDATE; LIVE FIELD GATE OPEN.**
+   `forge-combat-snapshot/v1` persists the exact Blueprint, fingerprints, Build
+   edits, renderer choice, deployment, presentation, selected party, and local
+   fight without mutating or duplicating the authored document. Combat saves
+   and reopens it locally, then stores that same record in the existing session
+   row and seeds the existing event log with `session_started` plus one exact
+   `restore`. Two connected memory clients and one late reconnect rebuild the
+   same state. Legacy rows route explicitly to the existing Workshop. Shared
+   movement, attacks, turns, and reactions remain locked until M proves the
+   signed-in two-device reconnect on the live surface. Do not widen this slice
+   into multi-surface occupancy or new combat rules.
+
+   Field checklist: start a real-character local fight, move/attack/end once,
+   save the snapshot, record Blueprint/field fingerprints plus round/active
+   unit/HP/positions, change local state, and press Reopen saved. Confirm every
+   recorded fact returns and the authored map is unchanged. Then Open shared
+   table, open its copied direct `combat.html?session=` link on a second signed-in
+   device, confirm both show the same facts and locked combat controls, refresh
+   each device in turn, and confirm the same event sequence and state restore.
+   Finally reopen one historical session URL and confirm it routes to the legacy
+   Workshop unchanged.
 8. **Implemented August 8; field gate open.** Replay the production importer on
    the licensed gridded city and ungridded camp maps. Confirm calibration,
    lasso/brush/eraser, structure type/variant/height, local palette, cancel
@@ -1752,7 +1768,8 @@ while this visual architecture is being settled.
 
 M reviews, commits, and pushes. Codex does not push. Current slice stamps:
 `forge-blueprint.js?v=bp5`, `combat.css?v=fc2`,
-`combat.js?v=fc4`, `forge-combat-local.js?v=fcl1`,
+`combat.js?v=fc5`, `forge-combat-local.js?v=fcl1`,
+`forge-combat-snapshot.js?v=fcs1`,
 `forge-image-importer.js?v=fii1`,
 `forge-image-structure-review.js?v=fis1`,
 `forge-image-blueprint.js?v=fib1`, `import.css?v=fi1`, and

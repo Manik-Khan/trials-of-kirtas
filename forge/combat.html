@@ -452,6 +452,12 @@
           <button type="button" class="action" id="combatEndTurn" disabled>End turn</button>
         </div>
         <div id="combatFightLog" class="combat-fight-log" aria-live="polite"></div>
+        <div class="fight-actions">
+          <button type="button" class="action" id="saveCombatSnapshot">Save snapshot</button>
+          <button type="button" class="action" id="reopenCombatSnapshot">Reopen saved</button>
+          <button type="button" class="action primary" id="openSharedCombat" disabled>Open shared table</button>
+        </div>
+        <p class="fight-gate" id="combatSnapshotStatus">Save preserves this exact Blueprint, renderer, deployment, and local fight in this browser.</p>
       </section>
       <section class="panel presentation-list">
         <button type="button" class="presentation active" data-presentation="table"><b>◫</b><span><strong>Table</strong><small>Rotatable orthographic-style diorama</small></span></button>
@@ -470,7 +476,7 @@
         </dl>
         <details><summary>Compiler contract</summary><code>{cols, rows, h, wall, occ, coverShape, spawns, props, meta}</code></details>
       </section>
-      <section class="panel receipt"><span class="kicker">Forge Combat field test</span><strong>Blueprint, renderer, and tactical field agree.</strong><small>Local combat is ready to test here. Persistence, reconnect, and multiplayer remain separate gates for shared sessions.</small><a href="index.html?legacy=1">Open legacy Workshop</a></section>
+      <section class="panel receipt"><span class="kicker">Forge Combat field test</span><strong>Blueprint, renderer, and tactical field agree.</strong><small>Exact local persistence and the shared restore candidate are ready. Shared combat writes remain locked until the two-device reconnect gate passes.</small><a href="index.html?legacy=1">Open legacy Workshop</a></section>
     </div>
 
     <footer><span>Code-native sample artwork · no imported assets</span><span>Three.js r185.1 · Forge Combat</span></footer>
@@ -539,7 +545,13 @@
 <script src="tactics-geometry.js?v=tg1"></script>
 <script src="forge-combat-rules.js?v=fcr3"></script>
 <script src="forge-combat-local.js?v=fcl1"></script>
+<script src="forge-protocol.js?v=fpr2"></script>
+<script src="forge-encounter-regions.js?v=fer1"></script>
+<script src="forge-replay.js?v=fb19"></script>
+<script src="forge-bus.js?v=fb2"></script>
+<script src="forge-pipeline.js?v=fb9"></script>
 <script src="forge-blueprint.js?v=bp5"></script>
-<script type="module" src="combat.js?v=fc4"></script>
+<script src="forge-combat-snapshot.js?v=fcs1"></script>
+<script type="module" src="combat.js?v=fc5"></script>
 </body>
 </html>

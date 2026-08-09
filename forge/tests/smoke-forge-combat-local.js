@@ -77,9 +77,12 @@ ok("end turn advances the local initiative loop", Fight.activeUnit(Fight.endTurn
 ok("Combat exposes roster, placement, and local fight controls",
   ["combatRoster", "prepareLocalCombat", "combatAttack", "combatEndTurn", "combatFightLog"]
     .every((id) => combatHtml.includes('id="' + id + '"')));
-ok("browser integration reads characters but contains no combat write path",
+ok("browser integration never writes character sheets",
   combatJs.includes("CharacterData.loadParty()") && combatJs.includes("CharacterData.loadLayout()")
-  && !combatJs.includes("CharacterData.save(") && !combatJs.includes(".from('forge_") && !combatJs.includes('.from("forge_'));
+  && !combatJs.includes("CharacterData.save("));
+ok("shared candidate writes only the existing session/event spine and keeps combat actions locked",
+  combatJs.includes('.from("forge_sessions")') && combatJs.includes('ForgeProtocol.makeEvent("__session", "restore"')
+  && combatJs.includes("Shared combat actions remain locked until the two-device reconnect field gate passes."));
 ok("runtime tokens are rendered separately from authored Blueprint spawns",
   combatJs.includes("function runtimeSpawns()") && combatJs.includes("state.fight ? LocalCombat.spawns(state.fight)"));
 

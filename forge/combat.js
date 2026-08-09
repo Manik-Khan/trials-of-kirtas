@@ -5,7 +5,9 @@ const BP = window.ForgeBlueprint;
 if (!BP) throw new Error("Forge Blueprint authority did not load");
 const LocalCombat = window.ForgeCombatLocal;
 const PartySelection = window.ForgePartySelection;
-if (!LocalCombat || !PartySelection) throw new Error("Forge Combat authorities did not load");
+const CombatSnapshot = window.ForgeCombatSnapshot;
+if (!LocalCombat || !PartySelection || !CombatSnapshot) throw new Error("Forge Combat authorities did not load");
+const COMBAT_SNAPSHOT_KEY = "tok:forge-combat-snapshot:v1";
 
 const QUALITY = Object.freeze({
   basic: { pixelRatio: 1, shadows: false, shadowSize: 512, label: "Basic" },
@@ -38,7 +40,8 @@ const ui = {};
   "applyGrid", "gridStatus", "deploymentGroups", "flagMessage", "spawnStatus",
   "combatRosterStatus", "combatRoster", "prepareLocalCombat", "combatFightGate",
   "combatFightStatus", "combatFightInstruction", "combatTurn", "combatCombatants",
-  "combatAttack", "combatEndTurn", "combatFightLog",
+  "combatAttack", "combatEndTurn", "combatFightLog", "saveCombatSnapshot", "reopenCombatSnapshot",
+  "openSharedCombat", "combatSnapshotStatus",
   "buildHandles", "directBuildStatus", "directBuildMode", "layoutToolGuidance", "massBuildCallout",
   "buildBrushRail", "brushTitle", "brushContextHint", "brushExitBuild", "brushUndo", "brushRedo",
   "buildRadial", "radialUndo", "radialRedo", "radialToolLabel",
@@ -82,7 +85,10 @@ const state = {
   rosterCandidates: [],
   selectedPartyKeys: [],
   fight: null,
+  deployment: null,
   fightTarget: null,
+  session: null,
+  snapshotRecord: null,
   flagPlacement: null,
   history: null,
   compareActive: false,
@@ -2354,13 +2360,16 @@ function renderLocalCombat() {
     ui.combatFightStatus.textContent = "not prepared"; ui.combatFightStatus.className = "status";
     ui.combatFightInstruction.textContent = "Choose characters first. Combat will use this exact Blueprint field without changing the authored map.";
     ui.combatTurn.hidden = true; ui.combatAttack.disabled = true; ui.combatEndTurn.disabled = true;
+    ui.openSharedCombat.disabled = true;
     return;
   }
   const active = LocalCombat.activeUnit(state.fight), finished = fightFinished();
   if (!state.fight.units.some((unit) => unit.unit === state.fightTarget && unit.alive && active && unit.side !== active.side)) state.fightTarget = null;
   ui.combatFightStatus.textContent = finished ? "complete" : "round " + state.fight.round;
   ui.combatFightStatus.className = "status good";
-  ui.combatFightInstruction.textContent = finished
+  ui.combatFightInstruction.textContent = state.session
+    ? "This shared snapshot is restored through the existing event log. Combat writes stay locked until the two-device reconnect gate passes."
+    : finished
     ? "This local proof is complete. No character sheet or shared session was changed."
     : "Click an open highlighted-reachable cell to move. Click an opposing token or combatant row to target it.";
   ui.combatTurn.hidden = false;
@@ -2387,8 +2396,9 @@ function renderLocalCombat() {
     const line = document.createElement("p"); line.textContent = entry; ui.combatFightLog.appendChild(line);
   });
   ui.combatFightLog.scrollTop = ui.combatFightLog.scrollHeight;
-  ui.combatAttack.disabled = finished || !state.fightTarget || active.acted;
-  ui.combatEndTurn.disabled = finished;
+  ui.combatAttack.disabled = !!state.session || finished || !state.fightTarget || active.acted;
+  ui.combatEndTurn.disabled = !!state.session || finished;
+  ui.openSharedCombat.disabled = !!state.session;
 }
 function prepareLocalCombat() {
   const party = selectedParty();
@@ -2400,6 +2410,7 @@ function prepareLocalCombat() {
   if (!deployment.ok) { updateFightGate(deployment.errors.join(" "), true); return; }
   const identity = { blueprintId: state.blueprint.id, fingerprint: BP.fingerprint(state.blueprint), structuralFingerprint: BP.structuralFingerprint(state.blueprint) };
   state.fight = LocalCombat.createFight(state.map, deployment, party, BP.copy(LocalCombat.TRAINING_FOES), identity);
+  state.deployment = BP.copy(deployment.record);
   state.fightTarget = null;
   document.querySelector(".stage-shell")?.classList.add("fight-active");
   setWorkflow("present"); setView("board"); frameTopDown(); rebuildAll(); renderLocalCombat();
@@ -2411,6 +2422,10 @@ function refreshFightBoard(message, ok) {
   ui.chunkStatus.textContent = message; ui.chunkStatus.className = "status " + (ok ? "good" : "bad");
 }
 function fightCellAction(c, r) {
+  if (state.session) {
+    refreshFightBoard("Shared combat actions remain locked until the two-device reconnect field gate passes.", false);
+    return;
+  }
   const active = LocalCombat.activeUnit(state.fight);
   const occupant = state.fight.units.find((unit) => unit.alive && unit.c === c && unit.r === r);
   if (occupant) {
@@ -3479,6 +3494,9 @@ ui.gridToggle.addEventListener("click", () => {
 });
 ui.applyGrid.addEventListener("click", () => applyGridCalibration());
 ui.prepareLocalCombat.addEventListener("click", prepareLocalCombat);
+ui.saveCombatSnapshot.addEventListener("click", saveCombatSnapshot);
+ui.reopenCombatSnapshot.addEventListener("click", reopenCombatSnapshot);
+ui.openSharedCombat.addEventListener("click", openSharedCombat);
 ui.combatAttack.addEventListener("click", () => {
   if (!state.fight || !state.fightTarget) return;
   const result = LocalCombat.resolveAttack(state.fight, state.fightTarget);
@@ -3562,6 +3580,142 @@ function incomingHandoff() {
   if (!decoded.ok) throw new Error(decoded.error);
   return decoded.handoff;
 }
+function currentCombatSnapshot() {
+  return CombatSnapshot.create({
+    blueprint: state.blueprint, edits: state.edits,
+    renderer: { view: state.view, quality: state.quality },
+    groups: state.groups, deployment: state.deployment,
+    discovered: [...state.discovered], calibration: state.calibration, gridVisible: state.gridVisible,
+    selectedPartyKeys: state.selectedPartyKeys, fight: state.fight
+  });
+}
+function snapshotMessage(message, bad = false) {
+  ui.combatSnapshotStatus.textContent = message;
+  ui.combatSnapshotStatus.className = "fight-gate " + (bad ? "bad" : "good");
+}
+function restoreCombatSnapshot(record, source) {
+  const restored = CombatSnapshot.restore(record);
+  state.snapshotRecord = BP.copy(record);
+  state.blueprint = restored.blueprint;
+  state.themeBase = BP.copy(restored.blueprint);
+  state.edits = restored.edits;
+  state.discovered = new Set(restored.discovered);
+  state.groups = restored.groups;
+  state.deployment = restored.deployment;
+  state.calibration = BP.normalizeGridCalibration(restored.calibration);
+  state.gridVisible = restored.gridVisible;
+  state.selectedPartyKeys = restored.selectedPartyKeys;
+  state.fight = restored.fight;
+  state.fightTarget = null;
+  state.selected = null;
+  state.layoutSpaces = [];
+  state.layoutPassage = null;
+  state.buildAnchor = null;
+  state.linePreview = [];
+  state.roomPreview = null;
+  applyQuality(restored.renderer.quality);
+  setView(restored.renderer.view);
+  setMode("browse");
+  refreshDocument();
+  updateRegionControls();
+  syncGridControls();
+  renderReviewFindings();
+  renderDeploymentGroups();
+  rebuildAll();
+  resetHistory();
+  document.querySelector(".stage-shell")?.classList.toggle("fight-active", !!state.fight);
+  setWorkflow(state.fight ? "present" : "map");
+  renderLocalCombat();
+  snapshotMessage(source + " · Blueprint " + record.authored.blueprintFingerprint + " · field " + record.authored.fieldFingerprint);
+}
+function saveCombatSnapshot() {
+  try {
+    const record = currentCombatSnapshot();
+    localStorage.setItem(COMBAT_SNAPSHOT_KEY, JSON.stringify(record));
+    state.snapshotRecord = record;
+    snapshotMessage("Saved exact snapshot · Blueprint " + record.authored.blueprintFingerprint + " · field " + record.authored.fieldFingerprint);
+  } catch (error) {
+    snapshotMessage("Snapshot could not be saved: " + (error?.message || error), true);
+  }
+}
+function reopenCombatSnapshot() {
+  try {
+    const stored = localStorage.getItem(COMBAT_SNAPSHOT_KEY);
+    if (!stored) throw new Error("No saved Forge Combat snapshot exists in this browser.");
+    restoreCombatSnapshot(JSON.parse(stored), "Reopened exact local snapshot");
+  } catch (error) {
+    snapshotMessage("Snapshot could not be reopened: " + (error?.message || error), true);
+  }
+}
+async function openSharedCombat() {
+  let rowId = null;
+  try {
+    if (!state.fight) throw new Error("Start the local fight before opening a shared table.");
+    const tok = ensureCombatAuth();
+    await tok.ready;
+    const auth = await tok.sb.auth.getUser(), user = auth.data?.user;
+    if (!user) throw new Error("Sign in on the live site before opening a shared table.");
+    const record = currentCombatSnapshot(), roster = CombatSnapshot.roster(record);
+    const inserted = await tok.sb.from("forge_sessions").insert({
+      overseer: user.id, map: CombatSnapshot.toSessionMap(record), roster, controllers: {}, status: "active"
+    }).select("*").single();
+    if (inserted.error) throw new Error(inserted.error.message);
+    rowId = inserted.data.id;
+    const conn = window.ForgeBus.makeSupabaseBus({ sb: tok.sb, sessionId: rowId }).connect();
+    const started = await conn.publish(window.ForgeProtocol.makeEvent("__session", "session_started", {}));
+    if (!started.ok) throw new Error(started.why || "The session-start fact was refused.");
+    const seeded = await conn.publish(window.ForgeProtocol.makeEvent("__session", "restore", {
+      to_seq: started.seq, snapshot: CombatSnapshot.replayBaseline(record)
+    }));
+    if (!seeded.ok) throw new Error(seeded.why || "The exact restore fact was refused.");
+    localStorage.setItem(COMBAT_SNAPSHOT_KEY, JSON.stringify(record));
+    const join = new URL(window.location.href);
+    join.hash = "";
+    join.search = "?session=" + encodeURIComponent(rowId);
+    if (navigator.clipboard) navigator.clipboard.writeText(join.href).catch(() => {});
+    window.location.href = join.href;
+  } catch (error) {
+    if (rowId) {
+      try { const tok = ensureCombatAuth(); await tok.sb.from("forge_sessions").update({ status: "staging" }).eq("id", rowId); } catch (_) {}
+    }
+    snapshotMessage("Shared table could not open: " + (error?.message || error), true);
+  }
+}
+function syncSharedSnapshot() {
+  if (!state.session) return;
+  state.fight = CombatSnapshot.fightFromReplay(state.session.snapshot, state.session.pipe.state());
+  document.querySelector(".stage-shell")?.classList.add("fight-active");
+  rebuildAll();
+  renderLocalCombat();
+  const replay = state.session.pipe.state();
+  snapshotMessage("Shared restore ready · session " + state.session.row.id.slice(0, 8) + " · event " + replay.lastSeq + " · combat writes locked pending two-device proof");
+}
+async function bootSharedCombat(sessionId) {
+  const tok = ensureCombatAuth();
+  await tok.ready;
+  const auth = await tok.sb.auth.getUser(), user = auth.data?.user;
+  if (!user) throw new Error("Sign in to reopen this shared Forge table.");
+  const result = await tok.sb.from("forge_sessions").select("*").eq("id", sessionId).single();
+  if (result.error || !result.data) throw new Error(result.error?.message || "No such Forge table.");
+  const route = CombatSnapshot.readSessionMap(result.data.map);
+  if (route.kind === "legacy") {
+    window.location.replace("index.html?session=" + encodeURIComponent(sessionId));
+    return;
+  }
+  restoreCombatSnapshot(route.snapshot, "Loaded shared snapshot authority");
+  const me = { actor: user.id, units: result.data.controllers?.[user.id] || [], overseer: result.data.overseer === user.id };
+  const conn = window.ForgeBus.makeSupabaseBus({
+    sb: tok.sb, sessionId,
+    onTransport: (message) => snapshotMessage(message, /dropped|failed/.test(message))
+  }).connect();
+  const pipe = window.ForgePipeline.makePipeline({
+    conn, roster: result.data.roster || [], me,
+    onEvent: () => syncSharedSnapshot()
+  });
+  state.session = { row: result.data, me, conn, pipe, snapshot: route.snapshot };
+  await pipe.catchUp();
+  syncSharedSnapshot();
+}
 window.__forgeCombatState = () => ({
   blueprintId: state.blueprint.id,
   fingerprint: BP.fingerprint(state.blueprint),
@@ -3580,6 +3734,10 @@ window.__forgeCombatState = () => ({
   fightActive: !!state.fight,
   fightIdentity: state.fight?.identity || null,
   fightRound: state.fight?.round || null,
+  snapshotFingerprint: state.snapshotRecord?.authored?.fieldFingerprint || null,
+  sessionId: state.session?.row?.id || null,
+  sessionEventSeq: state.session?.pipe?.state()?.lastSeq || null,
+  sessionReadOnly: !!state.session,
   fightUnits: state.fight?.units.map((unit) => ({ unit: unit.unit, side: unit.side, hp: unit.hp, c: unit.c, r: unit.r })) || []
 });
 
@@ -3623,7 +3781,13 @@ try {
     updateSourceReceipt();
   }
   renderLocalCombat();
-  loadCombatRoster();
+  const sessionId = new URLSearchParams(window.location.search).get("session");
+  if (sessionId) bootSharedCombat(sessionId).catch((error) => {
+    console.error(error);
+    ui.fatal.textContent = "Forge Combat could not restore the shared table: " + error.message;
+    ui.fatal.classList.add("on");
+  });
+  else loadCombatRoster();
 } catch (error) {
   console.error(error);
   ui.fatal.textContent = "Forge Combat could not start: " + error.message;
