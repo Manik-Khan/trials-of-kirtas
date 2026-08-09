@@ -22,8 +22,8 @@
        live @ mentions + tabbed [[wikilinks]] (My notes / All), body via
        docToFeedBody.  Import failure → plain-input fallback (the pre-swap
        composer, verbatim).  Pool/canon load LAZILY on first editor focus.
-       Table chat never seeds entity stubs (typo guard) — chips render,
-       the curation queue stays clean.
+       Table chat seeds an entity stub only after the writer explicitly picks
+       a Create row and the feed post succeeds; plain text never seeds one.
      • journal-capture.js insertPage/insertRefs/freeSlug  ← the row menu's
        "Send to my journal" (click a feed name/avatar): any row becomes a
        Field Notes page in YOUR vault, attributed when it isn't yours.
@@ -41,7 +41,7 @@
 
   var LS_KEY = 'tok.rail.v1';
   var RAIL_W = 384;
-  var RAIL_ASSET_V = 'section1';
+  var RAIL_ASSET_V = 'mentions2';
 
   // ── dependency bootstrap (idempotent) ──────────────────────────────
   function linkOnce(id, attrs) {
@@ -582,7 +582,21 @@
             SURF.clear(); updateCount(); return;
           }
         }
-        feedInsert({ channel: 'chronicle', kind: 'message', body: SURF.body(), hidden: staffHide });
+        var newEntities = MC.newEntities.splice(0);
+        feedInsert({ channel: 'chronicle', kind: 'message', body: SURF.body(), hidden: staffHide }).then(function (r) {
+          if (r && r.error) return;
+          newEntities.forEach(function (item) {
+            SB.from('entities').insert({ id: item.id, type: item.type, name: item.label }).then(function (er) {
+              if (er && er.error && !/duplicate|unique/i.test(er.error.message || '')) {
+                console.warn('[rail] entity stub failed:', er.error.message);
+                toast(item.label + ' was posted, but could not enter the Codex queue');
+                return;
+              }
+              var list = item.type === 'npc' ? MC.pool.npcs : MC.pool.locations;
+              if (!list.some(function (e) { return e.id === item.id; })) list.push({ id: item.id, type: item.type, label: item.label, hint: 'pending curation', curated: false });
+            });
+          });
+        });
         SURF.clear(); updateCount();
       }
 
@@ -615,7 +629,7 @@
       // ── the mention pool: lazy — nothing loads until the first focus ──
       // canon (tooltips.js via ensureCanon) + entities + journal pages; the
       // [[ picker gets two tabs: My notes (your seat) / All (party-readable).
-      var MC = { mod: null, mine: [], all: [], mySlugs: {}, pool: { npcs: [], locations: [] }, loaded: false, loading: false };
+      var MC = { mod: null, mine: [], all: [], mySlugs: {}, pool: { characters: [], npcs: [], locations: [] }, newEntities: [], loaded: false, loading: false };
       function seatName(key) {
         if (!key) return 'Narrator';
         return (typeof CHARACTERS !== 'undefined' && CHARACTERS[key] && CHARACTERS[key].name) || key;
@@ -626,13 +640,15 @@
         Promise.all([
           MC.mod.ensureCanon(document),
           SB.from('entities').select('id, type, name, curated'),
+          SB.from('characters').select('key, structural, delete_marked').order('key'),
           SB.from('journal_pages').select('author_id, character_key, title, slug, folder, updated_at')
             .order('updated_at', { ascending: false }).limit(500)
         ]).then(function (res) {
           var canon = res[0];
           var entities = (res[1] && !res[1].error && res[1].data) || [];
-          var pages = (res[2] && !res[2].error && res[2].data) || [];
-          MC.pool = MC.mod.buildPool(canon, entities);
+          var characters = (res[2] && !res[2].error && res[2].data) || [];
+          var pages = (res[3] && !res[3].error && res[3].data) || [];
+          MC.pool = MC.mod.buildPool(canon, entities, characters);
           MC.all = pages.map(function (p) { return { id: p.slug, type: 'page', label: p.title, hint: seatName(p.character_key) }; });
           MC.mine = pages.filter(function (p) {
             return p.author_id === ME.userId && (p.character_key || null) === (ME.characterKey || null);
@@ -653,15 +669,18 @@
         mountFallbackInput();
       } else {
       setTimeout(function () { if (!SURF) mountFallbackInput(); }, 1500);
-      import('./mention-composer.js').then(function (mod) {
+      import('./mention-composer.js?v=mc2').then(function (mod) {
         if (SURF) { console.warn('[rail] mention-composer arrived after fallback — keeping the input'); return; }
         MC.mod = mod;
         var composer = mod.createComposer(host, {
           placeholder: '/roll 2d20kh1+5, @ a name, [[ a page…',
           pool: function () { return MC.pool; },
           pageTabs: function () { return [ { id: 'mine', label: 'My notes', items: MC.mine }, { id: 'all', label: 'All', items: MC.all } ]; },
-          // no onNewEntity — table chat NEVER seeds entity stubs (typo guard);
-          // unresolved chips still render dashed.
+          onNewEntity: function (item) {
+            if (!MC.newEntities.some(function (e) { return e.id === item.id && e.type === item.type; })) {
+              MC.newEntities.push({ id: item.id, type: item.type, label: item.label });
+            }
+          },
         });
         host.insertBefore(countEl, null);              // keep the counter after the editor
         SURF = {
@@ -718,7 +737,7 @@
         return words.length > 6 ? t + '…' : t;
       }
       function sendRowToJournal(row) {
-        Promise.all([import('./mention-composer.js'), import('./journal-capture.js')]).then(function (mods) {
+        Promise.all([import('./mention-composer.js?v=mc2'), import('./journal-capture.js?v=jc2')]).then(function (mods) {
           var mc = mods[0], jc = mods[1];
           if (!MC.mod) MC.mod = mc;
           var ensureSlugs = MC.loaded ? Promise.resolve()

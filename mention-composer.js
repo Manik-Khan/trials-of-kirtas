@@ -23,8 +23,9 @@ import { buildItems, slug } from './journal/src/editor/match.js';
 
 /* Mirrors CLASS_FOR + mentionClass in journal/src/editor/MentionExtension.js
    (that file imports @tiptap and can't be loaded outside the bundle — keep
-   these four entries in lockstep with it). */
+   these five entries in lockstep with it). */
 const CLASS_FOR = {
+  'character':           'character-link',
   'npc':                 'npc-link',
   'location':            'location-link',
   'npc-unresolved':      'npc-unresolved',
@@ -89,15 +90,32 @@ function canonToArrays(canon) {
 
 /* Merge canon + play-created entities rows (same precedence as the
    journal's entityStore: canon first, entity rows add the new names).   */
-export function buildPool(canon, entityRows) {
+export function buildPool(canon, entityRows, characterRows) {
   const { npcs, locations } = canonToArrays(canon || {});
+  const characters = (characterRows || []).filter(r => r && r.key && !r.delete_marked).map(r => {
+    const structural = r.structural || {};
+    const classes = Array.isArray(structural.classes) ? structural.classes : [];
+    return {
+      id: r.key,
+      type: 'character',
+      label: structural.name || r.key,
+      hint: structural.classLabel || (classes.length ? classes.map(c => [c.name, c.level].filter(Boolean).join(' ')).join(' / ') : (structural.race || 'Player character')),
+      resolved: true,
+      curated: true,
+    };
+  });
   const seen = { npc: new Set(npcs.map(e => e.id)), location: new Set(locations.map(e => e.id)) };
   (entityRows || []).forEach(r => {
     if (!r || !r.id || !r.type || seen[r.type] == null || seen[r.type].has(r.id)) return;
     seen[r.type].add(r.id);
     (r.type === 'npc' ? npcs : locations).push({ id: r.id, type: r.type, label: r.name || r.id, hint: r.curated ? '' : 'pending curation' });
   });
-  return { npcs, locations };
+  const samePerson = (npc, character) => {
+    const npcId = slug(npc.id), charId = slug(character.id);
+    const npcName = slug(npc.label), charName = slug(character.label);
+    return npcId === charId || npcName === charName || (npcId && charId.startsWith(npcId + '-'));
+  };
+  return { characters, npcs: npcs.filter(n => !characters.some(c => samePerson(n, c))), locations };
 }
 
 /* ── serialization: contenteditable → doc JSON / html / refs ─────────
@@ -239,7 +257,7 @@ function makeChip(doc, item) {
 /* ── the composer ────────────────────────────────────────────────────
    createComposer(host, {
      placeholder,       — hint text
-     pool: () => ({npcs, locations}),   — the @ pool (post-merge)
+     pool: () => ({characters, npcs, locations}), — the @ pool (post-merge)
      pageItems: () => [{id,type:'page',label,hint}],  — the [[ pool
      pageTabs: () => [{id,label,items:[…]}],  — optional TABBED [[ pool
                         (e.g. My notes / All). Wins over pageItems when
@@ -290,7 +308,7 @@ export function createComposer(host, opts) {
     }
     items.forEach((it, i) => {
       if (it.section !== lastSec) { lastSec = it.section; html += '<div class="mc-pick-sec">' + esc(it.section) + '</div>'; }
-      html += '<div class="mc-pick-item' + (i === sel ? ' sel' : '') + (it.type === 'location' ? ' loc' : '') +
+      html += '<div class="mc-pick-item' + (i === sel ? ' sel' : '') + (it.type === 'character' ? ' char' : '') + (it.type === 'location' ? ' loc' : '') +
               (it.resolved === false ? ' create' : '') + '" data-i="' + i + '">' +
               (it.resolved === false ? '<span class="plus">+</span>' : '') +
               '<span class="nm">' + esc(it.label) + '</span>' +
@@ -318,8 +336,8 @@ export function createComposer(host, opts) {
                    .map(p => Object.assign({ section: 'Pages', resolved: true }, p));
     } else {
       curTabs = null;
-      const pool = opts.pool ? opts.pool() : { npcs: [], locations: [] };
-      items = buildItems(trig.query, pool.npcs || [], pool.locations || []);
+      const pool = opts.pool ? opts.pool() : { characters: [], npcs: [], locations: [] };
+      items = buildItems(trig.query, pool.characters || [], pool.npcs || [], pool.locations || []);
     }
     sel = 0; renderPick();
   }

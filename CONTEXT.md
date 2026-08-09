@@ -195,9 +195,11 @@ and Supabase `entities` plus `entity_aliases`. Player characters are a separate
 mention type and are removed from the NPC pool; they never require staff
 canonization and never become duplicate NPC entities.
 
-Both Quill Chronicle composition and the TipTap Journal mention menu now offer
-Characters, NPCs, and Locations. Typing a genuinely new NPC or location inserts
-an unresolved chip and remembers one uncurated shared entity. The staff-only
+Quill Chronicle composition, the TipTap Journal mention menu, and the shared
+Feed rail now offer Characters, NPCs, and Locations. Choosing an explicit
+Create NPC or Create location row inserts an unresolved chip and remembers one
+uncurated shared entity after the post succeeds; plain typed text creates
+nothing. The staff-only
 Journal **New to the world** queue can edit, canonize, merge, or discard those
 discoveries. Canonize resolves matching chips everywhere. Merge rewrites
 structured mention nodes, cached page HTML, and refs, leaves an alias for future

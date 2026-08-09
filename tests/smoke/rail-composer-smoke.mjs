@@ -41,10 +41,19 @@ const ALL = MINE.concat([
   { id: 'houses-of-the-capital', type: 'page', label: 'Houses of the Capital', hint: 'Narrator' },
 ]);
 const host = document.getElementById('host');
+const createdEntities = [];
+const pool = mc.buildPool(
+  { npcs: { chonkalius: { name: 'Chonkalius' }, 'general-darius': { name: 'General Darius' } }, locations: {} },
+  [],
+  [{ key: 'chonkalius-a1b2', structural: { name: 'Chonkalius', classLabel: 'Bard' }, delete_marked: false }],
+);
+ok(pool.characters.length === 1 && pool.characters[0].label === 'Chonkalius', 'player characters join the shared @ pool');
+ok(!pool.npcs.some(n => n.id === 'chonkalius'), 'an old NPC duplicate is removed when the player exists');
 const composer = mc.createComposer(host, {
   placeholder: 'test',
-  pool: () => ({ npcs: [{ id: 'general-darius', type: 'npc', label: 'General Darius', hint: '' }], locations: [] }),
+  pool: () => pool,
   pageTabs: () => [ { id: 'mine', label: 'My notes', items: MINE }, { id: 'all', label: 'All', items: ALL } ],
+  onNewEntity: item => createdEntities.push(item),
 });
 const ed = composer.el;
 const pick = host.querySelector('.mc-pick');
@@ -105,6 +114,19 @@ pressEnter();
 ok(sends === 0, 'picker-open Enter did not send');
 ok(!!ed.querySelector('[data-mention-key="general-darius"]'), 'picker-open Enter inserted the chip');
 ok(pick.style.display === 'none', 'picker closed after insert');
+
+// player character search → rose character chip, never an NPC
+type('ask @chonk');
+ok(pick.textContent.includes('Player characters') && pick.textContent.includes('Chonkalius'), 'player character appears in the @ picker');
+pressEnter();
+const charChip = ed.querySelector('[data-mention-type="character"]');
+ok(!!charChip && charChip.classList.contains('character-link'), 'player selection inserts a character chip');
+
+// an unknown name seeds only after the writer chooses its explicit Create row
+type('ask @new rock');
+ok(createdEntities.length === 0, 'plain unknown @ text does not seed an entity');
+pressEnter();
+ok(createdEntities.length === 1 && createdEntities[0].type === 'npc' && createdEntities[0].id === 'new-rock', 'choosing Create NPC queues the new entity');
 
 // picker closed → Enter sends; Shift+Enter falls through
 pressEnter();

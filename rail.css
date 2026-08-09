@@ -194,6 +194,7 @@
 #tok-rail .mc-pick-item{ display:flex; align-items:baseline; gap:8px; padding:7px 11px; cursor:pointer; font-size:13px; }
 #tok-rail .mc-pick-item:hover, #tok-rail .mc-pick-item.sel{ background:rgba(199,154,74,.13); }
 #tok-rail .mc-pick-item .nm{ color:var(--cream-hi); letter-spacing:.04em; }
+#tok-rail .mc-pick-item.char .nm{ color:#c97886; }
 #tok-rail .mc-pick-item.loc .nm{ color:#8ab4c9; }
 #tok-rail .mc-pick-item .ht{ font-family:"EB Garamond",Georgia,serif; font-style:italic; font-size:12px; color:var(--cream-fnt); margin-left:auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:110px; }
 #tok-rail .mc-pick-item.create .nm{ color:var(--cream-dim); }
@@ -203,6 +204,7 @@
    (same classes the journal/chronicle emit; tooltips.js may not be on
    the host page, so the rail carries its own scoped copy) */
 #tok-rail .npc-link{ color:#d4ac3a; border-bottom:1px dotted rgba(212,172,58,.4); cursor:default; }
+#tok-rail .character-link{ color:#c97886; border-bottom:1px dotted rgba(201,120,134,.45); cursor:default; }
 #tok-rail .location-link{ color:#8ab4c9; border-bottom:1px dotted rgba(138,180,201,.4); cursor:default; }
 #tok-rail .npc-unresolved{ color:var(--gold-br); border-bottom:1px dashed #bd8ce8; cursor:default; }
 #tok-rail .location-unresolved{ color:#8ab4c9; border-bottom:1px dashed #bd8ce8; cursor:default; }

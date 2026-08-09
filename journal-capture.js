@@ -18,7 +18,7 @@
    for the single-row read. ONE client: window.__tok.sb.
    ════════════════════════════════════════════════════════════════════ */
 
-import { createComposer, ensureCanon, buildPool, serializeDoc, docToHTML, docToRefs, slug } from './mention-composer.js';
+import { createComposer, ensureCanon, buildPool, serializeDoc, docToHTML, docToRefs, slug } from './mention-composer.js?v=mc2';
 
 const esc = s => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -51,6 +51,11 @@ async function fetchSeatPages(sb, key) {
 async function fetchEntities(sb) {
   const res = await sb.from('entities').select('id, type, name, curated');
   if (res.error) throw new Error('entities: ' + res.error.message);
+  return res.data || [];
+}
+async function fetchCharacters(sb) {
+  const res = await sb.from('characters').select('key, structural, delete_marked').order('key');
+  if (res.error) throw new Error('characters: ' + res.error.message);
   return res.data || [];
 }
 async function currentSession(sb) {
@@ -141,12 +146,12 @@ export async function mountJournalCapture(sheetRoot, key) {
   const labEl   = block.querySelector('[data-jc-list-lab]');
 
   /* load state (parallel; canon self-heals tooltips.js) */
-  let pages = [], entities = [], canon = { npcs: {}, locations: {} }, session = null;
+  let pages = [], entities = [], characters = [], canon = { npcs: {}, locations: {} }, session = null;
   try {
     const r = await Promise.all([
-      fetchSeatPages(sb, key), fetchEntities(sb), ensureCanon(document), currentSession(sb),
+      fetchSeatPages(sb, key), fetchEntities(sb), fetchCharacters(sb), ensureCanon(document), currentSession(sb),
     ]);
-    pages = r[0]; entities = r[1]; canon = r[2] || canon; session = r[3];
+    pages = r[0]; entities = r[1]; characters = r[2]; canon = r[3] || canon; session = r[4];
   } catch (e) {
     console.warn('[capture] load:', e.message);
     block.style.display = '';                               // still reveal: doorway works even if lists don't
@@ -171,7 +176,7 @@ export async function mountJournalCapture(sheetRoot, key) {
   });
 
   /* the composer — your own seat only */
-  const pool = buildPool(canon, entities);
+  const pool = buildPool(canon, entities, characters);
   if (mySeat && capHost) {
     const mySlugs = new Set(mine.map(p => p.slug));
     capHost.innerHTML =
