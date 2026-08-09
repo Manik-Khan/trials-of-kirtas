@@ -1,4 +1,4 @@
-# CONTEXT — Battle Forge — current authority through 2026-07-30
+# CONTEXT — Battle Forge — current authority through 2026-08-08
 
 > This doc exists because the same failure kept happening: a session would read
 > *part* of the material, conclude a feature "was never there," and rebuild
@@ -9,7 +9,7 @@
 
 ---
 
-## CURRENT AUTHORITY · 2026-07-30
+## CURRENT AUTHORITY · 2026-08-08
 
 Read `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-22.md` before the
 historical sections below. It carries the intentional Temple Terraces preview,
@@ -53,15 +53,19 @@ folding duplicate shelf tiles, including Cosmere's Agonizing Blast modifier.
 Derivation exceptions remain disabled error kits rather than silent starter-kit
 substitutions.
 
-The August 8 Blueprint field correction makes generated vertical transitions
-first-class. The earlier producer emitted stair-shaped architecture markers but
-compiled no connector, rendered no steps, and audited only 2D adjacency. Seed
-1847's Vault could therefore strand a foe on its raised room while reporting
-connected. `forge-blueprint/v1` generated maps now carry deterministic stair
-connector paths and their elevation points into the tactical field;
-`BP.tacticalConnectivity()` audits actual 5-ft steps and authorized connector
-segments; Combat renders those runs and uses that audit for fight gating. The
-licensed imported-map and multi-surface field gates remain separate.
+The August 8 production correction now makes generated connections architectural
+authority rather than decorative repairs. Every graph edge chooses two unused
+room-perimeter portals, routes a cardinal corridor, reserves a straight runway
+for every 5-ft stair tier, and records explicit low/high landings. Walls derive
+around those owned portals. A layout that cannot fit a legal portal/runway is
+deterministically rejected and regenerated; no visible repair stair is added
+after layout. Connector cells update the compiled height and region metadata,
+edge blockers retain their connector identity and actual bottom height, and
+Blueprint draws the same route/treads/landing labels that Board, movement,
+walls, props, and tokens consume from `map.h`. M regenerated the production map
+and confirmed the result works. Saved Blueprints remain exact historical maps;
+only newly generated documents receive this architecture. The licensed
+imported-map and multi-surface field gates remain separate.
 
 M approved the standalone shared-capability architecture mock on July 24.
 `forge/forge-capabilities.js?v=fc2` is now the versioned character-side
@@ -1292,31 +1296,31 @@ the same generated battlefield. This slice does not yet put `surfaceId` on
 live creatures or replay events, and therefore does not authorize simultaneous
 above/below combat in a production fight.
 
-### After these proofs: active Phase 2 production terrain
+### Current production boundary and next session · August 8
 
-1. Promote the settled Blueprint/compiler as a versioned production module and
-   keep exact `mapSnapshot` authoritative with a legacy recipe fallback.
-2. Build the Scrawl editor: room/corridor/wall/door/stairs/elevation/prop tools,
-   rotate/remove, semantics, and undo.
-3. Build the graph-first generator:
-   graph → semantics → room shapes → corridors/connectors → elevation →
-   validate/local repair → dressing.
-4. Give `layout`, `height`, `semantics`, `decor`, and `foes` stable independent
-   sub-seeds, including dressing-only regeneration.
-5. Add archetype/version parameters, constrained elevation, first-class
-   connectors, semantic spawns/objectives, validation/repair, and debug
-   overlays.
-6. Integrate the diorama behind an explicit renderer flag while the current
-   renderer remains available.
-7. Only then extend the published architecture seam to spell-created and
-   duration/concentration-owned terrain.
+The settled Blueprint/compiler, Scrawl/Build tools, graph-first generator,
+local artwork review, modular Board, real-character selection, and disposable
+local fight are now production-owned. Portal-owned connections replaced the
+last visible post-layout stair repair and M approved the generated result in the
+field. Do not reopen those completed proof steps as a new renderer or generator
+project.
 
-The immediate next multi-surface slice is narrower than that broader terrain
-queue: under the same `?surfaces=1` guard, normalize live unit positions to
-`{c,r,surfaceId,elevationFt}` and key occupancy by the complete position. Keep
-legacy replay/session rows on deterministic ground/deck normalization. Port
-movement and connector transitions only after exact position save/restore and
-same-column dual occupancy are known-answer green.
+The next slice is persistence, in this order:
+
+1. define one versioned local snapshot containing the exact Blueprint and
+   fingerprint, renderer choice, deployment, and disposable-fight runtime;
+2. save and reopen that snapshot without rewriting the Blueprint, character
+   sheets, or authored map spawns;
+3. preserve legacy saved rows through an explicit compatibility read;
+4. attach the same exact snapshot to the existing Forge session/event spine;
+5. prove two-device restore/reconnect before enabling shared writes or reactions
+   on the new Combat surface.
+
+Multi-surface work remains a separate guarded queue. Under `?surfaces=1`, later
+normalize live unit positions to `{c,r,surfaceId,elevationFt}`, key occupancy by
+the complete position, and prove same-column above/below save/restore before
+porting connector movement, deployment, tactics, or replay. Do not absorb that
+contract into the persistence slice merely because both involve positions.
 
 ### Carried later work
 

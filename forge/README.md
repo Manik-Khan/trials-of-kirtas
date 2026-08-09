@@ -54,16 +54,21 @@ unfinished job, tracked in `CONTEXT_Forge.md` §3.
   Global: `window.TacticsGeo`.
 - **forge-blueprint.js** — the production `forge-blueprint/v1` document,
   graph-first producer, direct-edit, exact-handoff, and tactical compiler
-  authority. Generated elevation changes carry deterministic stair connector
-  paths; `tacticalConnectivity()` audits height-aware movement rather than only
-  flat adjacency. Global: `window.ForgeBlueprint`.
+  authority. Every generated graph edge owns room-perimeter portals, routed
+  corridor segments, and—when needed—a reserved stair runway with explicit
+  landings. Illegal arrangements regenerate deterministically instead of
+  receiving a post-layout repair stair. `tacticalConnectivity()` audits
+  height-aware movement rather than only flat adjacency. Global:
+  `window.ForgeBlueprint`.
 - **forge-image-importer.js** and **forge-image-structure-review.js** — local
   pixel evidence and DM-authored image review. Pixel proposals never become
   semantic rules authority by themselves.
 - **forge-image-blueprint.js** — converts only confirmed image-review regions
   into the normal Blueprint handoff, including palette and tactical height.
 - **`combat.html` / `combat.js`** — the modular Blueprint renderer, Build tools,
-  real character selection, and disposable local Combat surface.
+  real character selection, and disposable local Combat surface. Blueprint and
+  Board draw the same connector routes/stairs/landings, and all rendered pieces
+  read the compiler's `map.h` height authority.
 - **`import.html` / `import.js`** — the production local artwork calibration and
   structure-review surface.
 
@@ -90,8 +95,9 @@ arithmetic; no clause enforces either.
 When `occ[]` is **absent**, the module falls back to the v1 rule (a wall is
 full-height opaque), so pre-`occ[]` maps keep their exact behaviour.
 
-Cover is graded over 8 corner-lines (4 corners × head/feet):
-`0 → none · 1–4 → half (+2) · 5–7 → three-quarters (+5) · 8 → total`.
+Cover is graded over 12 inset body samples across lower body, torso, and
+head/shoulders: `0–5 → none · 6–8 → half (+2) · 9–11 → three-quarters (+5) ·
+12 → total`.
 
 Occluder heights come from the generator, not from thin air:
 `map-bridge.BIOME_WALL_UNITS` mirrors the biome renderer's `SKINS.wallH` × 5 ft.
@@ -223,14 +229,17 @@ and `__placeRoster` / `__enterForge` / `__startCombat` on `window`, and fires a
 cd forge/tests
 node smoke-forge-engine.js       # engine: reliability, control, completion, combat consumption  (14)
 node smoke-map-bridge.mjs        # seam: generator payload → combat rules honour it              (16)
-node smoke-tactics-geometry.mjs  # geometry: cliffs, LoS, movement budget                        (26)
-node smoke-los-cover.js          # heightfield LoS + graded cover, one case per stated rule      (27)
+node smoke-tactics-geometry.mjs  # geometry: cliffs, LoS, movement budget                        (30)
+node smoke-los-cover.js          # heightfield LoS + graded cover, one case per stated rule      (51)
 node smoke-placement.js          # spread rule: no blobs, no stacking, foes in the 40-90 ft band (19)
 node smoke-flora.js              # walls hard, flora clears them, every kind has a height + depth (22)
-node smoke-temple-terraces.js    # intentional variants, routes, rendering, preview safety (35)
+node smoke-temple-terraces.js    # intentional variants, routes, rendering, preview safety       (37)
+node smoke-forge-map-creation.js # Blueprint creation/import and portal-owned generated routes   (31)
+node smoke-forge-combat-production.js # production Map → Characters → Combat routing             (22)
+node smoke-forge-portal-stairs.js # isolated portal/runway architectural contract                (16)
 ```
 
-124 assertions, all green. `smoke-placement.js` **extracts `clusterAround` and
+258 assertions, all green as of August 8. `smoke-placement.js` **extracts `clusterAround` and
 `foeAnchor` from the canonical surface at test time** rather than copying them, and runs them over
 40 real `ForgeEngine.generate()` fields — a copy would pass while the product surface stayed broken. `smoke-los-cover.js` is the arbiter: if a change
 breaks it, the change is wrong until argued otherwise.

@@ -2,8 +2,8 @@
 
 Supersedes `CONTEXT_Forge-update-2026-07-16c.md` as the current concise Forge authority. Read with `CONTEXT.md`, `CONTEXT_Forge.md`, and `forge/FORGE_TEMPLE_TERRACES_1.md`.
 
-Reconciled **July 23, 2026** against the current `main`/`origin/main` source and
-the character-sheet progression/rail field pass. The dated validation paragraphs
+Reconciled **August 8, 2026** against committed baseline `85466b4` and the
+field-approved production portal-owned connection planner. The dated validation paragraphs
 below preserve the order in which slices landed; later focused results supersede
 earlier inherited-red statements for the same suite. Source merged to Git is not
 by itself proof of a signed-in Netlify field pass.
@@ -1584,16 +1584,55 @@ with no legal portal/runway is rejected with a reason; the proof contains no
 visible post-layout repair stair. Three structurally different directions
 pass the same contract and are fully reachable under 5-ft tactical movement.
 
-The focused proof passes **16/16** known answers; the existing
+This historical proof gate passed **16/16** known answers; the existing
 Blueprint/Diorama and creation proofs remain **86/86** and **28/28**, for
 **130/130** relevant checks. All three new JavaScript files pass
 `node --check`, and `git diff --check` is clean. The app browser's security
 policy rejected local `file://` automation, so this slice does not claim a
 visual browser pass. M's field gate is to open the mock, inspect all three
 directions and several isolated routes, and confirm that every stair reads as
-an intentional approach to an actual wall opening. Only after that approval
-should this planner replace `stairPath()` and the visible repair loop in the
-production Blueprint generator.
+an intentional approach to an actual wall opening. The production promotion
+and completed field gate are recorded immediately below.
+
+### Production portal-owned connection promotion · 2026-08-08
+
+M approved the isolated portal proof, and the production promotion is committed
+at baseline `85466b4`. It supersedes the proof-only boundary above without
+changing the exact-handoff rule:
+
+- every generated graph edge owns one connector, two unused perimeter portals,
+  and the corridor segment IDs that join them;
+- elevation-changing edges reserve a straight exterior runway with one explicit
+  5-ft point per tier plus low/high landings;
+- the low corridor routes cardinally to that runway without crossing an
+  unrelated room or the reserved stair cells;
+- generated doors are edge-bound architecture with `connectorId`; walls derive
+  around those openings instead of blocking them;
+- a layout with no legal portal/runway is deterministically rejected and
+  regenerated from stable retry sub-seeds; the post-layout repair loop and
+  `generated-stairs-repair-*` records are gone; and
+- shared same-height corridor junctions may carry more than one connector ID,
+  while every connector cell retains one compiled elevation authority.
+
+The compiler writes connector heights into both `map.h` and the cell-region
+metadata. Edge blockers retain connector identity and their real bottom feet.
+Board floors, walls, props, tokens, lights, grid, selection, and movement read
+that compiled height instead of a stale room-level copy. Blueprint now draws
+the same routes, stair treads, and labeled landings that Board renders.
+
+Validation is **31/31** production map-creation checks, **22/22** production
+Combat checks, **15/15** local-fight checks, **86/86** Blueprint/Diorama,
+**28/28** creation proof, **16/16** portal proof, **30/30** tactics,
+**51/51** LoS/cover, **16/16** map bridge, and **14/14** engine: **309/309**.
+A separate 900-map sweep (300 seeds × three candidates) reported zero invalid,
+disconnected, exhausted, or height-disagreeing results. All touched JavaScript
+passed `node --check` and `git diff --check` was clean.
+
+M regenerated the production field and confirmed on August 8 that it works.
+That closes the portal/stair visual gate. Existing saved Blueprints are exact
+historical documents and are not silently rewritten; regenerate a map to receive
+portal-owned architecture. The next Forge session starts at exact snapshot
+persistence and shared restore/reconnect, not another stair-generation pass.
 
 The remaining gates are:
 
@@ -1673,11 +1712,14 @@ Do not remove the query guard or migrate live rules in the compatibility step.
 3. **Passed August 7 for the guarded authoring/render/compiler path.**
    Combat loads an exact Blueprint, renders it with the approved modular
    diorama, and emits the current tactical field with matching Blueprint ID and
-   fingerprint. Character/session consumption remains the next gate.
-4. **Passed August 8 in production code; visual replay remains open.** Seeded
-   generation, Templates, Import, Blank, Scrawl, and Build all converge on the
-   same Blueprint document. Do not substitute a legacy-generated `F` field
-   anywhere in this path.
+   fingerprint. Character consumption subsequently passed in step 5; shared
+   session persistence remains step 7.
+4. **Passed August 8 for production convergence; generated maps are field
+   approved.** Seeded generation, Templates, Import, Blank, Scrawl, and Build
+   all converge on the same Blueprint document. Portal-owned connections now
+   make generated doors, corridors, stairs, landings, Blueprint, Board, and
+   movement agree. The production Import field replay remains step 8. Do not
+   substitute a legacy-generated `F` field anywhere in this path.
 5. **Passed August 8 for a disposable local fight.** Real selected Campaign
    Characters deploy and run movement, range, LoS/cover, attack, HP, and turns
    on the exact Blueprint field without writing the Blueprint or sheets. The
@@ -1685,8 +1727,11 @@ Do not remove the query guard or migrate live rules in the compatibility step.
 6. **Corrected August 8 after field review.** The normal non-session Forge entry
    now opens Map → Characters → Combat. Live sessions, Workshop developer views,
    and `?legacy=1` remain on the legacy renderer.
-7. Persist the exact Blueprint, renderer choice, deployment, and local fight
-   snapshot; then prove shared-session restore and two-device reconnect.
+7. **NEXT SESSION.** Persist the exact Blueprint, renderer choice, deployment,
+   and local-fight snapshot without mutating the authored document. Reopen that
+   exact local snapshot first; then connect the existing session/event spine and
+   prove shared restore plus two-device reconnect. Do not widen this slice into
+   multi-surface occupancy or new combat rules.
 8. **Implemented August 8; field gate open.** Replay the production importer on
    the licensed gridded city and ungridded camp maps. Confirm calibration,
    lasso/brush/eraser, structure type/variant/height, local palette, cancel
@@ -1706,8 +1751,8 @@ while this visual architecture is being settled.
 ## Deployment discipline
 
 M reviews, commits, and pushes. Codex does not push. Current slice stamps:
-`forge-blueprint.js?v=bp4`, `combat.css?v=fc2`,
-`combat.js?v=fc3`, `forge-combat-local.js?v=fcl1`,
+`forge-blueprint.js?v=bp5`, `combat.css?v=fc2`,
+`combat.js?v=fc4`, `forge-combat-local.js?v=fcl1`,
 `forge-image-importer.js?v=fii1`,
 `forge-image-structure-review.js?v=fis1`,
 `forge-image-blueprint.js?v=fib1`, `import.css?v=fi1`, and

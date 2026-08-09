@@ -4,9 +4,9 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **August 1, 2026 (approved Forge Blueprint → Scrawl → modular-diorama
-proof, approved Forge map-creation UX, validated local graph-generator →
-exact Build proof candidate, Forge field-report correction, approved
+Updated: **August 8, 2026 (production Forge Blueprint → Build → Combat,
+implemented local map-import workflow, field-approved portal-owned stair architecture,
+Living Codex discovery/curation and NPC/World projection, approved
 reaction/cover integration, disposable Test Fight production candidate,
 shared character capability contract, and the first typed-defense/teleport
 resolver slice, character-sheet source/progression alignment, the first
@@ -29,14 +29,13 @@ Cache-stamp every module include (`?v=`) — non-negotiable on iOS.
 
 ---
 
-## 🟡 Forge Blueprint/Diorama + map-creation direction approved — July 28–30
+## 🟡 Forge Blueprint/Diorama + map creation + Combat — July 28–August 8
 
 M approved replacing the next “more random cubes” step with a neutral
-`forge-blueprint/v1` architecture. Drawing, later import/tracing, and the future
-graph-first generator will produce the same document; top-down Scrawl and a
-low-poly modular diorama will consume it. The existing tactical field remains
-movement/LoS/cover authority during migration, with Blueprint compiling to its
-current shape.
+`forge-blueprint/v1` architecture. Drawing, local import/tracing, and the
+graph-first generator now produce the same document; top-down Blueprint and the
+low-poly modular Board consume it. The existing tactical field remains
+movement/LoS/cover authority, with Blueprint compiling to its current shape.
 
 The isolated Ruined Abbey proof is now implemented and visually approved as the
 direction: one Blueprint drives top-down artwork/board/Blueprint views and a
@@ -72,16 +71,19 @@ copied into the repository or embedded in the Blueprint; Combat restores only
 a private downsampled session underlay. Cancelling import returns the exact
 current Blueprint and Build edits.
 
-**Generated stair correction:** the August 8 Seed 1847 Vault field report
-exposed a false connectivity pass: generated elevation changes carried
-decorative stair records, but no compiled connector or visible stair geometry,
-so a deployed foe could be isolated on its platform. Generated passages now
-own deterministic stair paths with explicit 5-ft elevation points. The
-compiler carries those connectors into the tactical field, Combat audits
-height-aware connectivity, Board renders the step runs, and the real movement
-rules can descend from every elevated Seed 1847 candidate room. This changes
-the canonical fingerprint of newly generated maps while preserving exact replay
-for the corrected seed/candidate pair.
+**Portal-owned generated connections — field approved August 8:** the first
+Seed 1847 correction proved height-aware movement but still placed stairs after
+the room plan, so steps could appear in open rooms, terminate at walls, or miss
+the platform entrance. Production generation now makes every graph edge own one
+first-class connection: two unused room-perimeter portals, routed corridor
+segments, a reserved straight stair runway where elevation changes, and explicit
+low/high landings. Room walls are derived around those portals. A layout with no
+legal portal/runway is deterministically rejected and regenerated; the visible
+post-layout repair loop is gone. Blueprint draws the same routes, stair treads,
+and landing heights consumed by Board, movement, walls, props, and tokens through
+the compiled `map.h` authority. M regenerated and field-approved the production
+result. Existing saved Blueprints remain exact historical documents; generate a
+new map to receive the new connection architecture.
 
 The two July 30 field maps proved intentionally different paths. Auto found a
 confident but wrong two-square harmonic on the gridded city source; the new
@@ -169,17 +171,51 @@ flagged browser path showed its receipt while the default path remained
 unchanged. Combatants, occupancy, movement, deployment, tactics geometry, and
 protocol/replay have not yet been migrated to the new position shape.
 
-The focused proofs pass **28/28** creation checks, **86/86**
-Blueprint/Diorama checks, **44/44** local artwork-import checks, **59/59**
-Structure Review checks, **22/22** reviewed-artwork combat-handoff checks, and
-**36/36** multi-surface occupancy checks plus **46/46** production surface
-compatibility checks;
-the six canonical Forge suites are **152/152**,
-and the completed real browser flows had no console errors. This remains
-isolated proof work, not production promotion or M's final visual approval.
-Do not touch the live Forge, combat, protocol, production generator,
-character, or monster files. Exact ownership, evidence, and remaining gates
-are in `CONTEXT_Forge.md` and the current Forge handoff.
+The historical focused proofs remain green. The subsequent production
+connection promotion passed **309/309** relevant Forge known answers across
+map creation, production/local Combat, Blueprint/Diorama, portal architecture,
+tactics, LoS/cover, map bridge, and engine suites. A 900-map deterministic
+generation sweep produced no invalid, disconnected, exhausted, or
+height-disagreeing field. M's August 8 Forge field replay approved the result.
+Exact ownership, evidence, and the next persistence/reconnect slice are in
+`CONTEXT_Forge.md` and the current Forge handoff.
+
+---
+
+## 🟡 Living Codex — Chronicle discoveries reach NPCs and World · August 8
+
+The Chronicle and Journal now share one discovery seam instead of treating
+typed names as page-local decoration. Root `living-codex.js?v=lc1` merges live,
+non-deleted `characters` rows, the established `tooltips.js` NPC/location canon,
+and Supabase `entities` plus `entity_aliases`. Player characters are a separate
+mention type and are removed from the NPC pool; they never require staff
+canonization and never become duplicate NPC entities.
+
+Both Quill Chronicle composition and the TipTap Journal mention menu now offer
+Characters, NPCs, and Locations. Typing a genuinely new NPC or location inserts
+an unresolved chip and remembers one uncurated shared entity. The staff-only
+Journal **New to the world** queue can edit, canonize, merge, or discard those
+discoveries. Canonize resolves matching chips everywhere. Merge rewrites
+structured mention nodes, cached page HTML, and refs, leaves an alias for future
+typing, and changes Chronicle chat only when staff explicitly chooses that
+historical correction. Ordinary prose is never rewritten.
+
+Locations acquire an explicit home during curation. A nested place appears
+inside its parent and does not receive a continent pin. A confirmed top-level
+place enters the staff-only World's **Unmapped** list; staff selects it, clicks
+the map, and confirms the shared pin. Placed discoveries join the ordinary
+World filters and detail panels, while `npcs.html` subscribes to newly confirmed
+NPCs. `entities` realtime updates repaint both pages.
+
+`journal/sql/schema_delta_living_codex.sql` is the append-only, run-once schema
+delta. It adds role, parent, map coordinate/category/shape/state fields, enables
+entity realtime, and repairs old unresolved NPC chips that exactly match a live
+character into character references across Journal, refs, and Chronicle feed.
+It deliberately avoids ambiguous first-name matching. Deploying the
+cache-stamped Living Codex pages and running that SQL on the live Supabase
+project remain operational gates unless M has already completed them; source
+commit alone is not a signed-in field pass. Current known answers are **11/11**
+Living Codex, **17/17** Journal book projection, and **14/14** alias behavior.
 
 ---
 
@@ -1135,6 +1171,10 @@ Supabase tables: `profiles`, `encounters`, `combatants`, `characters`, `journal_
   `tokMention`/`pageLink` nodes, backlinks, `/` menu, image-by-URL. Gotcha: `nav.js` publishes
   `characterKey` (camel) vs DB `character_key` (snake) — grep `profile.character_key` when
   touching identity.
+- **Living Codex** (`living-codex.js`, Journal curation, `npcs.html`, `world.html`) — live
+  characters, canon NPCs/locations, and play-created entities share one mention/alias seam.
+  New entities remain unresolved until staff curation; top-level locations require explicit
+  World pin placement. The append-only Living Codex SQL must run once before live use.
 - **Feed** — the append-only spine. `channel` = `chronicle` | `combat`. `feed-bridge.js` posts
   every HUD roll (session + `encounter_id` stamped) from any page. `feed-render.js` draws rolls.
 - **Combat/rail** — site-wide right rail (`rail.js`), `advance_turn()` RPC, monster integration,
