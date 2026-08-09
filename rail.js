@@ -1,7 +1,7 @@
 /* ════════════════════════════════════════════════════════════════════
    RAIL-V1 — the universal right-side slide-out.  Productionizes
    mock-right-rail-v1.html.  PHASE 1 ships the shell + the live Feed tab;
-   Sheet / Codex / Settings are placeholder tabs wired in later phases.
+   Codex remains a placeholder; Settings is a live device-preferences pane.
 
    Mounted once on every authenticated page (nav.js injects this script
    after the session resolves — see mountRail() there).  Like the HUD, it
@@ -41,7 +41,11 @@
 
   var LS_KEY = 'tok.rail.v1';
   var RAIL_W = 384;
-  var RAIL_ASSET_V = 'mentions3';
+  var RAIL_ASSET_V = 'settings1';
+
+  function readPreferences() {
+    return (window.TokPreferences && window.TokPreferences.get) ? window.TokPreferences.get() : {};
+  }
 
   // ── dependency bootstrap (idempotent) ──────────────────────────────
   function linkOnce(id, attrs) {
@@ -70,19 +74,26 @@
       bt.onerror = function () { console.warn('[rail] bardic-tab.js failed to load'); };
       document.head.appendChild(bt);
     }
-    // Appearance customizer — fills the built-in Settings pane on tok-rail:ready and
-    // routes its live preview onto the floating sheet. ES module; non-blocking.
-    if (!window.AppearanceSettings && !document.querySelector('script[src$="appearance-settings.js"]')) {
-      var ap = document.createElement('script'); ap.type = 'module'; ap.src = 'appearance-settings.js';
-      ap.onerror = function () { console.warn('[rail] appearance-settings.js failed to load'); };
-      document.head.appendChild(ap);
+    function ensureFeed() {
+      if (window.FeedRender) { after(); return; }
+      var s = document.createElement('script');
+      s.src = 'feed-render.js';
+      s.onload = after;
+      s.onerror = function () { console.warn('[rail] feed-render.js failed to load — feed disabled'); after(); };
+      document.head.appendChild(s);
     }
-    if (window.FeedRender) { after(); return; }
-    var s = document.createElement('script');
-    s.src = 'feed-render.js';
-    s.onload = after;
-    s.onerror = function () { console.warn('[rail] feed-render.js failed to load — feed disabled'); after(); };
-    document.head.appendChild(s);
+    // Device preferences must arrive before restore() chooses startup state.
+    if (window.TokPreferences) { ensureFeed(); return; }
+    var existing = document.querySelector('script[src*="rail-settings.js"]');
+    if (existing) {
+      existing.addEventListener('load', ensureFeed, { once: true });
+      existing.addEventListener('error', ensureFeed, { once: true });
+      return;
+    }
+    var ps = document.createElement('script'); ps.src = 'rail-settings.js?v=settings3';
+    ps.onload = ensureFeed;
+    ps.onerror = function () { console.warn('[rail] rail-settings.js failed to load — using house defaults'); ensureFeed(); };
+    document.head.appendChild(ps);
   }
 
   // ── wait for nav's authenticated client ────────────────────────────
@@ -134,8 +145,13 @@
       var rows = FEED.filter(function (r) { return IS_STAFF || !r.hidden; });
       rows = rows.filter(function (r) { return (r.channel || 'combat') === feedTab; });
       rows = rows.slice().sort(function (a, b) { return new Date(a.created_at) - new Date(b.created_at); });
+      var pref = readPreferences();
+      function displayRow(row) {
+        if (pref.rollCards !== 'totals' || row.kind !== 'roll' || !row.result || row.result.total == null) return row;
+        return Object.assign({}, row, { body: esc(row.formula || 'Roll') + ' = <span class="ft-tot">' + esc(row.result.total) + '</span>' });
+      }
       feedListEl.innerHTML = rows.length
-        ? rows.map(FR.rowHtml).join('')
+        ? rows.map(function (row) { return FR.rowHtml(displayRow(row)); }).join('')
         : '<div class="feed-empty">No ' + feedTab + ' entries yet.</div>';
       // stamp ids for the row menu (render order === rows order)
       if (rows.length) {
@@ -272,6 +288,7 @@
       }
       var body = esc(formula) + ' → ' + dicePieces(parsed) + extra + ' = <span class="ft-tot">' + total + '</span>';
       feedInsert({ channel: 'combat', kind: 'roll', formula: dbFormula, result: { total: total }, body: body, hidden: feedPostHidden && IS_STAFF });
+      if (window.TokPreferences) window.TokPreferences.consumeRoll();
     }
     // (feedSubmit lives in wireFeed's submitSurface now — one routing path
     // for both the composer and the fallback input.)
@@ -370,7 +387,13 @@
 
     // ── open/collapse + tabs + persistence ──
     function persist() { try { localStorage.setItem(LS_KEY, JSON.stringify({ open: RAIL.open, tab: RAIL.tab })); } catch (e) {} }
-    function restore() { try { var s = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); if (typeof s.open === 'boolean') RAIL.open = s.open; if (s.tab) RAIL.tab = s.tab; } catch (e) {} }
+    function restore() {
+      try { var s = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); if (typeof s.open === 'boolean') RAIL.open = s.open; if (s.tab) RAIL.tab = s.tab; } catch (e) {}
+      var p = readPreferences();
+      if (p.railOpen === 'closed') RAIL.open = false;
+      else if (p.railOpen === 'open') RAIL.open = true;
+      if (p.railTab && p.railTab !== 'last') RAIL.tab = p.railTab;
+    }
     function applyOpen() {
       root.classList.toggle('tr-collapsed', !RAIL.open);
       handle.classList.toggle('tr-open', RAIL.open);
@@ -579,6 +602,7 @@
           var parsed = parseDice(cmd[2]);
           if (parsed) {
             feedInsert({ channel: 'combat', kind: 'roll', formula: parsed.formula, result: { total: parsed.total }, body: diceBody(parsed), hidden: staffHide });
+            if (window.TokPreferences) window.TokPreferences.consumeRoll();
             SURF.clear(); updateCount(); return;
           }
         }
@@ -853,8 +877,10 @@
         show: function (tab) { if (tab) setTab(tab); setOpen(true); },
         registerTab: registerTab,
         unregisterTab: unregisterTab,
+        applyPreferences: function () { if (window.TokPreferences) window.TokPreferences.apply(); renderFeed(); },
         ready: true
       };
+      document.addEventListener('tok:preferences', function () { renderFeed(); });
       // Pages register their contextual tabs in response to this (or by checking
       // window.TokRail.ready if they loaded after it fired).
       document.dispatchEvent(new CustomEvent('tok-rail:ready'));

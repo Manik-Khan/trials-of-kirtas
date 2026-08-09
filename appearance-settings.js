@@ -1,15 +1,14 @@
 // appearance-settings.js
 // ---------------------------------------------------------------------------
-// Mounts the Appearance customizer into the rail's built-in Settings pane and
-// routes its LIVE preview onto the floating sheet(s) instead of the page. The
-// standalone sheet edits this same look via the nav cog; here the rail copy lets
-// you tune it next to the board and watch the mounted sheet change in real time.
+// Supplies the Sheet look editor inside the nav's ◐ Appearance flyout on pages
+// that do not run appearance-boot.js, routing LIVE preview onto floating sheets.
+// On a themed page, appearance-boot remains the one AppearanceUI owner.
 //
 // WHOSE LOOK: the viewer's own. Save writes through set_my_appearance (owner-only,
 // pinned to auth.uid()); every floating sheet reloads ITS character's saved look
 // by character_key on next open, so the preview is non-destructive to other tabs.
 //
-// Loaded non-blocking by rail.js as a module. Reuses appearance.js (the panel +
+// Loaded non-blocking by nav.js as a module. Reuses appearance.js (the panel +
 // loader) and appearance-float.js (the per-tab painter) — nothing duplicated.
 // ---------------------------------------------------------------------------
 
@@ -17,14 +16,14 @@ import { buildAppearancePanel } from './appearance.js';
 import { applyFloatAppearance } from './appearance-float.js';
 import { DEFAULT_APPEARANCE } from './appearance-data.js';
 
-const SETTINGS = '.tr-pane[data-rail-pane="settings"]';
+const DRAWER = '#appearance-drawer';
 
 // The panel styles (tok-ap-*) live in appearance.css; pages that carry the rail
 // (combat, world, …) don't link it, so add it once on demand.
 function ensureCss(){
   if (document.getElementById('tok-appearance-css')) return;
   const l = document.createElement('link');
-  l.id = 'tok-appearance-css'; l.rel = 'stylesheet'; l.href = 'appearance.css';
+  l.id = 'tok-appearance-css'; l.rel = 'stylesheet'; l.href = 'appearance.css?v=appearance2';
   document.head.appendChild(l);
 }
 
@@ -56,27 +55,27 @@ async function loadCurrent(){
 }
 
 async function mount(){
-  let pane = document.querySelector(SETTINGS);
-  if (!pane || pane.querySelector('.tr-appearance')) return;     // gone, or already built
+  let drawer = document.querySelector(DRAWER);
+  if (!drawer || drawer.querySelector('.tr-appearance')) return;
   const current = await loadCurrent();
-  pane = document.querySelector(SETTINGS);                        // re-resolve across the await
-  if (!pane || pane.querySelector('.tr-appearance')) return;
+  drawer = document.querySelector(DRAWER);                        // re-resolve across the await
+  if (!drawer || drawer.querySelector('.tr-appearance')) return;
   ensureCss();
 
   const sb  = (window.__tok && window.__tok.sb) || null;
   const uid = (window.__tok && window.__tok.session && window.__tok.session.user && window.__tok.session.user.id) || null;
 
   const host = document.createElement('div');
-  // .tok-appearance carries the panel styling (appearance.css); fill the rail pane
-  // width and drop the floating-card chrome since the pane already frames it.
+  // .tok-appearance carries the panel styling. The flyout already supplies the
+  // card chrome, so the hosted editor fills its drawer without another frame.
   host.className = 'tok-appearance tr-appearance';
   host.style.setProperty('--ap-w', '100%');
   host.style.background = 'transparent';
   host.style.border = '0';
   host.style.boxShadow = 'none';
   host.style.maxHeight = 'none';
-  pane.innerHTML = '';
-  pane.appendChild(host);
+  drawer.innerHTML = '';
+  drawer.appendChild(host);
 
   // onApply routes the live preview to the floating sheet (not the page); the panel
   // owns its own Save button, which persists via set_my_appearance.
@@ -84,10 +83,21 @@ async function mount(){
   paintFloats(current);   // reflect the loaded look on any sheet that's already open
 }
 
-// Build now if the rail is already up, and (re)build whenever the rail announces ready.
+function install(){
+  if (window.AppearanceUI) return;  // appearance-boot owns themed pages
+  window.AppearanceUI = {
+    mount: mount,
+    open: mount,
+    close: function () {},
+    isOpen: function () { return !!document.querySelector('#ts-sheet-drawer.open'); },
+  };
+  document.dispatchEvent(new CustomEvent('tok:appearance-ui-ready'));
+}
+
+// Install now if the flyout exists, and again when its eager shell announces ready.
 if (typeof document !== 'undefined') {
-  if (document.querySelector(SETTINGS)) mount();
-  document.addEventListener('tok-rail:ready', mount);
+  install();
+  document.addEventListener('tok:settings-ready', install);
 }
 
 if (typeof window !== 'undefined') window.AppearanceSettings = { mount: mount, paintFloats: paintFloats };

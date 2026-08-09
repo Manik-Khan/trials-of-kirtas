@@ -22,6 +22,7 @@ let pass = 0, fail = 0;
 const ok = (cond, label) => { if (cond) pass++; else { fail++; console.log('  FAIL: ' + label); } };
 
 const FEED_RENDER_SRC = readFileSync('./feed-render.js', 'utf8');
+const RAIL_SETTINGS_SRC = readFileSync('./rail-settings.js', 'utf8');
 const RAIL_SRC = readFileSync('./rail.js', 'utf8');
 
 const CHARACTERS = {
@@ -32,8 +33,8 @@ const CHARACTERS = {
 // Canned feed: 3 visible (2 combat, 1 chronicle) + 1 hidden DM row (combat).
 function feedRows() {
   return [
-    { id: 1, channel: 'combat', kind: 'roll', actor_key: 'cosmere', actor_name: 'Cosmere', body: 'Eldritch Blast', hidden: false, created_at: '2026-06-23T19:42:00Z', author_id: 'u-cos' },
-    { id: 2, channel: 'combat', kind: 'roll', actor_key: 'vesperian', actor_name: 'Vesperian', body: 'Longsword', hidden: false, created_at: '2026-06-23T19:43:00Z', author_id: 'u-ves' },
+    { id: 1, channel: 'combat', kind: 'roll', actor_key: 'cosmere', actor_name: 'Cosmere', formula: '1d20+5', result: { total: 17 }, body: '1d20+5 → [12] = <span class="ft-tot">17</span>', hidden: false, created_at: '2026-06-23T19:42:00Z', author_id: 'u-cos' },
+    { id: 2, channel: 'combat', kind: 'roll', actor_key: 'vesperian', actor_name: 'Vesperian', formula: '1d20+4', result: { total: 14 }, body: '1d20+4 → [10] = <span class="ft-tot">14</span>', hidden: false, created_at: '2026-06-23T19:43:00Z', author_id: 'u-ves' },
     { id: 3, channel: 'chronicle', kind: 'message', actor_key: 'liadan', actor_name: 'Líadan', body: 'We rest by the rift.', hidden: false, created_at: '2026-06-23T19:44:00Z', author_id: 'u-lia' },
     { id: 4, channel: 'combat', kind: 'roll', actor_key: null, actor_name: 'Dungeon Master', body: 'Captain slips into the dark', hidden: true, created_at: '2026-06-23T19:45:00Z', author_id: 'u-dm' },
   ];
@@ -71,7 +72,7 @@ function makeSb(state) {
   };
 }
 
-async function makeRail({ role, characterKey, withBattle = true }) {
+async function makeRail({ role, characterKey, withBattle = true, preferences = null }) {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: 'https://tok.test/world.html', runScripts: 'outside-only' });
   const { window } = dom;
   // deterministic randomness in BOTH realms
@@ -85,6 +86,8 @@ async function makeRail({ role, characterKey, withBattle = true }) {
 
   window.__railPlainComposer = true;   // jsdom can't resolve dynamic import() — force the plain-input surface
   window.eval(FEED_RENDER_SRC);   // window.FeedRender
+  if (preferences) window.localStorage.setItem('tok.preferences.v1', JSON.stringify(preferences));
+  window.eval(RAIL_SETTINGS_SRC); // window.TokPreferences + Settings rider
   let readyFired = false;
   window.document.addEventListener('tok-rail:ready', () => { readyFired = true; });
   window.eval(RAIL_SRC);          // boots; awaits __tok.ready internally
@@ -106,16 +109,31 @@ async function makeRail({ role, characterKey, withBattle = true }) {
   ok(!rail.classList.contains('tr-no-rs'), 'A: RS seam present → mods live');
   ok(!rail.querySelector('.tr-hide'), 'A: no hide-toggle for a player');
   ok(!rail.querySelector('.tr-section-control'), 'A: player gets no New Section control');
+  ok(!!rail.querySelector('.tr-settings'), 'A: Settings pane is filled with device preferences');
+  ok(rail.querySelectorAll('.tr-pref-sec').length === 5, 'A: five collapsible settings groups');
+  ok(/Not connected yet/.test(rail.querySelector('[data-section="alerts"]').textContent), 'A: unavailable alerts narrate their boundary');
 
   const list = rail.querySelector('[data-rail="feedlist"]');
   const rows = list.querySelectorAll('.feed-row');
   ok(rows.length === 2, 'A: combat channel shows 2 visible rows (hidden DM row masked)');
   ok(!list.textContent.includes('slips into the dark'), 'A: hidden DM row not rendered for player');
   ok(list.querySelectorAll('.feed-del').length === 0, 'A: player gets no delete buttons on others’ rows');
+  rail.querySelector('[data-pref="rollCards"][data-value="totals"]').dispatchEvent(new document.defaultView.MouseEvent('click', { bubbles: true }));
+  ok(list.querySelector('.feed-text').textContent.trim() === '1d20+5 = 17', 'A: Totals redraws rail roll cards without the dice breakdown');
 
   // header reflects campaign session + active encounter
   ok(rail.querySelector('.tr-ses .k').textContent.includes('14'), 'A: header shows Session 14');
   ok(rail.querySelector('[data-rail="title"]').textContent === 'The Sunken Vault', 'A: header shows active encounter name');
+}
+
+// ── Scenario A2: startup preferences are applied before rail restore ──────
+{
+  const { document, window } = await makeRail({ role: 'player', characterKey: 'cosmere', preferences: { railOpen: 'open', railTab: 'characters', feedDensity: 'compact' } });
+  const rail = document.getElementById('tok-rail');
+  ok(!rail.classList.contains('tr-collapsed'), 'A2: Start open overrides the remembered rail state');
+  ok(rail.classList.contains('tr-feed-compact'), 'A2: compact density applies on boot');
+  window.TokRail.registerTab({ id: 'characters', label: 'Characters', order: 15, onMount: function () {} });
+  ok(rail.querySelector('.tr-tab[data-rail-tab="characters"]') && rail.querySelector('.tr-pane[data-rail-pane="characters"]').classList.contains('on'), 'A2: Characters default activates when its rider registers');
 }
 
 // ── Scenario B: staff (DM) ──────────────────────────────────────────

@@ -247,6 +247,7 @@
       addRollHistory({ name:action.label,
         main:`Dmg: [${dmg.rolls.join('][')}]${action.dmgMod?` ${modStr(action.dmgMod)}`:''} = <span class="b-rh-total">${dmg.total}</span>`,
         detail:`${action.dmgDice}${action.dmgMod?` ${modStr(action.dmgMod)}`:''} ${action.dmgType||''}` });
+      if (window.TokPreferences) window.TokPreferences.consumeRoll();
       return;
     }
     // Attack or attack-cantrip
@@ -259,6 +260,7 @@
       main:`${fmtD20(roll)} ${modStr(action.hitMod||0)}${bless.str} = <span class="b-rh-total">${total}</span> ${critStr}`,
       detail:`d20:${roll.kept}${roll.label?` (${roll.label})`:''}${action.note?' · '+action.note:''}`,
       dmg:`${isCrit?'★ Crit dmg':'Dmg'}: [${dmg.rolls.join('][')}]${action.dmgMod?` ${modStr(action.dmgMod)}`:''} = <strong>${dmg.total}</strong> ${action.dmgType||''}` });
+    if (window.TokPreferences) window.TokPreferences.consumeRoll();
   }
 
   function addRollHistory(entry) {
@@ -1328,6 +1330,7 @@
     rollInit: ()=>{
       const mod=(C().combat.initiative)||0, r=rollD20(), total=r.kept+mod;
       addRollHistory({ name:'Initiative', main:`${fmtD20(r)} ${modStr(mod)} = <span class="b-rh-total">${total}</span>`, detail:`d20 ${modStr(mod)} initiative${r.label?' — '+r.label:''}` });
+      if (window.TokPreferences) window.TokPreferences.consumeRoll();
       commitInitVal(total);
     },
     // ── Monsters (M2): the page (staff only) hands in the in-combat enemy

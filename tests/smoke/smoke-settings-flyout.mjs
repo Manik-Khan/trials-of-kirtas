@@ -1,4 +1,4 @@
-// smoke-settings-flyout.mjs — the ◐ Settings flyout under jsdom, plus the
+// smoke-settings-flyout.mjs — the ◐ Appearance flyout under jsdom, plus the
 // SYNC GUARD: the catalog in settings-flyout.js (a classic script) is a
 // mirror of journal/src/shelf/shelfTheme.js (an ES module it cannot
 // import). This smoke imports the real module, extracts the mirror from the
@@ -68,6 +68,8 @@ const $$ = sel => [...document.querySelectorAll(sel)]
 // ── boot ──
 t('the flyout builds eagerly, closed', !!$('#tok-settings') && !$('#tok-settings').classList.contains('is-open'))
 t('TokSettings rides window', typeof window.TokSettings?.toggle === 'function')
+t('the historical shell is now labeled Appearance', $('#tok-settings').getAttribute('aria-label') === 'Appearance'
+  && $('#tok-settings .ts-title').textContent === 'Appearance')
 t('boot announced tok:look (cache first, profile after)', looks.length >= 2)
 const last = looks[looks.length - 1]
 t('the profile look wins: effective is Sepia on Straw for this page',
@@ -188,9 +190,9 @@ t('save-as appends to lookPresets and persists',
 t('the personal chip renders with ×; house chips carry none',
   $$('#ts-mine .ts-preset .del').length === 1 && $$('#ts-house .ts-preset .del').length === 0)
 
-// ── player color (relocated to the badge; the flyout owns persistence) ──
-t('the seat section is now the Player-color pointer, never an empty hole',
-  $('.ts-sec[data-sec="seat"] .ts-note').textContent.includes('character badge'))
+// ── player color stays on the identity badge; persistence remains here ──
+t('the Appearance flyout contains no Player color or character export controls',
+  !$('.ts-sec[data-sec="seat"]') && !$('#ts-row-download') && !$('#ts-dl-json'))
 t('ACCENTS exported for the badge', Array.isArray(window.TokSettings.ACCENTS) && window.TokSettings.ACCENTS.length === 8)
 rpcCalls.length = 0
 document.dispatchEvent(new window.CustomEvent('tok:accent', { detail: { accent: '#9d7bd8' } }))
@@ -333,8 +335,8 @@ await new Promise(r => setTimeout(r, 10))
 t('the hint fires once per session, not on every pick', toastEl2.textContent === 'x')
 
 // collapsible sections (July 4): closed on open, header expands, remembered
-t('all three sections (Site look / Seat accent / Sheet) ship closed',
-  qq('.ts-sec[data-sec]').length === 3 && qq('.ts-sec[data-sec] .ts-sec-body.open').length === 0)
+t('both visual sections (Site look / Sheet look) ship closed',
+  qq('.ts-sec[data-sec]').length === 2 && qq('.ts-sec[data-sec] .ts-sec-body.open').length === 0)
 const lookSec = q('.ts-sec[data-sec="look"]')
 lookSec.querySelector('.ts-sec-head').click()
 t('a header click opens its section, caret follows',

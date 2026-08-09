@@ -1082,7 +1082,7 @@
   <script src="resource-derive.js"></script>
   <script src="combat-orbs.js"></script>
   <script src="monster-actor.js"></script>
-  <script src="battle.js"></script>
+  <script src="battle.js?v=settings1"></script>
   <script src="combatants-backend.js"></script>
   <script src="feed-render.js"></script>
   <script>
@@ -3916,6 +3916,7 @@
       }
       const body = `${escapeHtml(formula)} → ${dicePieces(parsed)}${extra} = <span class="ft-tot">${total}</span>`;
       feedInsert({ channel: 'combat', kind: 'roll', formula: dbFormula, result: { total }, body, hidden: feedPostHidden && effectiveStaff() });
+      if (window.TokPreferences) window.TokPreferences.consumeRoll();
     }
     function feedSubmit(raw) {
       const t = String(raw || '').trim(); if (!t) return;
@@ -3923,7 +3924,7 @@
       const cmd = t.match(/^\/(roll|r)\s+(.+)$/i);
       if (cmd) {
         const parsed = parseDice(cmd[2]);
-        if (parsed) { feedInsert({ channel: 'combat', kind: 'roll', formula: parsed.formula, result: { total: parsed.total }, body: diceBody(parsed), hidden: staffHide }); return; }
+        if (parsed) { feedInsert({ channel: 'combat', kind: 'roll', formula: parsed.formula, result: { total: parsed.total }, body: diceBody(parsed), hidden: staffHide }); if (window.TokPreferences) window.TokPreferences.consumeRoll(); return; }
       }
       feedInsert({ channel: 'chronicle', kind: 'message', body: escapeHtml(t), hidden: staffHide });
     }

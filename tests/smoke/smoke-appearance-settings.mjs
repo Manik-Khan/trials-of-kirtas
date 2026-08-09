@@ -5,9 +5,9 @@
 // also hangs them on window.AppearanceSettings — so we import it directly after
 // seeding jsdom globals, rather than eval'ing a <script> body.
 //
-// What it proves: the rail's Settings pane gets the Appearance customizer built
-// into it, the panel CSS is fetched once on demand, mount is idempotent and
-// no-ops when the pane is absent, and the live preview is routed onto EVERY
+// What it proves: the ◐ flyout's Sheet look drawer gets the customizer built,
+// the panel CSS is fetched once on demand, mount is idempotent and no-ops when
+// the drawer is absent, and the live preview is routed onto EVERY
 // open floating sheet (.sf-page) instead of the page the rail rides on — the
 // "the forger got the look" bleed this module exists to avoid.
 //
@@ -35,6 +35,7 @@ globalThis.HTMLElement = dom.window.HTMLElement;
 globalThis.Node = dom.window.Node;
 globalThis.SVGElement = dom.window.SVGElement;
 globalThis.getComputedStyle = dom.window.getComputedStyle.bind(dom.window);
+globalThis.CustomEvent = dom.window.CustomEvent;
 
 // Thin __tok: no session -> loadCurrent() falls back to DEFAULT_APPEARANCE and
 // never touches the (null) Supabase client. Save isn't exercised here.
@@ -56,8 +57,7 @@ const painted = page => {
   return !!g && g.style.backgroundImage !== '';
 };
 
-// Import with NO settings pane in the DOM, so the module's boot-time auto-mount
-// no-ops and we drive mount() explicitly with controlled timing.
+// Import with NO Appearance drawer in the DOM; mount() is driven explicitly.
 const mod = await import('../../appearance-settings.js');
 await settle();
 
@@ -65,19 +65,19 @@ await settle();
 ok(typeof mod.mount === 'function' && typeof mod.paintFloats === 'function', 'exports mount + paintFloats');
 ok(window.AppearanceSettings && typeof window.AppearanceSettings.mount === 'function'
    && typeof window.AppearanceSettings.paintFloats === 'function', 'window.AppearanceSettings exposes both');
+ok(window.AppearanceUI && typeof window.AppearanceUI.mount === 'function', 'bridge supplies AppearanceUI on an unwired page');
 
-// (2) mount() no-ops gracefully when the Settings pane is absent
+// (2) mount() no-ops gracefully when the flyout drawer is absent
 let threw = false;
 try { await mod.mount(); } catch (_) { threw = true; }
 await settle();
-ok(!threw, 'mount() with no settings pane does not throw');
-ok(!document.getElementById('tok-appearance-css'), 'no appearance.css injected when there is no pane to fill');
+ok(!threw, 'mount() with no Appearance drawer does not throw');
+ok(!document.getElementById('tok-appearance-css'), 'no appearance.css injected when there is no drawer to fill');
 
-// (3) with a Settings pane + two open floats, mount() builds the customizer in
-const pane = document.createElement('div');
-pane.className = 'tr-pane';
-pane.setAttribute('data-rail-pane', 'settings');
-document.body.appendChild(pane);
+// (3) with the hosted drawer + two open floats, mount() builds the customizer
+const drawer = document.createElement('div');
+drawer.id = 'appearance-drawer';
+document.body.appendChild(drawer);
 
 const pageA = makeFloatPage();
 const pageB = makeFloatPage();
@@ -88,8 +88,8 @@ try { await mod.mount(); } catch (e) { mountErr = e; }
 await settle();
 ok(!mountErr, 'mount() builds without throwing' + (mountErr ? ' — ' + String(mountErr.message).split('\n')[0] : ''));
 
-const host = pane.querySelector('.tr-appearance');
-ok(!!host, 'mount() builds a .tr-appearance host into the settings pane');
+const host = drawer.querySelector('.tr-appearance');
+ok(!!host, 'mount() builds a .tr-appearance host into the ◐ drawer');
 ok(host && host.classList.contains('tok-appearance'), 'host carries .tok-appearance (panel styling hook)');
 ok(host && host.children.length > 0, 'buildAppearancePanel populated the host (controls present)');
 ok(!!document.getElementById('tok-appearance-css'), 'appearance.css injected once on demand');
@@ -101,11 +101,11 @@ ok(!document.getElementById('bg') && !document.getElementById('fx'),
    'page-level #bg/#fx NOT stamped (no forger-got-the-look bleed)');
 
 // (5) idempotent: a second mount() neither duplicates nor wipes the panel
-const sameHost = pane.querySelector('.tr-appearance') === host;
+const sameHost = drawer.querySelector('.tr-appearance') === host;
 await mod.mount();
 await settle();
-ok(pane.querySelectorAll('.tr-appearance').length === 1, 'mount() is idempotent (exactly one panel)');
-ok(sameHost && pane.querySelector('.tr-appearance') === host, 'idempotent mount() preserves the existing host');
+ok(drawer.querySelectorAll('.tr-appearance').length === 1, 'mount() is idempotent (exactly one panel)');
+ok(sameHost && drawer.querySelector('.tr-appearance') === host, 'idempotent mount() preserves the existing host');
 
 // (6) paintFloats() stamps a freshly-opened float (cfg-less call fills defaults)
 const pageC = makeFloatPage();

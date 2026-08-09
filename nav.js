@@ -42,7 +42,7 @@ const PAGES = [
 
 // ── Themes: RETIRED (July 3) ──
 // The data-theme system stood down: themes demoted to ink+paper PRESETS in
-// the ◐ Settings flyout (settings-flyout.js — see "From the archives").
+// the ◐ Appearance flyout (settings-flyout.js — see "From the archives").
 // The site rides Phantom as its fixed base until the site-wide color
 // re-plumb arc maps the player's look onto theme.css tokens. The old
 // [data-theme] blocks stay in theme.css as archives — do not delete.
@@ -135,9 +135,9 @@ function buildNav() {
         <button id="battle-btn" title="Toggle battle mode" onclick="window.__battle&&window.__battle.toggleBattle()">⚔</button>
         <button class="nav-theme-btn"
                 onclick="window.TokSettings&&window.TokSettings.toggle(event)"
-                title="Settings"
+                title="Appearance"
                 aria-expanded="false"
-                aria-label="Settings">◐</button>
+                aria-label="Appearance">◐</button>
       </div>
       <!-- "Your Character" menu — opened by the Party caret. Lives at nav level
            (not inside .nav-links) and is position:fixed, JS-placed on open, so
@@ -152,8 +152,8 @@ function buildNav() {
 }
 
 
-// Character JSON export — a portable snapshot, now triggered from the ◐
-// Settings flyout's Download menu (settings-flyout.js calls this global).
+// Character JSON export — a portable snapshot. Sheet-owned surfaces call this
+// global; it no longer belongs to the ◐ Appearance flyout.
 function __downloadCharacterJSON(btn) {
   if (typeof CharacterData === 'undefined' || !CharacterData.loadCharacter) return;
   const key = new URLSearchParams(location.search).get('character') || 'cosmere';
@@ -174,7 +174,7 @@ function __downloadCharacterJSON(btn) {
 window.__downloadCharacterJSON = __downloadCharacterJSON;
 
 // ==== COG FLYOUT: RETIRED (July 3) ====
-// The ⚙ cog and the theme dropdown both folded into the ◐ Settings flyout
+// The ⚙ cog and the theme dropdown both folded into the ◐ Appearance flyout
 // (settings-flyout.js). #appearance-drawer now lives inside that flyout;
 // AppearanceUI.mount() is invoked from its Sheet section. The old cog smoke
 // (smoke-nav-cog-flyout.mjs) retires with it — smoke-settings-flyout.mjs is
@@ -542,17 +542,17 @@ function mountRail() {
   if (document.getElementById('tok-rail-js')) return;   // inject once
   const s = document.createElement('script');
   s.id = 'tok-rail-js';
-  s.src = 'rail.js?v=mentions3';
+  s.src = 'rail.js?v=settings3';
   s.defer = true;
   document.body.appendChild(s);
 }
 
-// ── Mount the ◐ Settings flyout module ──
-// settings-flyout.js owns the unified Settings surface (look, presets, seat
-// accent, the absorbed cog). Injected like the rail: once, after auth.
+// ── Mount the ◐ Appearance flyout module ──
+// settings-flyout.js keeps its historical filename/ID, but the visible ◐ owns
+// only Site look + Sheet look. Device behavior lives in the rail Settings tab.
 // SETTINGS_V busts browser caches — bump it whenever the injected look/settings/badge
 // scripts change (learned July 3: the un-stamped first deploy served stale files).
-const SETTINGS_V = 11;
+const SETTINGS_V = 12;
 function mountSettings() {
   if (document.getElementById('tok-settings-js')) return;   // inject once
   // look-derive.js first: the flyout drives window.TokLook for the finish
@@ -578,6 +578,12 @@ function mountSettings() {
   b.src = 'character-badge.js?v=' + SETTINGS_V;
   b.async = false;
   document.body.appendChild(b);
+  // Floating-sheet appearance bridge for pages without appearance-boot.js.
+  const a = document.createElement('script');
+  a.id = 'tok-appearance-settings-js';
+  a.type = 'module';
+  a.src = 'appearance-settings.js?v=appearance2';
+  document.body.appendChild(a);
 }
 
 
@@ -724,7 +730,7 @@ applyTheme();
     mountNav();
     populateCharMenu();   // reveals the Party caret + fills it once __tok resolves
     mountRail();          // the universal right-side rail (Feed/Sheet/…), like the HUD
-    mountSettings();      // the ◐ Settings flyout (settings-flyout.js)
+    mountSettings();      // the ◐ Appearance flyout (settings-flyout.js)
     dropVeil();
   } catch (e) {
     // Couldn't verify the session (e.g. the Supabase client failed to load).

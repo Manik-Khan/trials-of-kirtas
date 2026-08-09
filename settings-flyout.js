@@ -1,18 +1,15 @@
 // ============================================================
-// settings-flyout.js — the ONE ◐ Settings flyout
+// settings-flyout.js — the ONE ◐ Appearance flyout
 // The Trials of Kirtas
 // ============================================================
 //
 // The July 3 direction, built: themes demote to presets, the ⚙ cog retires
 // into this flyout, and the READING LOOK (ink + paper, per-reader) becomes
-// the site's customization spine. Sections:
-//   LOOK    — ink/paper dot rows (both polarities), the computed contrast
-//             floor (2.0), Everywhere / Only-this-page scope, override chips
-//   PRESETS — yours (save current look as…), the house, the archived themes
-//   SEAT    — your accent swatch (chips/dots/bylines everywhere)
-//   SHEET   — the cog's territory, absorbed: Download character (sheet-v2)
-//             and the appearance panel (AppearanceUI mounts into
-//             #appearance-drawer, which now lives HERE)
+// the site's customization spine. It owns two visual sections:
+//   SITE LOOK  — ink/paper, finishes, scope, and saved presets
+//   SHEET LOOK — backdrops, geometry, and effects (AppearanceUI mounts into
+//                #appearance-drawer, which lives HERE)
+// Player color stays on the identity badge; character export stays on the sheet.
 //
 // Persistence: profiles.appearance via set_my_appearance (replace-not-merge:
 // read current, merge keys, write the WHOLE object — the saveMyLook idiom).
@@ -558,10 +555,9 @@
     root = document.createElement('aside');
     root.className = 'tokset';
     root.id = 'tok-settings';
-    root.setAttribute('aria-label', 'Settings');
-    var onSheet = PAGE === 'sheet-v2';
+    root.setAttribute('aria-label', 'Appearance');
     root.innerHTML = [
-      '<div class="ts-head"><span class="ts-title">Settings</span><span class="ts-sub">per-reader · saved to your seat</span></div>',
+      '<div class="ts-head"><span class="ts-title">Appearance</span><span class="ts-sub">saved to your seat</span></div>',
       '<section class="ts-sec" data-sec="look">',
       '  <button type="button" class="ts-sec-head"><span class="ts-lbl">Site look <span class="h" id="ts-pair"></span></span><span class="ts-car">▸</span></button>',
       '  <div class="ts-sec-body">',
@@ -603,24 +599,12 @@
       '  <div class="ts-kick">From the archives — the old themes</div><div class="ts-presets" id="ts-arch"></div>',
       '  </div>',
       '</section>',
-      '<section class="ts-sec" data-sec="seat">',
-      '  <button type="button" class="ts-sec-head"><span class="ts-lbl">Player color</span><span class="ts-car">▸</span></button>',
-      '  <div class="ts-sec-body">',
-      '  <span class="ts-note" style="margin:0;display:block">Your color moved to your character badge — top-left, beside Kirtas.</span>',
-      '  </div>',
-      '</section>',
       '<section class="ts-sec" id="ts-sheet-sec" data-sec="sheet">',
-      '  <button type="button" class="ts-sec-head"><span class="ts-lbl">Sheet</span><span class="ts-car">▸</span></button>',
+      '  <button type="button" class="ts-sec-head"><span class="ts-lbl">Sheet look</span><span class="ts-car">▸</span></button>',
       '  <div class="ts-sec-body">',
-      (onSheet
-        ? '  <button class="ts-mrow" type="button" id="ts-row-download"><span>⤓&nbsp; Download character</span><span class="car">▸</span></button>'
-          + '<div class="ts-subacts" id="ts-sub-download">'
-          + '<button class="ts-sub-a" type="button" id="ts-dl-print">Print / PDF</button>'
-          + '<button class="ts-sub-a" type="button" id="ts-dl-json">Download JSON</button></div>'
-        : ''),
-      '  <button class="ts-mrow" type="button" id="ts-row-appearance" hidden><span>⚙&nbsp; Sheet appearance</span><span class="car">▸</span></button>',
+      '  <button class="ts-mrow" type="button" id="ts-row-appearance" hidden><span>Backdrops, geometry &amp; effects</span><span class="car">▸</span></button>',
       '  <div class="ts-sheet-drawer ts-subacts" id="ts-sheet-drawer"><div class="appearance-drawer" id="appearance-drawer" aria-label="Appearance settings"></div></div>',
-      '  <a class="ts-pointer" id="ts-sheet-pointer" href="sheet-v2.html" hidden>Backdrops, geometry &amp; effects are sheet-page settings — they live on your character sheet →</a>',
+      '  <a class="ts-pointer" id="ts-sheet-pointer" href="sheet-v2.html" hidden>Sheet look is still loading. You can also open it on your character sheet →</a>',
       '  </div>',
       '</section>',
       '<section class="ts-sec" id="tokset-extra" hidden></section>',
@@ -701,32 +685,22 @@
     root.querySelector('#ts-savebtn').addEventListener('click', saveCurrent);
     root.querySelector('#ts-savename').addEventListener('keydown', function (e) { if (e.key === 'Enter') saveCurrent(); });
 
-    // the cog's territory: real controls where a page wired appearance
-    // (appearance-boot adds html.has-appearance) or on the sheet itself;
-    // everywhere else, an honest pointer — never an empty hole (July 3, M)
-    var sheetSec = root.querySelector('#ts-sheet-sec');
+    // AppearanceUI is supplied either by appearance-boot on a themed page or
+    // by appearance-settings.js for floating sheets on the rest of the site.
+    // Until either arrives, narrate the loading path instead of leaving a hole.
     function maybeShowSheet() {
-      var wired = onSheet || document.documentElement.classList.contains('has-appearance') || !!window.AppearanceUI;
+      var wired = document.documentElement.classList.contains('has-appearance') || !!window.AppearanceUI;
       root.querySelector('#ts-row-appearance').hidden = !wired;
       root.querySelector('#ts-sheet-pointer').hidden = wired;
     }
     maybeShowSheet();
     setTimeout(maybeShowSheet, 1500);   // appearance-boot loads async
+    document.addEventListener('tok:appearance-ui-ready', maybeShowSheet);
 
     root.querySelector('#ts-row-appearance').addEventListener('click', function () {
       if (window.AppearanceUI && window.AppearanceUI.mount) window.AppearanceUI.mount();
       root.querySelector('#ts-sheet-drawer').classList.toggle('open');
     });
-    if (onSheet) {
-      root.querySelector('#ts-row-download').addEventListener('click', function () {
-        root.querySelector('#ts-sub-download').classList.toggle('open');
-      });
-      root.querySelector('#ts-dl-print').addEventListener('click', function () { close(); window.print(); });
-      root.querySelector('#ts-dl-json').addEventListener('click', function () {
-        if (typeof window.__downloadCharacterJSON === 'function') window.__downloadCharacterJSON(this);
-      });
-    }
-
     // close on Esc / outside click
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && open) close();
