@@ -46,7 +46,7 @@ function makeSb(state) {
   function builder(table) {
     const b = {
       _t: table, _op: 'select', _row: null,
-      select() { return b; }, eq() { return b; }, neq() { return b; },
+      select() { return b; }, eq(key, value) { b._eq = [key, value]; return b; }, neq() { return b; },
       order() { return b; }, limit() { return b; }, maybeSingle() { return b; },
       insert(row) { b._op = 'insert'; b._row = row; return b; },
       delete() { b._op = 'delete'; return b; },
@@ -61,14 +61,21 @@ function makeSb(state) {
     }
     if (b._op === 'delete') { state.deletes.push(true); return { data: null, error: null }; }
     if (b._t === 'campaign') return { data: { current_session: 14 }, error: null };
-    if (b._t === 'encounters') return { data: { id: 'enc1', name: 'The Sunken Vault' }, error: null };
+    if (b._t === 'encounters') return { data: state.encounter, error: null };
+    if (b._t === 'combatants') return { data: state.combatants.find(row => !b._eq || row[b._eq[0]] === b._eq[1]) || null, error: null };
     if (b._t === 'session_titles') return { data: [{ session: 14, title: 'The Shattered Gate' }], error: null };
     if (b._t === 'feed') return { data: state.feedRows, error: null };
     return { data: null, error: null };
   }
   return {
     from(t) { return builder(t); },
-    channel() { const ch = { on() { return ch; }, subscribe() { return ch; } }; return ch; },
+    channel() {
+      const ch = {
+        on(type, filter, callback) { state.handlers.push({ type, filter, callback }); return ch; },
+        subscribe() { return ch; },
+      };
+      return ch;
+    },
   };
 }
 
@@ -78,9 +85,21 @@ async function makeRail({ role, characterKey, withBattle = true, preferences = n
   // deterministic randomness in BOTH realms
   window.Math.random = () => 0.5; Math.random = () => 0.5;
   window.CHARACTERS = CHARACTERS;
-  const state = { inserts: [], deletes: [], feedRows: feedRows(), nextInsertError: null };
+  const state = {
+    inserts: [], deletes: [], feedRows: feedRows(), nextInsertError: null, handlers: [], notifications: [], permissionRequests: 0,
+    encounter: { id: 'enc1', name: 'The Sunken Vault', status: 'active', round: 1, active_combatant_id: 'comb-ves' },
+    combatants: [
+      { id: 'comb-cos', source_key: 'cosmere', name: 'Cosmere', side: 'party' },
+      { id: 'comb-ves', source_key: 'vesperian', name: 'Vesperian', side: 'party' },
+    ],
+  };
   const profile = { userId: 'u-cos', characterKey, role, username: 'tester', grants: [] };
   window.__tok = { sb: makeSb(state), session: { user: { id: 'u-cos' } }, ready: Promise.resolve(profile), profile };
+  function FakeNotification(title, options) { this.title = title; this.options = options; state.notifications.push(this); }
+  FakeNotification.permission = 'default';
+  FakeNotification.requestPermission = () => { state.permissionRequests++; FakeNotification.permission = 'granted'; return Promise.resolve('granted'); };
+  FakeNotification.prototype.close = function () {};
+  window.Notification = FakeNotification;
   const toggled = [];
   if (withBattle) window.__battle = { getRS: () => ({ advantage: false, disadvantage: false, bless: false, guidance: false }), toggleRS: (m) => toggled.push(m), onRSChange: null };
 
@@ -111,7 +130,7 @@ async function makeRail({ role, characterKey, withBattle = true, preferences = n
   ok(!rail.querySelector('.tr-section-control'), 'A: player gets no New Section control');
   ok(!!rail.querySelector('.tr-settings'), 'A: Settings pane is filled with device preferences');
   ok(rail.querySelectorAll('.tr-pref-sec').length === 5, 'A: five collapsible settings groups');
-  ok(/Not connected yet/.test(rail.querySelector('[data-section="alerts"]').textContent), 'A: unavailable alerts narrate their boundary');
+  ok(/In-app alerts ready/.test(rail.querySelector('[data-section="alerts"]').textContent), 'A: live alerts narrate their ready state');
 
   const list = rail.querySelector('[data-rail="feedlist"]');
   const rows = list.querySelectorAll('.feed-row');
@@ -295,6 +314,55 @@ async function makeRail({ role, characterKey, withBattle = true, preferences = n
   win.TokRail.unregisterTab('marks');
   ok(!rail.querySelector('.tr-tab[data-rail-tab="marks"]') && !rail.querySelector('.tr-pane[data-rail-pane="marks"]'), 'E: unregisterTab removes the tab + pane');
   ok(rail.querySelectorAll('.tr-tab').length === 3, 'E: back to three built-in tabs');
+}
+
+// ── Scenario F: live alerts route canonical turn + structured feed events ──
+{
+  const { document, window, state } = await makeRail({ role: 'player', characterKey: 'cosmere' });
+  const rail = document.getElementById('tok-rail');
+  const alerts = document.getElementById('tok-alerts');
+  const handle = document.querySelector('.tr-handle');
+  ok(window.TokAlerts && typeof window.TokAlerts.preview === 'function', 'F: TokAlerts public seam is ready with the rail');
+  ok(!!alerts && alerts.getAttribute('aria-live') === 'polite', 'F: persistent in-app alert region is mounted accessibly');
+
+  window.TokAlerts.preview('mention');
+  ok(/mentioned Cosmere/.test(alerts.querySelector('.tr-alert-title').textContent), 'F: mention preview renders the approved notice');
+  ok(handle.classList.contains('tr-alert-unread'), 'F: an alert marks the rail handle unread');
+  alerts.innerHTML = '';
+
+  const feedInsertHandler = state.handlers.find(h => h.filter && h.filter.table === 'feed' && h.filter.event === 'INSERT');
+  feedInsertHandler.callback({ new: {
+    id: 50, channel: 'chronicle', kind: 'message', actor_key: 'liadan', actor_name: 'Líadan', author_id: 'u-lia', hidden: false,
+    body: 'The rift answers <span data-mention-type="character" data-mention-key="cosmere" class="character-link">@Cosmere</span>.',
+    created_at: '2026-08-09T09:00:00Z',
+  } });
+  ok(/Líadan mentioned Cosmere/.test(alerts.querySelector('.tr-alert-title').textContent), 'F: exact structured character key routes a live mention');
+  alerts.querySelector('.tr-alert-action').click();
+  ok(!rail.classList.contains('tr-collapsed') && rail.querySelector('[data-rail-chan="chronicle"]').classList.contains('on'), 'F: mention action opens the Chronicle feed');
+
+  alerts.innerHTML = '';
+  feedInsertHandler.callback({ new: { id: 51, channel: 'chronicle', kind: 'message', actor_name: 'Líadan', author_id: 'u-lia', hidden: false, body: 'A quiet entry.', created_at: '2026-08-09T09:01:00Z' } });
+  ok(alerts.children.length === 0, 'F: mentions-only Chronicle preference suppresses ordinary activity');
+  window.TokPreferences.set('alertChronicle', 'all');
+  feedInsertHandler.callback({ new: { id: 52, channel: 'chronicle', kind: 'message', actor_name: 'Líadan', author_id: 'u-lia', hidden: false, body: 'A shared discovery.', created_at: '2026-08-09T09:02:00Z' } });
+  ok(/New Chronicle entry/.test(alerts.querySelector('.tr-alert-title').textContent), 'F: All Chronicle activity enables non-mention notices');
+
+  alerts.innerHTML = '';
+  const encounterHandler = state.handlers.find(h => h.filter && h.filter.table === 'encounters' && h.filter.event === 'UPDATE');
+  encounterHandler.callback({ new: { id: 'enc1', name: 'The Sunken Vault', status: 'active', round: 2, active_combatant_id: 'comb-cos' } });
+  await settle();
+  ok(/Your turn · Cosmere/.test(alerts.querySelector('.tr-alert-title').textContent), 'F: canonical encounter pointer resolves the signed-in character’s turn');
+  const turnCount = alerts.querySelectorAll('.tr-alert-turn').length;
+  encounterHandler.callback({ new: { id: 'enc1', name: 'The Sunken Vault', status: 'active', round: 2, active_combatant_id: 'comb-cos' } });
+  await settle();
+  ok(alerts.querySelectorAll('.tr-alert-turn').length === turnCount, 'F: repeated encounter updates do not duplicate the turn alert');
+
+  const permission = await window.TokAlerts.requestBrowser();
+  ok(permission === 'granted' && state.permissionRequests === 1, 'F: browser permission remains behind an explicit request');
+  window.TokPreferences.set('alertBrowser', true);
+  Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+  window.TokAlerts.notify({ id: 'hidden-test', kind: 'mention', kicker: 'Mention in the feed', title: 'Hidden-tab mention', body: 'A browser delivery check', action: 'Open Feed', route: 'feed' });
+  ok(state.notifications.length === 1 && state.notifications[0].title === 'Hidden-tab mention', 'F: granted browser alert fires only through the hidden-tab delivery path');
 }
 
 console.log(`\nsmoke-rail: ${pass}/${pass + fail} passed${fail ? `  (${fail} FAILED)` : ''}`);

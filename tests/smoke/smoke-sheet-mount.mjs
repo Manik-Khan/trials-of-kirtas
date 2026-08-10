@@ -21,8 +21,8 @@ const ROW = {
   key: 'cosmere',
   structural: {
     name: 'Cosmere Runestar',
-    classes: [{ name: 'Warlock', level: 2, subclass: 'The Hexblade' }, { name: 'Sorcerer', level: 1, subclass: 'Shadow Magic' }],
-    race: 'Astral Elf', level: 3, alignment: 'Neutral Good', portrait: 'https://example.test/c.png',
+    classes: [{ name: 'Warlock', level: 3, subclass: 'The Hexblade' }, { name: 'Sorcerer', level: 1, subclass: 'Shadow Magic' }],
+    race: 'Astral Elf', level: 4, alignment: 'Neutral Good', portrait: 'https://example.test/c.png',
     proficiencyBonus: 2, passivePerception: 13, passiveInsight: 13,
     abilities: { str:{score:8,mod:-1}, dex:{score:14,mod:2}, con:{score:14,mod:2}, int:{score:10,mod:0}, wis:{score:12,mod:1}, cha:{score:17,mod:3} },
     saves: { str:{bonus:-1,proficient:false}, dex:{bonus:2,proficient:false}, con:{bonus:2,proficient:false}, int:{bonus:0,proficient:false}, wis:{bonus:3,proficient:true}, cha:{bonus:5,proficient:true} },
@@ -62,6 +62,7 @@ function mockCD({ canEdit = true } = {}) {
   ok(dom.window.document.querySelector('.tok-sheet') === slot.querySelector('.tok-sheet'), 'the only .tok-sheet lives inside the container');
   ok(/Cosmere/.test(slot.querySelector('[data-f="name"]').textContent), 'name rendered');
   ok(/Warlock/.test(slot.querySelector('[data-list="subline"]').textContent) && /Astral Elf/.test(slot.querySelector('[data-list="subline"]').textContent), 'subline classes + race rendered');
+  ok(slot.querySelector('.ghostnum').textContent === 'IV', 'corner numeral reflects structural level 4');
   ok(slot.querySelectorAll('[data-list="abilities"] .abil').length === 6, 'six ability tiles');
   ok(slot.querySelectorAll('[data-list="saves"] .save').length === 6, 'six saves');
   ok([...slot.querySelectorAll('[data-list="saves"] .save')].filter(e => e.classList.contains('prof')).length === 2, 'two proficient saves (Wis/Cha)');

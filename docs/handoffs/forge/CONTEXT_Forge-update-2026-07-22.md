@@ -1877,6 +1877,110 @@ Current candidate stamps: `forge-blueprint.js?v=bp6`,
 `forge-buildings.js?v=fbld2`, `forge-combat-snapshot.js?v=fcs2`,
 `combat.js?v=fc10`, and `combat.css?v=fc5`.
 
+### Guarded River Archive surface-combat candidate · 2026-08-09
+
+Baseline `b891f27` includes the two committed rail/settings corrections after
+the previous Forge checkpoint. The remaining dirty rail/settings files are
+unrelated user work and were not edited. This slice owns only guarded Forge
+surface compilation, local combat/snapshot integration, cache-stamped includes,
+focused tests, and this handoff.
+
+Open `forge/combat.html?buildings=1&surfaces=1`, then choose **New or change
+map → Templates → The River Archive**. `?buildings=1` without `?surfaces=1`
+retains the prior connected-ground combat candidate; unflagged Forge remains
+unchanged.
+
+The guarded surface candidate promotes:
+
+- the authored building set into stable lower-garden, courtyard, hall, gallery,
+  and roof surfaces plus door and stair connector surfaces;
+- the gallery's open-to-hall area as a real tactical void instead of a
+  walkable upper-floor cell;
+- complete live-unit positions `{c,r,surfaceId,elevationFt}`, including
+  occupancy that distinguishes a hall unit from a gallery unit in the same
+  grid column;
+- the interior gallery stair as a four-segment, 20-ft movement route through
+  `0 / 2.5 / 5 / 7.5 / 10 ft`, with the reverse descent using the same authored
+  connector;
+- surface-aware reachable cells and click destinations rendered at their real
+  signed elevation, including the lower garden below the courtyard datum;
+- automatic hall/gallery cutaway changes when the active combatant changes
+  floor; and
+- exact local snapshot, reopen, shared-session baseline, and roster-position
+  preservation of surface identity and signed elevation without changing the
+  authored Blueprint.
+
+The local attack adapter still uses the production tactical rules only for
+same-floor or near-level attacks. Attacks across more than 5 ft of vertical
+separation fail with an explicit message until stacked-surface sight and cover
+are promoted. Shared movement/attack/turn writes, reactions, and the complete
+existing Forge HUD remain behind their prior gates. Building-part selection and
+roof visibility remain non-destructive presentation controls; authored-part
+delete/undo was not added in this slice.
+
+The affected Forge battery passes **493/493** known-answer checks, and every
+touched JavaScript file passes `node --check`. The real browser selected the
+River Archive, rendered the establishing and upper-gallery cutaway views, and
+reported zero warnings/errors. That browser was signed out, so a real roster
+click-to-climb/descend pass and the signed-in two-device exact reconnect remain
+field gates before any shared write is enabled.
+
+Current surface-candidate stamps: `forge-surfaces.js?v=fs2`,
+`forge-combat-local.js?v=fcl2`, `forge-combat-snapshot.js?v=fcs3`, and
+`combat.js?v=fc11`.
+
+### Guarded live shared-combat loop · 2026-08-09
+
+M's signed-in field pass proved that a second browser could open and restore the
+exact battle, then reported that the shared table appeared frozen. Source
+inspection found two direct causes: the Combat surface unconditionally disabled
+every action whenever `state.session` existed, including for the overseer, and
+the generated join URL replaced the query string, discarding the guarded
+building/surface flags.
+
+The correction keeps the existing `forge_sessions` / append-only
+`forge_events` system and its RLS identity gate. It adds no table, protocol
+kind, or SQL migration.
+
+- The overseer may now move, attack, and End Turn for any active combatant.
+  A player who already controls the active unit through the session's
+  `controllers` record receives the same controls. Other connected members see
+  an explicit waiting-for-controller message instead of inert buttons.
+- Movement and attacks still resolve through the real local rules authority on
+  the acting browser, then publish the established declared/resolved event
+  pairs. End Turn publishes the existing `turn_ended` fact.
+- Every action catches up from the ordered log before repainting. The shared
+  fight transcript now narrates movement, attacks, and turn boundaries so a
+  quiet remote table does not read as frozen.
+- Replay preserves optional `{surfaceId,elevationFt}` on roster, movement,
+  forced-movement, teleport, GOD-MODE edit, and reinforcement positions.
+  River Archive stair movement therefore reconstructs the same gallery or hall
+  occupancy on every renderer instead of flattening to `{c,r}`.
+- New join links preserve `buildings=1&surfaces=1`. Historical Blueprint-session
+  links without those flags derive the guarded renderer/surface activation from
+  their exact saved snapshot.
+- One publish-in-flight gate prevents repeat clicks on a single client while
+  declared/resolved facts settle. Supabase ordering and replay remain the
+  authority after any cross-device race.
+
+This is the DM/claimed-controller action slice, not the complete game HUD.
+Character claim UI has not yet been ported into `combat.html`, so a different
+player account must already appear in the session's controller record to act.
+Cross-device reactions, stacked-floor sight/cover, existing Forge HUD parity,
+and authored-building deletion/undo remain separate gates.
+
+The corrected affected battery is **566/566** known-answer checks. It includes
+two connected clients converging after a real validated move, replayed attack
+damage, shared End Turn, late reconnect, and exact surface-aware stair replay.
+Every touched JavaScript file passes `node --check`. The real browser loaded the
+guarded River Archive and new live-shared messaging with zero warnings/errors;
+it was unsigned, so the post-deploy live Supabase action echo remains M's next
+field check.
+
+Current live-loop stamps: `forge-combat-local.js?v=fcl3`,
+`forge-combat-shared.js?v=fcsw1`, `forge-replay.js?v=fb20`, and
+`combat.js?v=fc12`.
+
 ## Deployment discipline
 
 M reviews, commits, and pushes. Codex does not push. Current slice stamps:

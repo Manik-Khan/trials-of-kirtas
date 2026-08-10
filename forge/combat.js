@@ -4,12 +4,16 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 const BP = window.ForgeBlueprint;
 if (!BP) throw new Error("Forge Blueprint authority did not load");
 const BUILDINGS_ENABLED = new URLSearchParams(window.location.search).get("buildings") === "1";
+const SURFACES_ENABLED = BUILDINGS_ENABLED && new URLSearchParams(window.location.search).get("surfaces") === "1";
 const Buildings = window.ForgeBuildings;
 if (BUILDINGS_ENABLED && !Buildings) throw new Error("Forge building authority did not load");
+const Surfaces = window.ForgeSurfaces;
+if (SURFACES_ENABLED && !Surfaces) throw new Error("Forge surface authority did not load");
 const LocalCombat = window.ForgeCombatLocal;
+const SharedCombat = window.ForgeCombatShared;
 const PartySelection = window.ForgePartySelection;
 const CombatSnapshot = window.ForgeCombatSnapshot;
-if (!LocalCombat || !PartySelection || !CombatSnapshot) throw new Error("Forge Combat authorities did not load");
+if (!LocalCombat || !SharedCombat || !PartySelection || !CombatSnapshot) throw new Error("Forge Combat authorities did not load");
 const COMBAT_SNAPSHOT_KEY = "tok:forge-combat-snapshot:v1";
 
 const QUALITY = Object.freeze({
@@ -110,6 +114,12 @@ const state = {
   buildingRoofHidden: false,
   buildingSelection: null
 };
+function buildingsEnabled() {
+  return BUILDINGS_ENABLED || !!state.snapshotRecord?.authored?.blueprint?.buildingSet;
+}
+function surfacesEnabled() {
+  return SURFACES_ENABLED || !!state.snapshotRecord?.combat?.surfaceAware;
+}
 let importedUnderlayImage = null;
 const creation = {
   method: "generate",
@@ -127,6 +137,9 @@ function escapeHtml(value) {
 }
 function runtimeSpawns() {
   return state.fight ? LocalCombat.spawns(state.fight) : (state.blueprint.spawns || []);
+}
+function runtimeElevationFt(item) {
+  return Number.isFinite(Number(item?.elevationFt)) ? Number(item.elevationFt) : cellElevationFt(item.c, item.r);
 }
 
 const scene = new THREE.Scene();
@@ -278,7 +291,7 @@ function worldX(c) { return c - state.blueprint.grid.cols / 2 + 0.5; }
 function worldZ(r) { return r - state.blueprint.grid.rows / 2 + 0.5; }
 function rise(elevationFt) { return Number(elevationFt || 0) * 0.1; }
 function buildingDatumFt() {
-  return BUILDINGS_ENABLED && Buildings ? Buildings.renderDatum(state.blueprint).offsetFt : 0;
+  return buildingsEnabled() && Buildings ? Buildings.renderDatum(state.blueprint).offsetFt : 0;
 }
 function syncBuildingDatum() {
   const y = rise(buildingDatumFt());
@@ -691,12 +704,12 @@ function buildChunk(chunkC, chunkR, animate = false) {
 
   const chunkSpawns = runtimeSpawns().filter((item) => {
     const info = cellInfo(item.c, item.r);
-    return item.c >= bounds.minC && item.c < bounds.maxC && item.r >= bounds.minR && item.r < bounds.maxR && info && isDiscovered(info.region);
+    return item.c >= bounds.minC && item.c < bounds.maxC && item.r >= bounds.minR && item.r < bounds.maxR
+      && (info ? isDiscovered(info.region) : surfacesEnabled() && !!item.surfaceId);
   });
   ["pc", "foe"].forEach((side) => {
     addInstances(group, tokenGeometry, side === "pc" ? mats.pc : mats.foe, chunkSpawns.filter((item) => item.side === side), (m, item) => {
-      const info = cellInfo(item.c, item.r);
-      m.makeTranslation(worldX(item.c), rise(cellElevationFt(item.c, item.r)) + 0.48, worldZ(item.r));
+      m.makeTranslation(worldX(item.c), rise(runtimeElevationFt(item)) + 0.48, worldZ(item.r));
     });
   });
   if (animate) {
@@ -827,13 +840,13 @@ function addBuildingStairs(connector, opacity) {
 }
 function rebuildBuildings() {
   clearOwnedRoot(buildingRoot);
-  if (!BUILDINGS_ENABLED || !state.blueprint.buildingSet) return;
+  if (!buildingsEnabled() || !state.blueprint.buildingSet) return;
   const audit = Buildings.validate(state.blueprint);
   if (!audit.ok) {
     ui.buildingSceneStatus.textContent = "Building record is invalid: " + audit.errors.join(" ");
     return;
   }
-  const presentation = Buildings.presentation(state.blueprint, state.fight ? "view-archive-hall" : state.buildingViewId);
+  const presentation = Buildings.presentation(state.blueprint, state.fight ? fightBuildingViewId() : state.buildingViewId);
   const building = state.blueprint.buildingSet.buildings[0];
   const lower = Buildings.surfaceById(state.blueprint, "surface-lower-garden");
   const hall = Buildings.surfaceById(state.blueprint, "surface-hall");
@@ -849,8 +862,13 @@ function rebuildBuildings() {
     addBuildingStairs(item, relevant ? 1 : 0.14);
   });
 }
+function fightBuildingViewId() {
+  const active = LocalCombat.activeUnit(state.fight);
+  if (!surfacesEnabled() || !active?.surfaceId) return "view-archive-hall";
+  return active.surfaceId === "surface-gallery" || Number(active.elevationFt) >= 7.5 ? "view-archive-gallery" : "view-archive-hall";
+}
 function renderBuildingViewControls() {
-  const available = BUILDINGS_ENABLED && !!state.blueprint.buildingSet;
+  const available = buildingsEnabled() && !!state.blueprint.buildingSet;
   ui.buildingViewsPanel.hidden = !available;
   ui.buildingViewList.replaceChildren();
   if (!available) {
@@ -872,9 +890,9 @@ function renderBuildingViewControls() {
     button.addEventListener("click", () => applyBuildingView(view.id));
     ui.buildingViewList.appendChild(button);
   });
-  ui.buildingSceneStatus.textContent = state.fight
-    ? "Ground-floor combat active · move through the entrance into the hall · upper-gallery movement locked."
-    : "Ground-floor combat ready · courtyard, entrance, and hall are playable · upper-gallery movement locked.";
+  ui.buildingSceneStatus.textContent = surfacesEnabled()
+    ? state.fight ? "Surface combat active · doors and stairs own floor transitions." : "Surface combat ready · hall, gallery, and lower garden retain their authored elevations."
+    : state.fight ? "Ground-floor combat active · add &surfaces=1 to field-test authored stairs." : "Ground-floor combat ready · add &surfaces=1 to field-test authored stairs.";
 }
 function selectBuildingPart(part) {
   if (!part) return;
@@ -901,7 +919,7 @@ function toggleBuildingRoofVisibility() {
   requestRender();
 }
 function applyBuildingView(viewId) {
-  if (!BUILDINGS_ENABLED) return;
+  if (!buildingsEnabled()) return;
   const view = Buildings.viewById(state.blueprint, viewId);
   if (!view) return;
   state.buildingViewId = view.id;
@@ -1128,20 +1146,21 @@ function edgeSelectionMesh(c, r, edge, y, material) {
 }
 function drawSelection() {
   while (selectionRoot.children.length) selectionRoot.remove(selectionRoot.children[0]);
-  if (state.workflow === "present" && state.fight && !fightFinished()) {
-    const reachable = Object.keys(LocalCombat.reachableForActive(state.fight)).map((value) => {
-      const parts = value.split(",").map(Number);
-      return { c: parts[0], r: parts[1] };
-    });
+  if (state.workflow === "present" && state.fight && !fightFinished()
+      && (!state.session || sharedCanControlActive()) && !state.session?.busy) {
+    const reach = LocalCombat.reachableForActive(state.fight);
+    const reachable = Object.keys(reach).map((value) => reach[value].position || (() => {
+      const parts = value.split(",").map(Number); return { c: parts[0], r: parts[1] };
+    })());
     if (reachable.length) {
       const mesh = new THREE.InstancedMesh(floorGeometry, mats.select, reachable.length), matrix = new THREE.Matrix4();
       reachable.forEach((cell, index) => {
-        const info = cellInfo(cell.c, cell.r);
         matrix.makeScale(0.72, 0.09, 0.72);
-        matrix.setPosition(worldX(cell.c), rise(cellElevationFt(cell.c, cell.r)) + 0.105, worldZ(cell.r));
+        matrix.setPosition(worldX(cell.c), rise(Number.isFinite(Number(cell.elevationFt)) ? cell.elevationFt : cellElevationFt(cell.c, cell.r)) + 0.105, worldZ(cell.r));
         mesh.setMatrixAt(index, matrix);
       });
       mesh.instanceMatrix.needsUpdate = true; mesh.renderOrder = 38; mesh.userData.sharedGeometry = true;
+      mesh.userData.pickableFloor = true; mesh.userData.cells = reachable.map((cell) => ({ ...cell }));
       selectionRoot.add(mesh);
     }
   }
@@ -1880,7 +1899,7 @@ function useBlueprint(blueprint, handoff = null) {
   state.layoutPassage = null;
   state.buildAnchor = null;
   state.sourceUnderlay = !!state.blueprint.source?.underlay;
-  state.buildingViewId = BUILDINGS_ENABLED ? state.blueprint.cameraViews?.[0]?.id || null : null;
+  state.buildingViewId = buildingsEnabled() ? state.blueprint.cameraViews?.[0]?.id || null : null;
   state.cameraTransition = null;
   state.buildingRoofHidden = false;
   state.buildingSelection = null;
@@ -1987,7 +2006,7 @@ function renderCreationTemplates() {
     button.classList.toggle("active", creation.draftKind === "fixture" && creation.draft?.source?.fixtureKey === key);
   });
   const buildingButton = document.querySelector("[data-building-template]");
-  if (BUILDINGS_ENABLED && buildingButton) {
+  if (buildingsEnabled() && buildingButton) {
     const blueprint = Buildings.createRiverArchive(BP);
     drawCreationPreview(buildingButton.querySelector("canvas"), blueprint);
     buildingButton.classList.toggle("active", creation.draft?.source?.buildingTemplate === "river-archive");
@@ -1995,7 +2014,7 @@ function renderCreationTemplates() {
 }
 function setupBuildingStudy() {
   const button = document.querySelector("[data-building-template]");
-  if (button) button.hidden = !BUILDINGS_ENABLED;
+  if (button) button.hidden = !buildingsEnabled();
 }
 function setCreationMethod(method) {
   creation.method = ["generate", "template", "import", "blank"].includes(method) ? method : "generate";
@@ -2179,6 +2198,7 @@ function syncHeroButton() {
 }
 function refreshDocument() {
   state.map = BP.compile(state.blueprint, state.edits);
+  if (surfacesEnabled()) Surfaces.attach(state.map);
   const firstRegion = state.blueprint.discoveryRegions[0];
   if (!state.discovered.size && firstRegion) state.discovered.add(firstRegion.id);
   ui.mapName.textContent = state.blueprint.name;
@@ -2318,7 +2338,7 @@ function restoreSnapshot(snapshot, direction) {
   state.buildAnchor = null;
   state.linePreview = [];
   state.roomPreview = null;
-  state.buildingViewId = BUILDINGS_ENABLED ? state.blueprint.cameraViews?.[0]?.id || null : null;
+  state.buildingViewId = buildingsEnabled() ? state.blueprint.cameraViews?.[0]?.id || null : null;
   state.cameraTransition = null;
   state.buildingRoofHidden = false;
   state.buildingSelection = null;
@@ -2530,7 +2550,7 @@ function updateFightGate(message, bad = false) {
   ui.prepareLocalCombat.disabled = !ready;
   ui.combatFightGate.textContent = message || (ready
     ? ready + " real character" + (ready === 1 ? " is" : "s are") + " ready. " + (state.blueprint.buildingSet
-      ? "Ground-floor combat includes the courtyard, entrance, and archive hall; the upper gallery stays out of movement."
+      ? surfacesEnabled() ? "Authored doors and stairs connect every walkable Archive floor." : "Ground-floor combat includes the courtyard, entrance, and archive hall; add &surfaces=1 to field-test the stairs."
       : "Three local training guards will provide the opposing side.")
     : "Choose at least one combat-ready character. This proof does not create a shared session or write combat results back to a sheet.");
   ui.combatFightGate.className = "fight-gate " + (bad ? "bad" : ready ? "good" : "");
@@ -2601,12 +2621,22 @@ function fightFinished() {
   if (!state.fight) return false;
   return !state.fight.units.some((unit) => unit.alive && unit.side === "pc") || !state.fight.units.some((unit) => unit.alive && unit.side === "foe");
 }
+function sharedCanControlActive() {
+  const active = LocalCombat.activeUnit(state.fight);
+  return !!(state.session && active && SharedCombat.canControl(state.session.me, active.unit));
+}
+function sharedWaitMessage(active) {
+  if (!state.session?.pipe) return "Connecting this shared table to the event log…";
+  if (state.session.busy) return "Publishing the active turn to every connected table…";
+  if (sharedCanControlActive()) return "Live shared combat. Move, attack, and End Turn publish through the existing event log.";
+  return "Watching " + active.name + "’s turn. Their controller—or the DM—can act from another device.";
+}
 function renderLocalCombat() {
   ui.combatCombatants.replaceChildren(); ui.combatFightLog.replaceChildren();
   if (!state.fight) {
     ui.combatFightStatus.textContent = "not prepared"; ui.combatFightStatus.className = "status";
     ui.combatFightInstruction.textContent = state.blueprint.buildingSet
-      ? "Choose characters to fight across the courtyard, entrance, and archive hall. Upper-gallery movement remains unavailable."
+      ? surfacesEnabled() ? "Choose characters to field-test the Archive’s authored doors, stairs, and stacked floors." : "Choose characters to fight across the courtyard, entrance, and archive hall. Add &surfaces=1 to field-test the stairs."
       : "Choose characters first. Combat will use this exact Blueprint field without changing the authored map.";
     ui.combatTurn.hidden = true; ui.combatAttack.disabled = true; ui.combatEndTurn.disabled = true;
     ui.openSharedCombat.disabled = true;
@@ -2617,11 +2647,11 @@ function renderLocalCombat() {
   ui.combatFightStatus.textContent = finished ? "complete" : "round " + state.fight.round;
   ui.combatFightStatus.className = "status good";
   ui.combatFightInstruction.textContent = state.session
-    ? "This shared snapshot is restored through the existing event log. Combat writes stay locked until the two-device reconnect gate passes."
+    ? sharedWaitMessage(active)
     : finished
     ? "This local proof is complete. No character sheet or shared session was changed."
     : state.blueprint.buildingSet
-    ? "Ground-floor combat is active. Move through the entrance into the archive hall; the upper gallery remains presentation-only."
+    ? surfacesEnabled() ? "Surface combat is active. Gold cells follow the current floor and the authored stair route." : "Ground-floor combat is active. Add &surfaces=1 to field-test the authored stair route."
     : "Click an open highlighted-reachable cell to move. Click an opposing token or combatant row to target it.";
   ui.combatTurn.hidden = false;
   ui.combatTurn.replaceChildren();
@@ -2634,9 +2664,10 @@ function renderLocalCombat() {
     button.type = "button";
     button.className = "combat-combatant " + unit.side + (unit === active ? " active" : "") + (unit.unit === state.fightTarget ? " target" : "") + (unit.alive ? "" : " dead");
     const name = document.createElement("span"), facts = document.createElement("small"), hp = document.createElement("b");
-    name.textContent = unit.name; facts.textContent = "AC " + unit.ac + " · init " + unit.initiative + " · " + unit.c + "," + unit.r;
+    name.textContent = unit.name; facts.textContent = "AC " + unit.ac + " · init " + unit.initiative + " · " + unit.c + "," + unit.r
+      + (unit.surfaceId ? " · " + unit.surfaceId.replace("surface-", "").replaceAll("-", " ") + " · " + unit.elevationFt + " ft" : "");
     hp.textContent = unit.hp + "/" + unit.hpMax; button.append(name, facts, hp);
-    button.disabled = !unit.alive || finished;
+    button.disabled = !unit.alive || finished || !!state.session && (!sharedCanControlActive() || state.session.busy);
     button.addEventListener("click", () => {
       if (!active || unit.side === active.side) return;
       state.fightTarget = unit.unit; renderLocalCombat();
@@ -2647,8 +2678,9 @@ function renderLocalCombat() {
     const line = document.createElement("p"); line.textContent = entry; ui.combatFightLog.appendChild(line);
   });
   ui.combatFightLog.scrollTop = ui.combatFightLog.scrollHeight;
-  ui.combatAttack.disabled = !!state.session || finished || !state.fightTarget || active.acted;
-  ui.combatEndTurn.disabled = !!state.session || finished;
+  const sharedBlocked = !!state.session && (!sharedCanControlActive() || state.session.busy);
+  ui.combatAttack.disabled = sharedBlocked || finished || !state.fightTarget || active.acted;
+  ui.combatEndTurn.disabled = sharedBlocked || finished;
   ui.openSharedCombat.disabled = !!state.session;
 }
 function prepareLocalCombat() {
@@ -2663,7 +2695,7 @@ function prepareLocalCombat() {
   state.fight = LocalCombat.createFight(state.map, deployment, party, BP.copy(LocalCombat.TRAINING_FOES), identity);
   state.deployment = BP.copy(deployment.record);
   state.fightTarget = null;
-  if (state.blueprint.buildingSet) state.buildingRoofHidden = true;
+  if (state.blueprint.buildingSet) { state.buildingRoofHidden = true; state.buildingViewId = fightBuildingViewId(); }
   document.querySelector(".stage-shell")?.classList.add("fight-active");
   setWorkflow("present"); setView("board"); frameTopDown(); rebuildAll(); renderLocalCombat();
   renderBuildingViewControls();
@@ -2674,20 +2706,85 @@ function refreshFightBoard(message, ok) {
   rebuildAll(); drawScrawl(); drawArtwork(); renderLocalCombat();
   ui.chunkStatus.textContent = message; ui.chunkStatus.className = "status " + (ok ? "good" : "bad");
 }
-function fightCellAction(c, r) {
-  if (state.session) {
-    refreshFightBoard("Shared combat actions remain locked until the two-device reconnect field gate passes.", false);
+async function publishSharedMove(destination) {
+  const active = LocalCombat.activeUnit(state.fight), session = state.session;
+  if (!session?.pipe || !SharedCombat.canControl(session.me, active?.unit)) {
+    refreshFightBoard(active ? "Waiting for " + active.name + "’s controller." : "The shared turn is not ready.", false);
     return;
   }
+  const prepared = SharedCombat.prepareMove(state.fight, destination, session.pipe.state().lastSeq);
+  if (!prepared.ok) { refreshFightBoard(prepared.message, false); return; }
+  session.busy = true; refreshFightBoard("Publishing " + active.name + "’s movement…", true);
+  try {
+    const published = await session.pipe.move(active.unit, prepared.path, () => prepared.resolved);
+    if (!published.ok) throw new Error(published.why || "The movement fact was refused.");
+    await session.pipe.catchUp();
+    syncSharedSnapshot();
+  } catch (error) {
+    refreshFightBoard("Shared movement failed: " + (error?.message || error), false);
+  } finally {
+    session.busy = false; renderLocalCombat(); drawSelection(); requestRender();
+  }
+}
+async function publishSharedAttack() {
+  const active = LocalCombat.activeUnit(state.fight), session = state.session;
+  if (!session?.pipe || !SharedCombat.canControl(session.me, active?.unit)) {
+    refreshFightBoard(active ? "Waiting for " + active.name + "’s controller." : "The shared turn is not ready.", false);
+    return;
+  }
+  const prepared = SharedCombat.prepareAttack(state.fight, state.fightTarget, session.pipe.state().lastSeq);
+  if (!prepared.ok) { refreshFightBoard(prepared.message, false); return; }
+  session.busy = true; refreshFightBoard("Publishing " + active.name + "’s attack…", true);
+  try {
+    const published = await session.pipe.attack(active.unit, prepared.declared, () => prepared.resolved);
+    if (!published.ok) throw new Error(published.why || "The attack fact was refused.");
+    await session.pipe.catchUp();
+    syncSharedSnapshot();
+  } catch (error) {
+    refreshFightBoard("Shared attack failed: " + (error?.message || error), false);
+  } finally {
+    session.busy = false; renderLocalCombat(); drawSelection(); requestRender();
+  }
+}
+async function publishSharedEndTurn() {
+  const active = LocalCombat.activeUnit(state.fight), session = state.session;
+  if (!session?.pipe || !SharedCombat.canControl(session.me, active?.unit)) {
+    refreshFightBoard(active ? "Waiting for " + active.name + "’s controller." : "The shared turn is not ready.", false);
+    return;
+  }
+  session.busy = true; refreshFightBoard("Ending " + active.name + "’s turn for every table…", true);
+  try {
+    const published = await session.pipe.endTurn(active.unit);
+    if (!published.ok) throw new Error(published.why || "The turn fact was refused.");
+    await session.pipe.catchUp();
+    state.fightTarget = null;
+    syncSharedSnapshot();
+  } catch (error) {
+    refreshFightBoard("Shared End Turn failed: " + (error?.message || error), false);
+  } finally {
+    session.busy = false; renderLocalCombat(); drawSelection(); requestRender();
+  }
+}
+function fightCellAction(destination) {
   const active = LocalCombat.activeUnit(state.fight);
-  const occupant = state.fight.units.find((unit) => unit.alive && unit.c === c && unit.r === r);
+  const occupant = state.fight.units.find((unit) => unit.alive && unit.c === destination.c && unit.r === destination.r
+    && (!destination.surfaceId || !unit.surfaceId || unit.surfaceId === destination.surfaceId));
   if (occupant) {
-    if (active && occupant.side !== active.side) { state.fightTarget = occupant.unit; renderLocalCombat(); refreshFightBoard(occupant.name + " targeted", true); }
+    if (state.session && !sharedCanControlActive()) refreshFightBoard("Waiting for " + active.name + "’s controller.", false);
+    else if (active && occupant.side !== active.side) { state.fightTarget = occupant.unit; renderLocalCombat(); refreshFightBoard(occupant.name + " targeted", true); }
     else refreshFightBoard("That cell is occupied by an ally.", false);
     return;
   }
-  const result = LocalCombat.moveActive(state.fight, c, r);
-  if (result.ok) state.fight = result.fight;
+  if (state.session) {
+    publishSharedMove(destination);
+    return;
+  }
+  const priorView = fightBuildingViewId(), result = LocalCombat.moveActive(state.fight, destination);
+  if (result.ok) {
+    state.fight = result.fight;
+    const nextView = fightBuildingViewId();
+    if (surfacesEnabled() && nextView !== priorView) { state.buildingViewId = nextView; applyBuildingView(nextView); }
+  }
   refreshFightBoard(result.message, result.ok);
 }
 function focusHeroRoom() {
@@ -3233,7 +3330,7 @@ function inspectCell(c, r) {
   }
 }
 function applyMapClick(c, r, options = {}) {
-  if (state.workflow === "present" && state.fight) fightCellAction(c, r);
+  if (state.workflow === "present" && state.fight) fightCellAction({ c, r, surfaceId: options.surfaceId, elevationFt: options.elevationFt });
   else if (state.flagPlacement) placeGroupFlag(c, r);
   else if (state.workflow === "map") {
     if (state.mode !== "build") {
@@ -3276,6 +3373,7 @@ function boardCellFromEvent(event, allowEmpty) {
   raycaster.setFromCamera(pointer, camera);
   const meshes = [];
   boardRoot.traverse((child) => { if (child.userData.pickableFloor) meshes.push(child); });
+  if (surfacesEnabled() && state.workflow === "present") selectionRoot.traverse((child) => { if (child.userData.pickableFloor) meshes.push(child); });
   const hit = raycaster.intersectObjects(meshes, false)[0];
   let point = hit?.point || null;
   let cell = hit && hit.instanceId != null ? hit.object.userData.cells[hit.instanceId] : null;
@@ -3295,7 +3393,7 @@ function boardCellFromEvent(event, allowEmpty) {
   return cell;
 }
 function buildingPartFromEvent(event) {
-  if (!BUILDINGS_ENABLED || !state.blueprint.buildingSet) return null;
+  if (!buildingsEnabled() || !state.blueprint.buildingSet) return null;
   const rect = renderer.domElement.getBoundingClientRect();
   pointer.x = (event.clientX - rect.left) / rect.width * 2 - 1;
   pointer.y = -(event.clientY - rect.top) / rect.height * 2 + 1;
@@ -3346,7 +3444,7 @@ renderer.domElement.addEventListener("pointerup", (event) => {
     return;
   }
   const cell = boardCellFromEvent(event, false);
-  if (cell) applyMapClick(cell.c, cell.r, { additive: event.shiftKey, edge: cell.edge });
+  if (cell) applyMapClick(cell.c, cell.r, { ...cell, additive: event.shiftKey, edge: cell.edge });
   else {
     ui.chunkStatus.textContent = "No battlefield cell there";
     ui.chunkStatus.className = "status bad";
@@ -3488,7 +3586,7 @@ document.querySelectorAll("[data-creation-template]").forEach((button) => button
   renderCreationTemplates();
 }));
 document.querySelectorAll("[data-building-template]").forEach((button) => button.addEventListener("click", () => {
-  if (!BUILDINGS_ENABLED) return;
+  if (!buildingsEnabled()) return;
   const blueprint = Buildings.createRiverArchive(BP);
   stageCreation(blueprint, blueprint.name, "Enterable two-storey building · scene framing study");
   renderCreationTemplates();
@@ -3776,13 +3874,18 @@ ui.reopenCombatSnapshot.addEventListener("click", reopenCombatSnapshot);
 ui.openSharedCombat.addEventListener("click", openSharedCombat);
 ui.combatAttack.addEventListener("click", () => {
   if (!state.fight || !state.fightTarget) return;
+  if (state.session) { publishSharedAttack(); return; }
   const result = LocalCombat.resolveAttack(state.fight, state.fightTarget);
   if (result.ok) state.fight = result.fight;
   refreshFightBoard(result.message, result.ok);
 });
 ui.combatEndTurn.addEventListener("click", () => {
   if (!state.fight || fightFinished()) return;
+  if (state.session) { publishSharedEndTurn(); return; }
+  const priorView = fightBuildingViewId();
   state.fight = LocalCombat.endTurn(state.fight); state.fightTarget = null;
+  const nextView = fightBuildingViewId();
+  if (surfacesEnabled() && nextView !== priorView) { state.buildingViewId = nextView; applyBuildingView(nextView); }
   refreshFightBoard(LocalCombat.activeUnit(state.fight).name + " is active.", true);
 });
 document.querySelectorAll("[data-grid-nudge]").forEach((button) => button.addEventListener("click", () => {
@@ -3893,11 +3996,11 @@ function restoreCombatSnapshot(record, source) {
   state.buildAnchor = null;
   state.linePreview = [];
   state.roomPreview = null;
-  state.buildingViewId = BUILDINGS_ENABLED
+  state.buildingViewId = buildingsEnabled()
     ? restored.renderer.buildingViewId || state.blueprint.cameraViews?.[0]?.id || null
     : null;
   state.cameraTransition = null;
-  state.buildingRoofHidden = BUILDINGS_ENABLED && state.blueprint.buildingSet
+  state.buildingRoofHidden = buildingsEnabled() && state.blueprint.buildingSet
     ? restored.renderer.roofHidden === true || !!state.fight
     : false;
   state.buildingSelection = null;
@@ -3960,7 +4063,10 @@ async function openSharedCombat() {
     localStorage.setItem(COMBAT_SNAPSHOT_KEY, JSON.stringify(record));
     const join = new URL(window.location.href);
     join.hash = "";
-    join.search = "?session=" + encodeURIComponent(rowId);
+    join.searchParams.set("session", rowId);
+    join.searchParams.delete("legacy");
+    if (record.authored.blueprint.buildingSet) join.searchParams.set("buildings", "1");
+    if (record.combat.surfaceAware) join.searchParams.set("surfaces", "1");
     if (navigator.clipboard) navigator.clipboard.writeText(join.href).catch(() => {});
     window.location.href = join.href;
   } catch (error) {
@@ -3971,13 +4077,19 @@ async function openSharedCombat() {
   }
 }
 function syncSharedSnapshot() {
-  if (!state.session) return;
+  if (!state.session?.pipe) return;
+  const priorView = fightBuildingViewId();
   state.fight = CombatSnapshot.fightFromReplay(state.session.snapshot, state.session.pipe.state());
+  state.fight.log = state.fight.log.concat(SharedCombat.transcript(state.session.pipe.events(), state.fight.units));
+  const nextView = fightBuildingViewId();
+  if (surfacesEnabled() && nextView !== priorView) { state.buildingViewId = nextView; applyBuildingView(nextView); }
   document.querySelector(".stage-shell")?.classList.add("fight-active");
   rebuildAll();
   renderLocalCombat();
   const replay = state.session.pipe.state();
-  snapshotMessage("Shared restore ready · session " + state.session.row.id.slice(0, 8) + " · event " + replay.lastSeq + " · combat writes locked pending two-device proof");
+  const active = LocalCombat.activeUnit(state.fight);
+  snapshotMessage("Live shared table · session " + state.session.row.id.slice(0, 8) + " · event " + replay.lastSeq
+    + (active ? " · " + active.name + " active" : ""));
 }
 async function bootSharedCombat(sessionId) {
   const tok = ensureCombatAuth();
@@ -3991,8 +4103,9 @@ async function bootSharedCombat(sessionId) {
     window.location.replace("index.html?session=" + encodeURIComponent(sessionId));
     return;
   }
-  restoreCombatSnapshot(route.snapshot, "Loaded shared snapshot authority");
   const me = { actor: user.id, units: result.data.controllers?.[user.id] || [], overseer: result.data.overseer === user.id };
+  state.session = { row: result.data, me, conn: null, pipe: null, snapshot: route.snapshot, busy: true };
+  restoreCombatSnapshot(route.snapshot, "Loaded shared snapshot authority");
   const conn = window.ForgeBus.makeSupabaseBus({
     sb: tok.sb, sessionId,
     onTransport: (message) => snapshotMessage(message, /dropped|failed/.test(message))
@@ -4001,7 +4114,7 @@ async function bootSharedCombat(sessionId) {
     conn, roster: result.data.roster || [], me,
     onEvent: () => syncSharedSnapshot()
   });
-  state.session = { row: result.data, me, conn, pipe, snapshot: route.snapshot };
+  Object.assign(state.session, { conn, pipe, busy: false });
   await pipe.catchUp();
   syncSharedSnapshot();
 }
@@ -4026,14 +4139,21 @@ window.__forgeCombatState = () => ({
   snapshotFingerprint: state.snapshotRecord?.authored?.fieldFingerprint || null,
   sessionId: state.session?.row?.id || null,
   sessionEventSeq: state.session?.pipe?.state()?.lastSeq || null,
-  sessionReadOnly: !!state.session,
-  buildingsEnabled: BUILDINGS_ENABLED,
+  sessionReadOnly: !!state.session && !state.session.me?.overseer && !state.session.me?.units?.length,
+  sessionCanControlActive: sharedCanControlActive(),
+  sessionBusy: !!state.session?.busy,
+  buildingsEnabled: buildingsEnabled(),
+  surfacesEnabled: surfacesEnabled(),
+  buildingsQueryEnabled: BUILDINGS_ENABLED,
+  surfacesQueryEnabled: SURFACES_ENABLED,
+  surfaceReceipt: state.map.surfaceContract ? BP.copy(state.map.surfaceContract.receipt) : null,
   buildingSetSchema: state.blueprint.buildingSet?.schema || null,
   buildingViewId: state.buildingViewId,
   buildingRoofHidden: state.buildingRoofHidden,
   buildingSelection: state.buildingSelection ? BP.copy(state.buildingSelection) : null,
   cameraViews: state.blueprint.cameraViews?.map((view) => view.id) || [],
-  fightUnits: state.fight?.units.map((unit) => ({ unit: unit.unit, side: unit.side, hp: unit.hp, c: unit.c, r: unit.r })) || []
+  fightUnits: state.fight?.units.map((unit) => ({ unit: unit.unit, side: unit.side, hp: unit.hp, c: unit.c, r: unit.r,
+    surfaceId: unit.surfaceId, elevationFt: unit.elevationFt })) || []
 });
 
 try {

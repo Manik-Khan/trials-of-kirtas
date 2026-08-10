@@ -50,6 +50,13 @@ const fight = setup.concat([
 ]);
 s = FR.replayLog(ROSTER, fight);
 ok("resolved move lands the unit", s.units.caim.pos.c === 3 && s.units.caim.pos.r === 3);
+const surfacedRoster = ROSTER.map((unit) => unit.unit === "caim"
+  ? Object.assign({}, unit, { pos: { c: 1, r: 1, surfaceId: "surface-hall", elevationFt: 0 } }) : unit);
+const surfaced = FR.replayLog(surfacedRoster, setup.concat([
+  row(5, "caim", "move_declared", { path: [{ c: 2, r: 2, surfaceId: "connector-stairs", elevationFt: 5 }] }),
+  row(6, "caim", "move_resolved", { final_cell: { c: 3, r: 3, surfaceId: "surface-gallery", elevationFt: 10 } })
+]));
+ok("resolved movement preserves optional named-surface identity", surfaced.units.caim.pos.surfaceId === "surface-gallery" && surfaced.units.caim.pos.elevationFt === 10);
 ok("resolved hit applies damage", s.units.goblin1.hp === 2);
 ok("no pending action after resolution", s.pendingAction === null);
 

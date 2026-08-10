@@ -25,6 +25,10 @@ function esc(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,
 function escAttr(x){ return esc(x).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function sgn(n){ n=Number(n)||0; return (n>=0?'+':'\u2212')+Math.abs(n); }
 function clamp(n){ return Math.max(0,Math.min(100,n)); }
+function romanLevel(n){
+  n=parseInt(n,10);
+  return ['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'][n]||String(n||'');
+}
 function parseSource(src){
   src=String(src||''); var i=src.indexOf(':');
   var type=i>=0?src.slice(0,i):'class', label=i>=0?src.slice(i+1):src;
@@ -395,6 +399,7 @@ function renderSheet(root, char){
   if(nm&&s.name){ var ps=String(s.name).trim().split(/\s+/); if(ps.length>1){ var last=ps.pop(); nm.innerHTML=esc(ps.join(' '))+' <em>'+esc(last)+'</em>'; } else nm.textContent=s.name; }
   setF('nameFoot', s.name);
   renderSubline(root, s);
+  var ghost=root.querySelector('.ghostnum'); if(ghost) ghost.textContent=romanLevel(s.level);
   setF('ac', cb.ac);
   if(cb.acSource!=null) setF('ac-sub', cb.acSource);
   setF('ac-warn', cb.acWarn||'');

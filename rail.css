@@ -54,6 +54,21 @@
 .tr-handle svg{ width:11px; height:11px; transition:transform .22s ease; }
 .tr-handle.tr-open{ right:384px; }
 .tr-handle.tr-open svg{ transform:rotate(180deg); }
+.tr-handle.tr-alert-unread::after{ content:""; position:absolute; top:7px; left:6px; width:8px; height:8px; border-radius:50%; background:#d34a36; border:2px solid #101c1a; box-shadow:0 0 0 3px rgba(211,74,54,.18); }
+
+/* ── universal alerts: persistent until dismissed or opened ── */
+.tr-alert-stack{ position:fixed; top:70px; right:16px; z-index:1190; width:min(340px,calc(100vw - 32px)); display:flex; flex-direction:column; gap:8px; pointer-events:none; transition:right .22s ease; }
+.tr-alert-stack.tr-rail-open{ right:400px; }
+.tr-alert{ pointer-events:auto; padding:12px 13px 13px; background:rgba(10,17,15,.98); color:#ece2cd; border:1px solid rgba(199,154,74,.62); border-left:4px solid #c94734; box-shadow:0 16px 42px rgba(0,0,0,.55); }
+.tr-alert-mention{ border-left-color:#c97886; }
+.tr-alert-chronicle{ border-left-color:#55bdb2; }
+.tr-alert-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; color:#d7ad4a; font-family:"Oswald",sans-serif; font-size:8px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; }
+.tr-alert-close{ padding:0 2px; border:0; background:transparent; color:#817a6c; font:16px/1 Georgia,serif; cursor:pointer; }
+.tr-alert-close:hover,.tr-alert-close:focus-visible{ color:#ece2cd; outline:none; }
+.tr-alert-title{ margin-top:4px; color:#f4eddf; font-family:"Playfair Display",Georgia,serif; font-size:18px; font-weight:600; line-height:1.2; }
+.tr-alert-body{ margin-top:4px; color:#aaa390; font-family:"EB Garamond",Georgia,serif; font-size:13px; line-height:1.35; }
+.tr-alert-action{ margin-top:10px; padding:6px 10px; border:1px solid rgba(199,154,74,.55); background:rgba(199,154,74,.09); color:#e7c279; font-family:"Oswald",sans-serif; font-size:8.5px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; cursor:pointer; }
+.tr-alert-action:hover,.tr-alert-action:focus-visible{ border-color:#e7c279; background:rgba(199,154,74,.17); outline:none; }
 
 /* ── header ── */
 #tok-rail .tr-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:13px 15px 11px; border-bottom:1px solid var(--hair); }
@@ -247,5 +262,6 @@
 @media (max-width:480px){
   #tok-rail{ width:100vw; }
   .tr-handle.tr-open{ right:calc(100vw - 22px); }
+  .tr-alert-stack,.tr-alert-stack.tr-rail-open{ top:64px; left:12px; right:12px; width:auto; }
   #tok-rail .tr-section-dialog{ max-height:calc(100vh - 24px); }
 }

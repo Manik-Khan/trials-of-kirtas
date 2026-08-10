@@ -41,7 +41,7 @@
 
   var LS_KEY = 'tok.rail.v1';
   var RAIL_W = 384;
-  var RAIL_ASSET_V = 'settings1';
+  var RAIL_ASSET_V = 'alerts1';
 
   function readPreferences() {
     return (window.TokPreferences && window.TokPreferences.get) ? window.TokPreferences.get() : {};
@@ -90,7 +90,7 @@
       existing.addEventListener('error', ensureFeed, { once: true });
       return;
     }
-    var ps = document.createElement('script'); ps.src = 'rail-settings.js?v=settings3';
+    var ps = document.createElement('script'); ps.src = 'rail-settings.js?v=alerts1';
     ps.onload = ensureFeed;
     ps.onerror = function () { console.warn('[rail] rail-settings.js failed to load — using house defaults'); ensureFeed(); };
     document.head.appendChild(ps);
@@ -115,8 +115,9 @@
 
     // ── feed state ──
     var FEED = [], feedListEl = null, feedTab = 'combat', feedPostHidden = false;
-    var CTX = { session: 0, sessionTitle: '', encId: null, encName: '', at: 0 };
+    var CTX = { session: 0, sessionTitle: '', encId: null, encName: '', encRound: 1, activeCombatantId: null, at: 0 };
     var FR = null, FEEDRT = null;
+    var alertHost = null, alertSeen = {}, alertSeenOrder = [], lastTurnToken = null, alertAudio = null;
 
     var esc = window.FeedRender ? window.FeedRender.escapeHtml : function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
     var strip = window.FeedRender ? window.FeedRender.stripTags : function (s) { return String(s == null ? '' : s).replace(/<[^>]*>/g, ''); };
@@ -167,6 +168,7 @@
       FEED.push(row);
       if (FEED.length > 250) FEED.shift();
       renderFeed();
+      routeFeedAlert(row);
       if (!RAIL.open || RAIL.tab !== 'feed') flagUnread(true);
     }
     function onFeedUpdate(row) {
@@ -180,17 +182,162 @@
       if (FEED.length !== n) renderFeed();
     }
 
+    // ── alerts: one router for turn, mention, and Chronicle events ─────
+    // The rail already owns the universal Realtime subscription and the signed-in
+    // profile, so alert delivery lives here instead of adding a second client.
+    function alertPermission() {
+      return ('Notification' in window) ? window.Notification.permission : 'unsupported';
+    }
+    function requestBrowserAlerts() {
+      if (!('Notification' in window) || typeof window.Notification.requestPermission !== 'function') return Promise.resolve('unsupported');
+      if (window.Notification.permission !== 'default') return Promise.resolve(window.Notification.permission);
+      return window.Notification.requestPermission();
+    }
+    function plainBody(body) {
+      var box = document.createElement('div'); box.innerHTML = String(body || '');
+      return (box.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+    function mentionedCharacterKeys(body) {
+      var box = document.createElement('div'); box.innerHTML = String(body || '');
+      return Array.prototype.map.call(
+        box.querySelectorAll('[data-mention-type="character"][data-mention-key]'),
+        function (node) { return node.getAttribute('data-mention-key'); }
+      );
+    }
+    function rememberAlert(id) {
+      if (!id || alertSeen[id]) return false;
+      alertSeen[id] = true; alertSeenOrder.push(id);
+      if (alertSeenOrder.length > 200) delete alertSeen[alertSeenOrder.shift()];
+      return true;
+    }
+    function unlockAlertSound() {
+      if (!readPreferences().alertSound) return;
+      var AudioCtor = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtor) return;
+      try {
+        if (!alertAudio) alertAudio = new AudioCtor();
+        if (alertAudio.state === 'suspended') alertAudio.resume();
+      } catch (e) {}
+    }
+    function playAlertSound(kind) {
+      if (!readPreferences().alertSound || (kind !== 'turn' && kind !== 'mention')) return;
+      unlockAlertSound();
+      if (!alertAudio || alertAudio.state !== 'running') return;
+      try {
+        var oscillator = alertAudio.createOscillator(), gain = alertAudio.createGain();
+        oscillator.type = 'sine'; oscillator.frequency.value = kind === 'turn' ? 523.25 : 659.25;
+        gain.gain.setValueAtTime(0.0001, alertAudio.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.055, alertAudio.currentTime + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, alertAudio.currentTime + 0.42);
+        oscillator.connect(gain); gain.connect(alertAudio.destination);
+        oscillator.start(); oscillator.stop(alertAudio.currentTime + 0.44);
+      } catch (e) {}
+    }
+    function showFeedChannel(channel) {
+      feedTab = channel || 'chronicle';
+      if (root) {
+        root.querySelectorAll('[data-rail-chan]').forEach(function (button) { button.classList.toggle('on', button.dataset.railChan === feedTab); });
+        var control = root.querySelector('.tr-section-control');
+        if (control) control.classList.toggle('on', IS_STAFF && feedTab === 'chronicle');
+      }
+      renderFeed(); setTab('feed'); setOpen(true); flagUnread(false); flagAlertUnread(false);
+    }
+    function routeAlert(route) {
+      if (route === 'feed') { showFeedChannel('chronicle'); return; }
+      if (route === 'combat') {
+        if (/\/combat\.html$/.test(window.location.pathname)) { setOpen(false); return; }
+        window.location.href = 'combat.html';
+      }
+    }
+    function showBrowserAlert(spec) {
+      var pref = readPreferences();
+      if (!document.hidden || !pref.alertBrowser || alertPermission() !== 'granted') return;
+      try {
+        var note = new window.Notification(spec.title, { body: spec.body, tag: 'tok-' + spec.id });
+        note.onclick = function () {
+          try { window.focus(); } catch (e) {}
+          routeAlert(spec.route); note.close();
+        };
+      } catch (e) {}
+    }
+    function notifyAlert(spec) {
+      if (!spec || !rememberAlert(spec.id)) return null;
+      if (!alertHost) return null;
+      var card = document.createElement('article');
+      card.className = 'tr-alert tr-alert-' + spec.kind;
+      card.setAttribute('data-alert-id', spec.id);
+      var top = document.createElement('div'); top.className = 'tr-alert-top';
+      var kind = document.createElement('span'); kind.textContent = spec.kicker;
+      var close = document.createElement('button'); close.type = 'button'; close.className = 'tr-alert-close'; close.setAttribute('aria-label', 'Dismiss alert'); close.textContent = '×';
+      top.appendChild(kind); top.appendChild(close);
+      var title = document.createElement('div'); title.className = 'tr-alert-title'; title.textContent = spec.title;
+      var body = document.createElement('div'); body.className = 'tr-alert-body'; body.textContent = spec.body;
+      var action = document.createElement('button'); action.type = 'button'; action.className = 'tr-alert-action'; action.textContent = spec.action; action.setAttribute('data-alert-route', spec.route);
+      card.appendChild(top); card.appendChild(title); card.appendChild(body); card.appendChild(action);
+      alertHost.insertBefore(card, alertHost.firstChild);
+      while (alertHost.children.length > 3) alertHost.removeChild(alertHost.lastChild);
+      if (!RAIL.open) flagAlertUnread(true);
+      playAlertSound(spec.kind); showBrowserAlert(spec);
+      document.dispatchEvent(new CustomEvent('tok:alert', { detail: spec }));
+      return card;
+    }
+    function previewAlert(kind) {
+      var stamp = Date.now();
+      var mine = (ME.characterKey && typeof CHARACTERS !== 'undefined' && CHARACTERS[ME.characterKey] && CHARACTERS[ME.characterKey].name) || 'Your character';
+      if (kind === 'mention') return notifyAlert({ id: 'preview-mention-' + stamp, kind: 'mention', kicker: 'Mention in the feed', title: 'Líadan mentioned ' + mine, body: '“The rift answers @' + mine + '…”', action: 'Open Feed', route: 'feed' });
+      if (kind === 'chronicle') return notifyAlert({ id: 'preview-chronicle-' + stamp, kind: 'chronicle', kicker: 'Chronicle activity', title: 'A new section was added', body: 'Session ' + (CTX.session || '—') + ' · ' + (CTX.sessionTitle || 'The Chronicle'), action: 'Open Chronicle', route: 'feed' });
+      return notifyAlert({ id: 'preview-turn-' + stamp, kind: 'turn', kicker: 'Combat alert', title: 'Your turn · ' + mine, body: 'Round ' + (CTX.encRound || 1) + ' in ' + (CTX.encName || 'the active encounter'), action: 'Open Combat', route: 'combat' });
+    }
+    function routeFeedAlert(row) {
+      if (!row || row.hidden || row.author_id === ME.userId) return;
+      var pref = readPreferences();
+      var directMention = !!(ME.characterKey && mentionedCharacterKeys(row.body).indexOf(ME.characterKey) >= 0);
+      var mine = (ME.characterKey && typeof CHARACTERS !== 'undefined' && CHARACTERS[ME.characterKey] && CHARACTERS[ME.characterKey].name) || 'you';
+      if (directMention && pref.alertMentions) {
+        notifyAlert({ id: 'feed-mention-' + row.id, kind: 'mention', kicker: 'Mention in the feed', title: (row.actor_name || 'Someone') + ' mentioned ' + mine, body: plainBody(row.body).slice(0, 140), action: 'Open Feed', route: 'feed' });
+        return;
+      }
+      if (row.channel === 'chronicle' && pref.alertChronicle === 'all') {
+        var section = row.meta && row.meta.section;
+        notifyAlert({ id: 'feed-chronicle-' + row.id, kind: 'chronicle', kicker: 'Chronicle activity', title: section ? 'New section · ' + section : 'New Chronicle entry', body: section ? 'Session ' + (row.session || CTX.session || '—') : (row.actor_name || 'Someone') + ' · ' + plainBody(row.body).slice(0, 120), action: 'Open Chronicle', route: 'feed' });
+      }
+    }
+    function turnToken(row) {
+      if (!row) return null;
+      return String(row.id || CTX.encId || '') + ':' + String(row.round || 1) + ':' + String(row.active_combatant_id || 'none');
+    }
+    function onEncounterUpdate(row) {
+      if (!row || (row.status && row.status !== 'active')) return;
+      if (!row.status && CTX.encId && row.id !== CTX.encId) return;
+      CTX.encId = row.id || CTX.encId; CTX.encName = row.name || CTX.encName;
+      CTX.encRound = row.round || 1; CTX.activeCombatantId = row.active_combatant_id || null; paintHeader();
+      var token = turnToken(row);
+      if (lastTurnToken === null) { lastTurnToken = token; return; }
+      if (token === lastTurnToken) return;
+      lastTurnToken = token;
+      if (!CTX.activeCombatantId || !ME.characterKey || !readPreferences().alertTurns) return;
+      SB.from('combatants').select('id, source_key, name, side').eq('id', CTX.activeCombatantId).maybeSingle().then(function (res) {
+        var combatant = res && res.data;
+        if (!combatant || combatant.source_key !== ME.characterKey) return;
+        var name = combatant.name || (typeof CHARACTERS !== 'undefined' && CHARACTERS[ME.characterKey] && CHARACTERS[ME.characterKey].name) || ME.characterKey;
+        notifyAlert({ id: 'turn-' + token, kind: 'turn', kicker: 'Combat alert', title: 'Your turn · ' + name, body: 'Round ' + CTX.encRound + ' in ' + (CTX.encName || 'the active encounter'), action: 'Open Combat', route: 'combat' });
+      }).catch(function () {});
+    }
+
     // session + active encounter — stamped onto inserts, shown in the header.
     function loadContext() {
       if (Date.now() - CTX.at < 30000) return Promise.resolve(CTX);
       return Promise.all([
         SB.from('campaign').select('current_session').eq('id', 1).maybeSingle(),
-        SB.from('encounters').select('id, name').eq('status', 'active').maybeSingle(),
+        SB.from('encounters').select('id, name, round, active_combatant_id').eq('status', 'active').maybeSingle(),
         SB.from('session_titles').select('session, title')
       ]).then(function (res) {
         if (res[0] && res[0].data) CTX.session = res[0].data.current_session;
-        if (res[1] && res[1].data) { CTX.encId = res[1].data.id; CTX.encName = res[1].data.name || ''; }
-        else { CTX.encId = null; CTX.encName = ''; }
+        if (res[1] && res[1].data) {
+          CTX.encId = res[1].data.id; CTX.encName = res[1].data.name || '';
+          CTX.encRound = res[1].data.round || 1; CTX.activeCombatantId = res[1].data.active_combatant_id || null;
+          if (lastTurnToken === null) lastTurnToken = turnToken(res[1].data);
+        } else { CTX.encId = null; CTX.encName = ''; CTX.encRound = 1; CTX.activeCombatantId = null; }
         CTX.sessionTitle = '';
         if (res[2] && !res[2].error) {
           var titleRow = (res[2].data || []).find(function (r) { return r.session == CTX.session; });
@@ -210,6 +357,12 @@
         .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'feed' }, function (p) { if (p.old && p.old.id != null) onFeedDelete(p.old.id); })
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'campaign' }, function (p) {
           if (p.new) { CTX.session = p.new.current_session; CTX.at = 0; loadContext(); }
+        })
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'encounters' }, function (p) {
+          if (p.new) onEncounterUpdate(p.new);
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'encounters' }, function (p) {
+          if (p.new) onEncounterUpdate(p.new);
         })
         .subscribe();
     }
@@ -365,6 +518,17 @@
       handle.innerHTML = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 2 L4 6 L8 10"/></svg>';
       document.body.appendChild(handle);
 
+      alertHost = document.createElement('div');
+      alertHost.id = 'tok-alerts'; alertHost.className = 'tr-alert-stack';
+      alertHost.setAttribute('aria-live', 'polite'); alertHost.setAttribute('aria-label', 'Kirtas alerts');
+      alertHost.addEventListener('click', function (e) {
+        var card = e.target.closest('.tr-alert'); if (!card) return;
+        if (e.target.closest('.tr-alert-close')) { card.remove(); return; }
+        var action = e.target.closest('.tr-alert-action');
+        if (action) { routeAlert(action.getAttribute('data-alert-route')); card.remove(); }
+      });
+      document.body.appendChild(alertHost);
+
       lightbox = document.createElement('div');
       lightbox.className = 'tr-lightbox';
       lightbox.innerHTML = '<img alt="">';
@@ -377,6 +541,9 @@
 
     function flagUnread(on) {
       if (handle) handle.classList.toggle('tr-unread', on);
+    }
+    function flagAlertUnread(on) {
+      if (handle) handle.classList.toggle('tr-alert-unread', on);
     }
     function paintHeader() {
       if (!root) return;
@@ -397,7 +564,8 @@
     function applyOpen() {
       root.classList.toggle('tr-collapsed', !RAIL.open);
       handle.classList.toggle('tr-open', RAIL.open);
-      if (RAIL.open) flagUnread(false);
+      if (alertHost) alertHost.classList.toggle('tr-rail-open', RAIL.open);
+      if (RAIL.open) { flagUnread(false); flagAlertUnread(false); }
     }
     function setOpen(v) {
       if (v && window.TokSettings && window.TokSettings.close) window.TokSettings.close();
@@ -883,7 +1051,14 @@
         applyPreferences: function () { if (window.TokPreferences) window.TokPreferences.apply(); renderFeed(); },
         ready: true
       };
-      document.addEventListener('tok:preferences', function () { renderFeed(); });
+      window.TokAlerts = {
+        notify: notifyAlert,
+        preview: previewAlert,
+        permission: alertPermission,
+        requestBrowser: requestBrowserAlerts,
+      };
+      document.addEventListener('tok:preferences', function () { renderFeed(); unlockAlertSound(); });
+      document.dispatchEvent(new CustomEvent('tok:alerts-ready'));
       // Pages register their contextual tabs in response to this (or by checking
       // window.TokRail.ready if they loaded after it fired).
       document.dispatchEvent(new CustomEvent('tok-rail:ready'));

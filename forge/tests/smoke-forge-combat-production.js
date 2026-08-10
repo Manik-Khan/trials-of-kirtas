@@ -21,9 +21,12 @@ ok("production Combat loads cache-stamped production assets",
   combatHtml.includes('href="combat.css?v=fc5"')
   && combatHtml.includes('src="forge-blueprint.js?v=bp6"')
   && combatHtml.includes('src="forge-buildings.js?v=fbld2"')
-  && combatHtml.includes('src="combat.js?v=fc10"')
-  && combatHtml.includes('src="forge-combat-local.js?v=fcl1"')
-  && combatHtml.includes('src="forge-combat-snapshot.js?v=fcs2"')
+  && combatHtml.includes('src="forge-surfaces.js?v=fs2"')
+  && combatHtml.includes('src="combat.js?v=fc12"')
+  && combatHtml.includes('src="forge-combat-local.js?v=fcl3"')
+  && combatHtml.includes('src="forge-combat-shared.js?v=fcsw1"')
+  && combatHtml.includes('src="forge-replay.js?v=fb20"')
+  && combatHtml.includes('src="forge-combat-snapshot.js?v=fcs3"')
   && !combatHtml.includes("_edits/") && !combatHtml.includes("mock-forge"));
 ok("production renderer consumes the production Blueprint authority",
   combatJs.includes("const BP = window.ForgeBlueprint;")
@@ -32,10 +35,10 @@ ok("Combat keeps the approved Artwork, Board, and Blueprint views",
   ["artwork", "board", "blueprint"].every((view) => combatHtml.includes('data-view="' + view + '"')));
 ok("Combat keeps the approved Shape, Look, Objects, and Areas authoring contexts",
   ["layout", "appearance", "objects", "areas"].every((tab) => combatHtml.includes('data-map-tab="' + tab + '"')));
-ok("Combat identifies exact restore as ready while shared writes remain gated",
+ok("Combat identifies exact restore and the live shared action loop",
   combatHtml.includes("Forge Combat field test")
-  && combatHtml.includes("Exact local persistence and the shared restore candidate are ready")
-  && combatHtml.includes("Shared combat writes remain locked until the two-device reconnect gate passes"));
+  && combatHtml.includes("live shared movement, attacks, and turns")
+  && combatHtml.includes("Reactions and stacked-floor sight remain guarded"));
 ok("the visible workflow names Map, Characters, and Combat",
   [">Map</button>", ">Characters</button>", ">Combat</button>"].every((label) => combatHtml.includes(label))
   && combatHtml.includes("Choose characters →"));

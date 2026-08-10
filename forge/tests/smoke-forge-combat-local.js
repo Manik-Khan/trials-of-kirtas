@@ -6,6 +6,7 @@ const root = path.join(__dirname, "..", "..");
 const forgeDir = path.join(root, "forge");
 const BP = require(path.join(forgeDir, "forge-blueprint.js"));
 const Fight = require(path.join(forgeDir, "forge-combat-local.js"));
+const Shared = require(path.join(forgeDir, "forge-combat-shared.js"));
 const vesperian = require(path.join(root, "data", "characters", "vesperian.json"));
 const cosmere = require(path.join(root, "data", "characters", "cosmere.json"));
 const combatHtml = fs.readFileSync(path.join(forgeDir, "combat.html"), "utf8");
@@ -69,9 +70,18 @@ const duelDeployment = Fight.deployCombatants(openMap, [projectedCosmere.unit], 
 ]);
 let duel = Fight.createFight(openMap, duelDeployment, [projectedCosmere.unit], [Fight.TRAINING_FOES[0]], identity);
 duel.turn = duel.units.findIndex((unit) => unit.unit === "cosmere");
+const sharedAttack = Shared.prepareAttack(duel, "reliquary-guard-1", 42);
+ok("shared attack adapter carries the locally resolved roll and damage as replay facts",
+  sharedAttack.ok && sharedAttack.declared.roll === sharedAttack.resolved.roll
+  && sharedAttack.resolved.target === "reliquary-guard-1" && sharedAttack.resolved.base_seq === 42);
+ok("shared controls distinguish the active unit’s controller from a spectator",
+  Shared.canControl({ overseer: false, units: ["cosmere"] }, "cosmere")
+  && !Shared.canControl({ overseer: false, units: ["vesperian"] }, "cosmere")
+  && Shared.canControl({ overseer: true, units: [] }, "reliquary-guard-1"));
 const attack = Fight.resolveAttack(duel, "reliquary-guard-1");
 ok("a real named attack resolves through range, sight, cover, and combat rules",
-  attack.ok && /Eldritch Blast/.test(attack.message) && attack.fight.units.find((unit) => unit.unit === "cosmere").acted);
+  attack.ok && Number.isInteger(attack.roll) && Number.isFinite(attack.total) && Number.isFinite(attack.defense)
+  && /Eldritch Blast/.test(attack.message) && attack.fight.units.find((unit) => unit.unit === "cosmere").acted);
 ok("end turn advances the local initiative loop", Fight.activeUnit(Fight.endTurn(attack.fight)).unit !== "cosmere");
 
 ok("Combat exposes roster, placement, and local fight controls",
@@ -80,9 +90,10 @@ ok("Combat exposes roster, placement, and local fight controls",
 ok("browser integration never writes character sheets",
   combatJs.includes("CharacterData.loadParty()") && combatJs.includes("CharacterData.loadLayout()")
   && !combatJs.includes("CharacterData.save("));
-ok("shared candidate writes only the existing session/event spine and keeps combat actions locked",
+ok("shared candidate publishes the local action loop through the existing session/event spine",
   combatJs.includes('.from("forge_sessions")') && combatJs.includes('ForgeProtocol.makeEvent("__session", "restore"')
-  && combatJs.includes("Shared combat actions remain locked until the two-device reconnect field gate passes."));
+  && combatJs.includes("session.pipe.move") && combatJs.includes("session.pipe.attack") && combatJs.includes("session.pipe.endTurn")
+  && combatJs.includes("Live shared combat") && !combatJs.includes("Shared combat actions remain locked"));
 ok("runtime tokens are rendered separately from authored Blueprint spawns",
   combatJs.includes("function runtimeSpawns()") && combatJs.includes("state.fight ? LocalCombat.spawns(state.fight)"));
 

@@ -49,12 +49,18 @@
              usedAction: false, usedBonus: false, attacked: false,
              spellCasts: [], bonusSpellCast: false };
   }
+  function position(value) {
+    value = value || {};
+    var out = { c: Number(value.c), r: Number(value.r) };
+    if (value.surfaceId) { out.surfaceId = String(value.surfaceId); out.elevationFt = Number(value.elevationFt) || 0; }
+    return out;
+  }
 
   function initialState(roster) {
     var units = {};
     (roster || []).forEach(function (u) {
       units[u.unit] = {
-        side: canonicalSide(u.side != null ? u.side : u.kind), pos: { c: u.pos.c, r: u.pos.r },
+        side: canonicalSide(u.side != null ? u.side : u.kind), pos: position(u.pos),
         hp: u.hp, maxHp: (u.maxHp != null ? u.maxHp : u.hp),
         resources: normalizeResources(u.resources || u.res || {}),
         conditions: (u.conditions || []).slice(), reacts: (u.reacts || []).slice(),
@@ -136,8 +142,8 @@
       if (e.remove_condition) u.conditions = u.conditions.filter(function (c) { return c !== e.remove_condition; });
       if(e.add_boom)u.boomMark=Object.assign({},e.add_boom);
       if(e.remove_boom)u.boomMark=null;
-      if(e.forced_move&&e.forced_move.to)u.pos={c:Number(e.forced_move.to.c),r:Number(e.forced_move.to.r)};
-      if(e.teleport&&e.teleport.to)u.pos={c:Number(e.teleport.to.c),r:Number(e.teleport.to.r)};
+      if(e.forced_move&&e.forced_move.to)u.pos=position(e.forced_move.to);
+      if(e.teleport&&e.teleport.to)u.pos=position(e.teleport.to);
       // advantage-on-next-attack grant (Silvery Barbs rider now; Help/familiars
       // later). A fact, not a roll — replays identically. `advGrant.reason` is
       // display only. Consumed when the unit's own attack resolves (below).
@@ -191,7 +197,7 @@
       case "move_resolved": {
         var mv = state.units[row.unit];
         var stop = p.interrupted_at || p.final_cell;
-        if (mv && stop) mv.pos = { c: stop.c, r: stop.r };
+        if (mv && stop) mv.pos = position(stop);
         applyEffects(state,p.effects);
         if (p.undo_of != null) {
           // a player's own Undo-move (Priority 3): a self-published compensating
@@ -311,7 +317,7 @@
               return;
             }
             state.units[au.unit] = {
-              side: canonicalSide(au.side != null ? au.side : (au.kind != null ? au.kind : "foe")), pos: { c: au.pos.c, r: au.pos.r },
+              side: canonicalSide(au.side != null ? au.side : (au.kind != null ? au.kind : "foe")), pos: position(au.pos),
               hp: au.hp, maxHp: (au.maxHp != null ? au.maxHp : au.hp),
               resources: normalizeResources(au.resources || au.res || {}),
               conditions: [], reacts: (au.reacts || []).slice(),
@@ -321,7 +327,7 @@
             return;
           }
           var t = state.units[ch.unit]; if (!t) return;
-          if (ch.pos) t.pos = { c: ch.pos.c, r: ch.pos.r };
+          if (ch.pos) t.pos = position(ch.pos);
           if (ch.hp != null) { t.hp = Math.max(0, Math.min(t.maxHp, ch.hp)); t.downed = (t.hp === 0);if(!t.downed)t.deathSaves=freshDeathSaves(); }
           if(ch.deathSaves)t.deathSaves=normalizeDeathSaves(ch.deathSaves);
           if(ch.resources)t.resources=normalizeResources(ch.resources);

@@ -5,10 +5,11 @@
 (function (root, factory) {
   var BP = typeof module !== "undefined" && module.exports ? require("./forge-blueprint.js") : root.ForgeBlueprint;
   var FR = typeof module !== "undefined" && module.exports ? require("./forge-replay.js") : root.ForgeReplay;
-  var api = factory(BP, FR);
+  var Surfaces = typeof module !== "undefined" && module.exports ? require("./forge-surfaces.js") : root.ForgeSurfaces;
+  var api = factory(BP, FR, Surfaces);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (root) root.ForgeCombatSnapshot = api;
-})(typeof window !== "undefined" ? window : globalThis, function (BP, FR) {
+})(typeof window !== "undefined" ? window : globalThis, function (BP, FR, Surfaces) {
   "use strict";
 
   var SCHEMA = "forge-combat-snapshot/v1";
@@ -29,10 +30,12 @@
     return ("00000000" + (result >>> 0).toString(16)).slice(-8);
   }
   function fieldFingerprint(map) {
-    return "field-" + hash({
+    var record = {
       cols: map.cols, rows: map.rows, h: map.h, wall: map.wall, occ: map.occ,
       coverShape: map.coverShape, connectors: map.connectors, props: map.props, meta: map.meta
-    });
+    };
+    if (map.surfaceContract) record.surfaceContract = map.surfaceContract;
+    return "field-" + hash(record);
   }
   function rendererChoice(renderer) {
     renderer = renderer || {};
@@ -58,7 +61,11 @@
     fight.units.forEach(function (unit) {
       if (!unit || !unit.unit || !Number.isInteger(unit.c) || !Number.isInteger(unit.r)) throw new Error("Combat snapshot has an invalid unit position.");
       if (unit.c < 0 || unit.r < 0 || unit.c >= map.cols || unit.r >= map.rows) throw new Error("Combat snapshot unit is outside the Blueprint field.");
-      if (map.wall[unit.r * map.cols + unit.c]) throw new Error("Combat snapshot unit occupies blocked Blueprint terrain.");
+      if (fight.surfaceAware) {
+        if (!map.surfaceContract || !Surfaces || !Surfaces.normalizePosition(map.surfaceContract, unit)) {
+          throw new Error("Combat snapshot unit occupies an unknown walk surface.");
+        }
+      } else if (map.wall[unit.r * map.cols + unit.c]) throw new Error("Combat snapshot unit occupies blocked Blueprint terrain.");
     });
   }
   function create(input) {
@@ -70,6 +77,10 @@
     }
     var map = BP.compile(blueprint, edits), blueprintFingerprint = BP.fingerprint(blueprint);
     var fight = fightRecord(input.fight);
+    if (fight && fight.surfaceAware) {
+      if (!Surfaces) throw new Error("Combat snapshot surface authority is unavailable.");
+      Surfaces.attach(map);
+    }
     validateFight(fight, map, blueprintFingerprint);
     return {
       schema: SCHEMA, version: VERSION, savedAt: input.savedAt || new Date().toISOString(),
@@ -92,6 +103,7 @@
       },
       combat: {
         selectedPartyKeys: copy(input.selectedPartyKeys || []),
+        surfaceAware: !!(fight && fight.surfaceAware),
         fight: fight
       }
     };
@@ -102,6 +114,10 @@
     if (!blueprint || BP.fingerprint(blueprint) !== authored.blueprintFingerprint) throw new Error("Combat snapshot Blueprint fingerprint mismatch.");
     if (BP.structuralFingerprint(blueprint) !== authored.structuralFingerprint) throw new Error("Combat snapshot structural fingerprint mismatch.");
     var map = BP.compile(blueprint, edits);
+    if (record.combat && record.combat.surfaceAware) {
+      if (!Surfaces) throw new Error("Combat snapshot surface authority is unavailable.");
+      Surfaces.attach(map);
+    }
     if (fieldFingerprint(map) !== authored.fieldFingerprint) throw new Error("Combat snapshot tactical field fingerprint mismatch.");
     var fight = copy(record.combat && record.combat.fight || null);
     validateFight(fight, map, authored.blueprintFingerprint);
@@ -124,7 +140,7 @@
     return fight.units.map(function (unit) {
       return {
         unit: unit.unit, name: unit.name, kind: unit.side === "foe" ? "foe" : "pc", side: unit.side,
-        pos: { c: unit.c, r: unit.r }, hp: unit.hp, maxHp: unit.hpMax,
+        pos: Object.assign({ c: unit.c, r: unit.r }, unit.surfaceId ? { surfaceId: unit.surfaceId, elevationFt: unit.elevationFt } : {}), hp: unit.hp, maxHp: unit.hpMax,
         resources: copy(unit.resources || {}), conditions: copy(unit.conditions || []), reacts: copy(unit.reacts || []),
         ac: unit.ac, speed: unit.speed, initiative: unit.initiative, action: copy(unit.action || null)
       };
@@ -134,6 +150,7 @@
     var restored = restore(record), fight = restored.fight, rows = roster(record);
     var state = FR.initialState(rows), count = fight.units.length;
     state.status = "active";
+    rows.forEach(function (row) { if (state.units[row.unit]) state.units[row.unit].pos = copy(row.pos); });
     state.initiative = fight.units.map(function (unit) { return unit.unit; });
     state.turnsEnded = Math.max(0, (Math.max(1, Number(fight.round) || 1) - 1) * count + (Number(fight.turn) || 0));
     var active = fight.units[state.turnsEnded % count];
@@ -160,7 +177,9 @@
     fight.units = order.map(function (key) {
       var unit = definitions[key], facts = replayState.units && replayState.units[key];
       if (!unit || !facts) return null;
-      unit.c = facts.pos.c; unit.r = facts.pos.r; unit.hp = facts.hp; unit.hpMax = facts.maxHp;
+      unit.c = facts.pos.c; unit.r = facts.pos.r;
+      if (facts.pos.surfaceId) { unit.surfaceId = facts.pos.surfaceId; unit.elevationFt = facts.pos.elevationFt; }
+      unit.hp = facts.hp; unit.hpMax = facts.maxHp;
       unit.alive = facts.hp > 0;
       unit.moved = replayState.economy && replayState.economy.unit === key && replayState.economy.movedFt > 0;
       unit.acted = replayState.economy && replayState.economy.unit === key && replayState.economy.usedAction;

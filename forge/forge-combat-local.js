@@ -3,13 +3,14 @@
    onto the accepted Blueprint field; combat state never mutates the Blueprint. */
 (function (root, factory) {
   var Deploy = typeof module !== "undefined" && module.exports ? require("./forge-deployment.js") : root.ForgeDeployment;
+  var Surfaces = typeof module !== "undefined" && module.exports ? require("./forge-surfaces.js") : root.ForgeSurfaces;
   var TG = typeof module !== "undefined" && module.exports ? require("./tactics-geometry.js") : root.TacticsGeo;
   var Combat = typeof module !== "undefined" && module.exports ? require("./forge-combat-rules.js") : root.ForgeCombatRules;
   var CharacterCombat = typeof module !== "undefined" && module.exports ? require("../character-combat.js") : root.CharacterCombat;
-  var api = factory(Deploy, TG, Combat, CharacterCombat);
+  var api = factory(Deploy, Surfaces, TG, Combat, CharacterCombat);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (root) root.ForgeCombatLocal = api;
-})(typeof window !== "undefined" ? window : globalThis, function (Deploy, TG, Combat, CharacterCombat) {
+})(typeof window !== "undefined" ? window : globalThis, function (Deploy, Surfaces, TG, Combat, CharacterCombat) {
   "use strict";
 
   var VERSION = 1;
@@ -147,9 +148,12 @@
     });
     var units = Deploy.applyToRoster(roster, deployment.record).map(function (row) {
       var source = byId[row.unit], initiative = 1 + hash32(row.unit + "|initiative") % 20 + finite(source.initMod, 0);
-      return Object.assign(copy(source), { c: row.pos.c, r: row.pos.r, initiative: initiative, alive: true, moved: false, acted: false });
+      var position = map.surfaceContract && Surfaces ? Surfaces.normalizePosition(map.surfaceContract, row.pos) : null;
+      return Object.assign(copy(source), position
+        ? { c: position.c, r: position.r, surfaceId: position.surfaceId, elevationFt: position.elevationFt }
+        : { c: row.pos.c, r: row.pos.r }, { initiative: initiative, alive: true, moved: false, acted: false });
     }).sort(function (a, b) { return b.initiative - a.initiative || finite(b.initMod, 0) - finite(a.initMod, 0); });
-    return { version: VERSION, localOnly: true, identity: copy(identity || {}), map: copy(map), units: units, turn: 0, round: 1, eventIndex: 0,
+    return { version: VERSION, localOnly: true, surfaceAware: !!map.surfaceContract, identity: copy(identity || {}), map: copy(map), units: units, turn: 0, round: 1, eventIndex: 0,
       log: ["Initiative: " + units.map(function (unit) { return unit.name + " " + unit.initiative; }).join(" · ")] };
   }
   function activeUnit(fight) { return fight && fight.units.length ? fight.units[fight.turn % fight.units.length] : null; }
@@ -158,25 +162,62 @@
   }
   function reachableForActive(fight) {
     var active = activeUnit(fight);
+    if (active && active.alive && !active.moved && fight.surfaceAware && fight.map.surfaceContract && Surfaces) {
+      return Surfaces.reachable(fight.map.surfaceContract, active, fight.units, finite(active.speed, 30));
+    }
     return active && active.alive && !active.moved
       ? TG.movementReach(fight.map, active, occupied(fight, active.unit), Math.floor(finite(active.speed, 30) / 5)) : {};
   }
-  function moveActive(fight, c, r) {
-    var next = copy(fight), active = activeUnit(next), reachable = reachableForActive(next), destination = reachable[key(c, r)];
+  function moveActive(fight, c, r, surfaceId) {
+    var requested = typeof c === "object" && c ? c : { c: c, r: r, surfaceId: surfaceId };
+    var next = copy(fight), active = activeUnit(next), reachable = reachableForActive(next), destinationKey = key(requested.c, requested.r);
+    if (next.surfaceAware && Surfaces) {
+      var matches = Object.keys(reachable).filter(function (candidate) {
+        var position = reachable[candidate].position;
+        return position && position.c === Number(requested.c) && position.r === Number(requested.r)
+          && (!requested.surfaceId || position.surfaceId === requested.surfaceId);
+      }).sort(function (a, b) { return reachable[a].position.elevationFt - reachable[b].position.elevationFt; });
+      destinationKey = matches[0];
+    }
+    var destination = destinationKey && reachable[destinationKey];
     if (!active || active.moved || !destination) return { ok: false, fight: fight, message: active && active.moved ? "This combatant has already moved this turn." : "That square is not reachable this turn." };
-    var path = TG.pathTo(reachable, active, c, r), cost = finite(destination.d, path.length) * 5;
-    active.c = c; active.r = r; active.moved = true;
-    next.log.push(active.name + " moved " + cost + " ft to " + key(c, r) + ".");
-    return { ok: true, fight: next, path: path, message: next.log[next.log.length - 1] };
+    var path = next.surfaceAware && Surfaces
+      ? Surfaces.pathTo(reachable, active, destination.position)
+      : TG.pathTo(reachable, active, Number(requested.c), Number(requested.r));
+    var cost = next.surfaceAware ? finite(destination.costFt, path.length * 5) : finite(destination.d, path.length) * 5;
+    var position = next.surfaceAware ? destination.position : { c: Number(requested.c), r: Number(requested.r) };
+    active.c = position.c; active.r = position.r;
+    if (next.surfaceAware) { active.surfaceId = position.surfaceId; active.elevationFt = position.elevationFt; }
+    active.moved = true;
+    next.log.push(active.name + " moved " + cost + " ft to " + key(active.c, active.r)
+      + (next.surfaceAware ? " · " + active.surfaceId + " at " + active.elevationFt + " ft" : "") + ".");
+    return { ok: true, fight: next, path: path, costFt: cost, message: next.log[next.log.length - 1] };
+  }
+  function surfaceMapForPair(fight, attacker, target) {
+    if (!fight.surfaceAware || !fight.map.surfaceContract || !Surfaces) return fight.map;
+    var map = copy(fight.map), contract = map.surfaceContract;
+    map.h = map.h.slice(); map.wall = map.wall.slice();
+    [attacker.surfaceId, target.surfaceId].filter(function (id, index, all) { return id && all.indexOf(id) === index; }).forEach(function (surfaceId) {
+      var surface = Surfaces.surfaceById(contract, surfaceId);
+      (surface && surface.cells || []).forEach(function (cell) {
+        var index = cell.r * map.cols + cell.c; map.h[index] = finite(cell.elevationFt, finite(surface.elevationFt, 0)); map.wall[index] = false;
+      });
+    });
+    [attacker, target].forEach(function (unit) { map.h[unit.r * map.cols + unit.c] = finite(unit.elevationFt, map.h[unit.r * map.cols + unit.c]); });
+    return map;
   }
   function resolveAttack(fight, targetId) {
     var next = copy(fight), attacker = activeUnit(next), target = next.units.find(function (unit) { return unit.unit === targetId; });
     if (!attacker || !target || !target.alive || attacker.side === target.side || attacker.acted) return { ok: false, fight: fight, message: "Choose a living opponent for the active combatant." };
     var action = attacker.action;
     if (!action || !Combat.requireDamage(action).ok) return { ok: false, fight: fight, message: attacker.name + " has no usable attack." };
-    var rangeFt = finite(action.rng, 1) * 5, distanceFt = TG.range3d(next.map, attacker, target);
-    if (!TG.inRange(next.map, attacker, target, rangeFt)) return { ok: false, fight: fight, message: target.name + " is beyond " + action.label + "’s " + rangeFt + "-ft range." };
-    var sight = TG.losVerdict(next.map, attacker, target);
+    if (next.surfaceAware && Math.abs(finite(attacker.elevationFt, 0) - finite(target.elevationFt, 0)) > 5) {
+      return { ok: false, fight: fight, message: "Cross-floor attacks stay locked until stacked-surface sight and cover are promoted." };
+    }
+    var tacticalMap = surfaceMapForPair(next, attacker, target);
+    var rangeFt = finite(action.rng, 1) * 5, distanceFt = TG.range3d(tacticalMap, attacker, target);
+    if (!TG.inRange(tacticalMap, attacker, target, rangeFt)) return { ok: false, fight: fight, message: target.name + " is beyond " + action.label + "’s " + rangeFt + "-ft range." };
+    var sight = TG.losVerdict(tacticalMap, attacker, target);
     if (!sight.canTarget) return { ok: false, fight: fight, message: target.name + " has total cover." };
     var hostileAdjacent = next.units.some(function (unit) { return unit.alive && unit.side !== attacker.side && TG.chebyshev(attacker, unit) <= 1; });
     var sources = Combat.attackRollSources({ attacker: attacker, target: target, action: action, distanceFt: distanceFt, hostileAdjacent: hostileAdjacent, flankingMode: "advantage", flanked: false });
@@ -189,7 +230,8 @@
     var message = attacker.name + " used " + action.label + ": " + die + " + " + action.hit + " vs AC " + defense
       + (hit ? " — " + damage + " damage to " + target.name + "." : " — miss.") + (sight.cover === "none" ? "" : " Cover: " + sight.cover + ".");
     next.log.push(message);
-    return { ok: true, fight: next, hit: hit, damage: damage, sight: sight, sources: sources, message: message };
+    return { ok: true, fight: next, hit: hit, damage: damage, roll: die, total: total, defense: defense,
+      sight: sight, sources: sources, message: message };
   }
   function endTurn(fight) {
     var next = copy(fight), prior = activeUnit(next), guard = 0;
@@ -205,7 +247,7 @@
   }
   function spawns(fight) {
     return (fight && fight.units || []).filter(function (unit) { return unit.alive; }).map(function (unit) {
-      return { c: unit.c, r: unit.r, side: unit.side, key: unit.unit };
+      return { c: unit.c, r: unit.r, surfaceId: unit.surfaceId, elevationFt: unit.elevationFt, side: unit.side, key: unit.unit };
     });
   }
 

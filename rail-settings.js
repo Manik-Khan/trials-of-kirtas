@@ -22,6 +22,11 @@
     motion: 'system',
     uiSize: 'standard',
     quietEffects: false,
+    alertTurns: true,
+    alertMentions: true,
+    alertChronicle: 'mentions',
+    alertBrowser: false,
+    alertSound: false,
   };
   var prefs = read();
 
@@ -123,6 +128,10 @@
       '#tok-rail .tr-pref-action.danger{color:#e58a7e;border-color:rgba(224,88,74,.35)}',
       '#tok-rail .tr-pref-unavailable{padding:10px 11px;border:1px dashed var(--frame);color:var(--cream-fnt);font-size:11.5px;line-height:1.45}',
       '#tok-rail .tr-pref-unavailable strong{display:block;margin-bottom:3px;color:var(--cream-dim);font:600 8px/1.2 "Oswald",sans-serif;letter-spacing:.15em;text-transform:uppercase}',
+      '#tok-rail .tr-alert-status{display:flex;align-items:center;gap:8px;margin-bottom:7px;padding:9px 10px;border-left:2px solid #55bdb2;background:rgba(85,189,178,.08);color:var(--cream-dim);font-size:11.5px;line-height:1.35}',
+      '#tok-rail .tr-alert-status::before{content:"";width:7px;height:7px;border-radius:50%;background:#55bdb2;box-shadow:0 0 0 3px rgba(85,189,178,.12);flex:none}',
+      '#tok-rail .tr-alert-previews{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:8px}',
+      '#tok-rail .tr-alert-previews .tr-pref-choice{padding-left:3px;padding-right:3px;text-align:center}',
       '#tok-rail .tr-pref-status{min-height:17px;margin:10px 2px 0;color:#7fd0a4;font:600 8.5px/1.3 "Oswald",sans-serif;letter-spacing:.1em;text-transform:uppercase}',
       '#tok-rail.tr-feed-compact .tr-feed{gap:5px;padding-top:3px}',
       '#tok-rail.tr-feed-compact .feed-av{width:22px;height:22px}',
@@ -141,6 +150,7 @@
       'html[data-tok-ui-size="large"] #tok-settings .ts-note,html[data-tok-ui-size="large"] #tok-settings .ts-pointer{font-size:14px}',
       'html[data-tok-ui-size="large"] #tok-badge-menu .tb-name{font-size:17px}',
       'html[data-tok-ui-size="large"] #tok-badge-menu .tb-item{font-size:13px}',
+      '@media (max-width:480px){#tok-rail .tr-settings{padding-left:26px}}',
     ].join('\n');
     document.head.appendChild(s);
   }
@@ -181,7 +191,18 @@
         group('Motion', 'Controls shared rail, Appearance, and badge animation.', choice('motion', 'system', 'Follow device') + choice('motion', 'reduced', 'Reduced') + choice('motion', 'full', 'Full'))
         + group('Interface size', 'Enlarges shared controls and rail reading text.', choice('uiSize', 'standard', 'Standard') + choice('uiSize', 'large', 'Large'))
         + toggle('quietEffects', 'Quiet visual effects', 'Removes rail ornament, shadow, and blur.'))
-      + section('alerts', 'Alerts', '<div class="tr-pref-unavailable"><strong>Not connected yet</strong>Your turn, mention, and Chronicle alerts need an event-routing layer. Nothing is being silently saved or promised here.</div>')
+      + section('alerts', 'Alerts',
+        '<div class="tr-alert-status" data-alert-status>In-app alerts are loading.</div>'
+        + toggle('alertTurns', 'Your turn', 'Persistent until opened or dismissed.')
+        + toggle('alertMentions', 'Mentions', 'When a character tags you in the shared feed.')
+        + group('Chronicle activity', 'Mentions follows the mention switch above.', choice('alertChronicle', 'off', 'Off') + choice('alertChronicle', 'mentions', 'Mentions') + choice('alertChronicle', 'all', 'All'))
+        + toggle('alertSound', 'Soft chime', 'Only for turn and mention alerts.')
+        + '<div class="tr-pref-row"><button type="button" class="tr-pref-action" data-action="browser-alerts"><span data-browser-label>Enable browser alerts</span><span>↗</span></button><span class="tr-pref-hint" data-browser-hint>Shown only while this tab is hidden.</span></div>'
+        + '<div class="tr-pref-row"><span class="tr-pref-label">Preview an alert</span><div class="tr-alert-previews">'
+          + '<button type="button" class="tr-pref-choice" data-action="preview-alert" data-kind="turn">Your turn</button>'
+          + '<button type="button" class="tr-pref-choice" data-action="preview-alert" data-kind="mention">Mention</button>'
+          + '<button type="button" class="tr-pref-choice" data-action="preview-alert" data-kind="chronicle">Chronicle</button>'
+        + '</div></div>')
       + section('recovery', 'Reset &amp; recovery', '<button type="button" class="tr-pref-action danger" data-action="reset-preferences"><span>Reset device preferences</span><span>↺</span></button>')
       + '<div class="tr-pref-status" role="status" aria-live="polite"></div>'
       + '</div>';
@@ -232,6 +253,30 @@
     });
     var summary = host.querySelector('[data-look-summary]');
     if (summary) summary.textContent = lookSummary(lastLook);
+    paintAlerts();
+  }
+  function paintAlerts() {
+    if (!host) return;
+    var ready = !!(window.TokAlerts && window.TokAlerts.notify);
+    var status = host.querySelector('[data-alert-status]');
+    if (status) status.textContent = ready ? 'In-app alerts ready on this device.' : 'In-app alerts are loading.';
+    var label = host.querySelector('[data-browser-label]');
+    var hint = host.querySelector('[data-browser-hint]');
+    var button = host.querySelector('[data-action="browser-alerts"]');
+    if (!label || !hint || !button) return;
+    var permission = (window.TokAlerts && window.TokAlerts.permission) ? window.TokAlerts.permission() : ('Notification' in window ? window.Notification.permission : 'unsupported');
+    button.disabled = permission === 'unsupported' || permission === 'denied';
+    if (permission === 'unsupported') {
+      label.textContent = 'Browser alerts unavailable'; hint.textContent = 'In-app alerts still work while Kirtas is open.';
+    } else if (permission === 'denied') {
+      label.textContent = 'Browser alerts blocked'; hint.textContent = 'Allow notifications in this browser’s site settings to enable them.';
+    } else if (permission === 'granted' && prefs.alertBrowser) {
+      label.textContent = 'Disable browser alerts'; hint.textContent = 'Enabled while this tab is hidden.';
+    } else if (permission === 'granted') {
+      label.textContent = 'Enable browser alerts'; hint.textContent = 'Permission is ready; delivery is currently off.';
+    } else {
+      label.textContent = 'Enable browser alerts'; hint.textContent = 'Your browser will ask once. Nothing appears while this tab is active.';
+    }
   }
   function mount() {
     var pane = document.querySelector('.tr-pane[data-rail-pane="settings"]');
@@ -247,6 +292,21 @@
       var b = e.target.closest('button'); if (!b) return;
       if (b.dataset.pref) { set(b.dataset.pref, b.dataset.value); return; }
       if (b.dataset.toggle) { set(b.dataset.toggle, !prefs[b.dataset.toggle]); return; }
+      if (b.dataset.action === 'preview-alert') {
+        if (window.TokAlerts && window.TokAlerts.preview) window.TokAlerts.preview(b.dataset.kind);
+        else say('Alerts are still loading.');
+        return;
+      }
+      if (b.dataset.action === 'browser-alerts') {
+        if (prefs.alertBrowser) { set('alertBrowser', false); say('Browser alerts disabled'); return; }
+        if (!window.TokAlerts || !window.TokAlerts.requestBrowser) { say('Browser alerts are unavailable.'); return; }
+        window.TokAlerts.requestBrowser().then(function (permission) {
+          if (permission === 'granted') { set('alertBrowser', true); say('Browser alerts enabled on this device'); }
+          else { set('alertBrowser', false); say(permission === 'denied' ? 'Browser alerts are blocked in site settings.' : 'Browser alerts were not enabled.'); }
+          paintAlerts();
+        });
+        return;
+      }
       if (b.dataset.action === 'appearance') {
         e.stopPropagation(); // do not let TokSettings' outside-click listener close the flyout we open
         if (window.TokRail) window.TokRail.close();
@@ -270,5 +330,6 @@
   applyTargets();
   document.addEventListener('tok-rail:ready', function () { mount(); applyTargets(); });
   document.addEventListener('tok:look', function (e) { lastLook = e.detail || null; paint(); });
+  document.addEventListener('tok:alerts-ready', paintAlerts);
   if (document.querySelector('.tr-pane[data-rail-pane="settings"]')) mount();
 })();

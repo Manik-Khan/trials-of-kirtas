@@ -72,7 +72,11 @@ unfinished job, tracked in `CONTEXT_Forge.md` §3.
 - **`forge-combat-snapshot.js`** — exact `forge-combat-snapshot/v1` persistence
   for Blueprint, Build edits, renderer choice, deployment, presentation, and
   disposable-fight runtime. The same record can seed the existing session/event
-  replay through a full-state restore; shared combat writes remain field-gated.
+  replay through a full-state restore.
+- **`forge-combat-shared.js`** — the guarded adapter from the disposable fight
+  into the existing event spine. It publishes locally resolved movement,
+  attacks, and End Turn as replayable facts while preserving optional named
+  surface/elevation positions. Reactions and stacked-floor sight remain gated.
 - **`import.html` / `import.js`** — the production local artwork calibration and
   structure-review surface.
 

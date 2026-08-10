@@ -13,6 +13,12 @@ const ok = (cond, label) => { cond ? pass++ : (fail++, console.log('  FAIL: ' + 
 let appearanceOpened = 0, railClosed = 0;
 window.TokSettings = { open() { appearanceOpened++; } };
 window.TokRail = { close() { railClosed++; } };
+const alertPreviews = [];
+let browserRequests = 0;
+window.TokAlerts = {
+  notify() {}, preview(kind) { alertPreviews.push(kind); }, permission() { return browserRequests ? 'granted' : 'default'; },
+  requestBrowser() { browserRequests++; return Promise.resolve('granted'); },
+};
 const rs = { advantage: true, disadvantage: false, bless: true, guidance: true };
 window.__battle = {
   getRS() { return Object.assign({}, rs); },
@@ -24,7 +30,18 @@ const pane = document.querySelector('[data-rail-pane="settings"]');
 ok(!!window.TokPreferences, 'TokPreferences public seam exists');
 ok(!!pane.querySelector('.tr-settings'), 'Settings hierarchy mounts into the rail pane');
 ok(pane.querySelectorAll('.tr-pref-sec').length === 5, 'Workspace / Rolls / Accessibility / Alerts / Recovery render');
-ok(!pane.querySelector('[data-section="alerts"] [data-toggle]'), 'Alerts expose no fake-save toggles');
+ok(pane.querySelectorAll('[data-section="alerts"] [data-toggle]').length === 3, 'Alerts expose live turn / mention / sound toggles');
+ok(window.TokPreferences.get().alertTurns && window.TokPreferences.get().alertChronicle === 'mentions', 'safe alert defaults are on for turns and mentions-only Chronicle');
+
+pane.querySelector('[data-toggle="alertTurns"]').click();
+pane.querySelector('[data-pref="alertChronicle"][data-value="all"]').click();
+ok(!window.TokPreferences.get().alertTurns && window.TokPreferences.get().alertChronicle === 'all', 'alert delivery choices persist locally');
+pane.querySelector('[data-action="preview-alert"][data-kind="mention"]').click();
+ok(alertPreviews.join(',') === 'mention', 'alert preview routes through TokAlerts');
+pane.querySelector('[data-action="browser-alerts"]').click();
+await new Promise(resolve => setTimeout(resolve, 0));
+ok(browserRequests === 1 && window.TokPreferences.get().alertBrowser === true, 'browser permission is requested only from the explicit device action');
+ok(/disable browser alerts/i.test(pane.querySelector('[data-browser-label]').textContent), 'granted browser delivery narrates its enabled state');
 
 const compact = pane.querySelector('[data-pref="feedDensity"][data-value="compact"]');
 compact.click();
@@ -56,7 +73,7 @@ ok(/next reopen/i.test(pane.querySelector('.tr-pref-status').textContent), 'layo
 
 pane.querySelector('[data-action="reset-preferences"]').click();
 const reset = window.TokPreferences.get();
-ok(reset.feedDensity === 'comfortable' && reset.motion === 'system' && reset.clearAdvDis === false, 'device reset restores safe house defaults');
+ok(reset.feedDensity === 'comfortable' && reset.motion === 'system' && reset.clearAdvDis === false && reset.alertTurns === true && reset.alertChronicle === 'mentions', 'device reset restores safe house defaults');
 
 console.log(`smoke-rail-settings: ${pass}/${pass + fail} passed${fail ? `  (${fail} FAILED)` : ''}`);
 process.exit(fail ? 1 : 0);

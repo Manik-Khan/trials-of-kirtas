@@ -95,7 +95,7 @@ throws("fractional map dimensions are refused", () => Surfaces.compileMap({ cols
 throws("malformed height arrays are refused", () => Surfaces.compileMap({ cols: 2, rows: 2, h: [0], wall: [false, false, false, false] }), /h cell array length/);
 throws("malformed wall arrays are refused", () => Surfaces.compileMap({ cols: 2, rows: 2, h: [0, 0, 0, 0], wall: [false] }), /wall cell array length/);
 
-ok("production loads the new authority with a fresh cache stamp", html.includes('<script src="forge-surfaces.js?v=fs1"></script>'));
+ok("production loads the new authority with a fresh cache stamp", html.includes('<script src="forge-surfaces.js?v=fs2"></script>'));
 ok("production activation is guarded by the explicit surfaces query flag", html.includes("STORYBOOK_PARAMS.get('surfaces')==='1'"));
 ok("the default map path attaches no contract unless the flag is active", html.includes("if(typeof SURFACE_CONTRACT_ON!=='undefined'&&SURFACE_CONTRACT_ON)SURFACE_API.attach(map)"));
 ok("the Workshop narrates the flagged surface receipt", html.includes('id="forgeSurfaceSummary"') && html.includes("receipt.underpassColumns"));
