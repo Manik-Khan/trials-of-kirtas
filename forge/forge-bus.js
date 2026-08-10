@@ -70,6 +70,11 @@
     var sb = deps.sb, sid = deps.sessionId;
     return {
       connect: function () {
+        var lastReadError = null, restartSubscription = null;
+        function note(msg) {
+          if (typeof console !== "undefined") console.warn("[forge-bus] " + msg);
+          if (deps.onTransport) { try { deps.onTransport(msg); } catch (e) {} }
+        }
         return {
           publish: function (ev) {
             var v = FP.validateEvent(ev);
@@ -97,11 +102,7 @@
                contract. deps.onTransport (optional) narrates drops/recovery
                to the surface; retryMs (optional) exists for the smoke. */
             var retryMs = deps.retryMs || 500;
-            var hi = 0, gen = 0, failCount = 0, reopening = false;
-            function note(msg) {
-              if (typeof console !== "undefined") console.warn("[forge-bus] " + msg);
-              if (deps.onTransport) { try { deps.onTransport(msg); } catch (e) {} }
-            }
+            var hi = 0, gen = 0, failCount = 0, reopening = false, currentChannel = null;
             function deliver(r) {
               if (r.id > hi) hi = r.id;
               fn({ seq: r.id, unit: r.unit, actor: r.actor, kind: r.kind,
@@ -111,18 +112,21 @@
               sb.from("forge_events").select("*")
                 .eq("session_id", sid).gt("id", hi).order("id", { ascending: true })
                 .then(function (res) {
-                  if (res.error) { note("catch-up read failed: " + res.error.message); return; }
+                  if (res.error) { lastReadError = res.error.message; note("catch-up read failed: " + lastReadError); return; }
+                  lastReadError = null;
                   res.data.forEach(deliver);
                 });
             }
             function open() {
               gen++;
               var ch = sb.channel("forge:" + sid + ":" + gen);
+              currentChannel = ch;
               ch.on("postgres_changes",
                   { event: "INSERT", schema: "public", table: "forge_events",
                     filter: "session_id=eq." + sid },
                   function (msg) { deliver(msg.new); })
                 .subscribe(function (status) {
+                  if (ch !== currentChannel) return;
                   if (status === "SUBSCRIBED") {
                     failCount = 0;
                     if (gen > 1) { note("connection restored — catching up on missed events."); backfill(); }
@@ -139,19 +143,30 @@
                   }
                 });
             }
+            restartSubscription = function () {
+              var old = currentChannel;
+              currentChannel = null;
+              reopening = false; failCount = 0;
+              if (old) { try { sb.removeChannel(old); } catch (e) {} }
+              note("table permissions changed — reconnecting the live event stream.");
+              open();
+            };
             open();
           },
           fetchAll: function () {
             return sb.from("forge_events").select("*")
               .eq("session_id", sid).order("id", { ascending: true })
               .then(function (res) {
-                if (res.error) { console.warn("[forge-bus] fetchAll:", res.error.message); return []; }
+                if (res.error) { lastReadError = res.error.message; note("event history read failed: " + lastReadError); return []; }
+                lastReadError = null;
                 return res.data.map(function (r) {
                   return { seq: r.id, unit: r.unit, actor: r.actor, kind: r.kind,
                            payload: r.payload, created_at: Date.parse(r.created_at) };
                 });
               });
-          }
+          },
+          refresh: function () { if (restartSubscription) restartSubscription(); },
+          health: function () { return { lastReadError: lastReadError }; }
         };
       }
     };

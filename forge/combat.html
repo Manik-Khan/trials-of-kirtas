@@ -13,7 +13,7 @@
   }
 }
 </script>
-<link rel="stylesheet" href="combat.css?v=fc5">
+<link rel="stylesheet" href="combat.css?v=fc6">
 </head>
 <body>
 <header class="masthead">
@@ -456,6 +456,11 @@
       <section class="panel fight-panel">
         <div class="section-head"><div><span class="step">03</span><h3>Combat</h3></div><span class="status" id="combatFightStatus">not prepared</span></div>
         <p class="hint" id="combatFightInstruction">Choose characters first. Combat will use this exact Blueprint field without changing the authored map.</p>
+        <div class="combat-claim" id="combatClaimPanel" hidden>
+          <div><span class="kicker">Join this shared table</span><strong>Choose your character</strong></div>
+          <p id="combatClaimStatus">Claim a character to receive live changes and take its turns.</p>
+          <div class="combat-claim-list" id="combatClaimList"></div>
+        </div>
         <div id="combatTurn" class="combat-turn" hidden></div>
         <div id="combatCombatants" class="combat-combatants"></div>
         <div class="fight-actions">
@@ -562,11 +567,12 @@
 <script src="forge-protocol.js?v=fpr2"></script>
 <script src="forge-encounter-regions.js?v=fer1"></script>
 <script src="forge-replay.js?v=fb20"></script>
-<script src="forge-bus.js?v=fb2"></script>
+<script src="forge-bus.js?v=fb3"></script>
 <script src="forge-pipeline.js?v=fb9"></script>
+<script src="forge-board.js?v=fb11"></script>
 <script src="forge-blueprint.js?v=bp6"></script>
 <script src="forge-buildings.js?v=fbld2"></script>
 <script src="forge-combat-snapshot.js?v=fcs3"></script>
-<script type="module" src="combat.js?v=fc12"></script>
+<script type="module" src="combat.js?v=fc13"></script>
 </body>
 </html>

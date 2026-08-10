@@ -1981,6 +1981,48 @@ Current live-loop stamps: `forge-combat-local.js?v=fcl3`,
 `forge-combat-shared.js?v=fcsw1`, `forge-replay.js?v=fb20`, and
 `combat.js?v=fc12`.
 
+### Shared-table character claim and event-read recovery · 2026-08-10
+
+M's next field pass isolated the remaining freeze: a second approved member
+could select `forge_sessions` and therefore restore the opening snapshot, but
+`forge_events` RLS correctly denied that account until it appeared in the
+session's `controllers` record. Combat created `controllers: {}` and had not
+ported the already-approved `forge_claim_unit` interaction, while the
+production bus converted a denied history read into an unexplained empty log.
+Refreshing therefore reopened the same initial snapshot forever.
+
+The Combat surface now exposes **Join this shared table → Choose your
+character** to non-overseer accounts. It uses the existing `ForgeBoard.canClaim`
+UI twin and server-enforced `forge_claim_unit` RPC. After a successful claim it
+refreshes the authoritative controllers row, mutates the acting pipeline's
+controlled-unit seat in place, catches up the complete missed event history,
+and deliberately reopens Realtime under the new permissions. Claimed-by-other
+characters remain visibly unavailable; the same account may claim more than
+one PC under the existing RPC rule.
+
+The Supabase bus now retains event-read health, narrates an RLS/read failure,
+and exposes an explicit permission-refresh reconnect. An unclaimed player sees
+the character choice instead of a falsely healthy frozen table. A controller
+or overseer whose history read fails receives a hard shared-restore error
+instead of an event-0 rendering. No RLS policy was loosened and no SQL was
+added; this slice depends on the previously applied
+`schema_delta_forge_board.sql` claim RPC and event-select policy.
+
+The wider affected battery passes **409/409** known-answer checks, including
+production wiring, the claim authority, denied-read health and reconnect,
+two-client move/attack/turn convergence, late catch-up, surface-aware building
+combat, protocol, geometry, LOS/cover, placement, flora, and map bridging.
+Every touched JavaScript file passes `node --check`. A real local browser loaded
+the production Combat page and panel with zero warnings/errors, kept the claim
+panel absent from local mode, and exposed the field diagnostic. The remaining
+field gate is the deployed two-account sequence: player claims a PC, both
+devices observe a move without refresh, then the player reconnects and catches
+up to the same event sequence.
+
+Current claim/recovery stamps: `forge-bus.js?v=fb3`,
+`combat.css?v=fc6`, and `combat.js?v=fc13`; Combat also loads the existing
+`forge-board.js?v=fb11` authority.
+
 ## Deployment discipline
 
 M reviews, commits, and pushes. Codex does not push. Current slice stamps:

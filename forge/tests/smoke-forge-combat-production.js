@@ -18,14 +18,16 @@ function ok(name, value) {
 
 ok("production Blueprint exports the approved schema", BP.SCHEMA === "forge-blueprint/v1");
 ok("production Combat loads cache-stamped production assets",
-  combatHtml.includes('href="combat.css?v=fc5"')
+  combatHtml.includes('href="combat.css?v=fc6"')
   && combatHtml.includes('src="forge-blueprint.js?v=bp6"')
   && combatHtml.includes('src="forge-buildings.js?v=fbld2"')
   && combatHtml.includes('src="forge-surfaces.js?v=fs2"')
-  && combatHtml.includes('src="combat.js?v=fc12"')
+  && combatHtml.includes('src="combat.js?v=fc13"')
   && combatHtml.includes('src="forge-combat-local.js?v=fcl3"')
   && combatHtml.includes('src="forge-combat-shared.js?v=fcsw1"')
   && combatHtml.includes('src="forge-replay.js?v=fb20"')
+  && combatHtml.includes('src="forge-bus.js?v=fb3"')
+  && combatHtml.includes('src="forge-board.js?v=fb11"')
   && combatHtml.includes('src="forge-combat-snapshot.js?v=fcs3"')
   && !combatHtml.includes("_edits/") && !combatHtml.includes("mock-forge"));
 ok("production renderer consumes the production Blueprint authority",
@@ -39,6 +41,12 @@ ok("Combat identifies exact restore and the live shared action loop",
   combatHtml.includes("Forge Combat field test")
   && combatHtml.includes("live shared movement, attacks, and turns")
   && combatHtml.includes("Reactions and stacked-floor sight remain guarded"));
+ok("shared Combat exposes the approved character-claim door and narrated transport health",
+  combatHtml.includes('id="combatClaimPanel"')
+  && combatJs.includes('rpc("forge_claim_unit"')
+  && combatJs.includes("await session.pipe.catchUp()")
+  && combatJs.includes("conn.health?.().lastReadError")
+  && combatJs.includes("Choose your character to unlock this table’s live event history."));
 ok("the visible workflow names Map, Characters, and Combat",
   [">Map</button>", ">Characters</button>", ">Combat</button>"].every((label) => combatHtml.includes(label))
   && combatHtml.includes("Choose characters →"));

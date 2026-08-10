@@ -881,6 +881,21 @@ main{
 .fight-gate{margin-top:8px!important;font-size:9px!important}
 .fight-gate.good{color:#a8c5a0}
 .fight-gate.bad{color:#e4a499}
+.combat-claim{margin:10px 0;padding:10px;border:1px solid var(--gold);background:rgba(198,164,95,.08)}
+.combat-claim>div:first-child{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.combat-claim>div:first-child strong{font:normal 12px Georgia,serif}
+.combat-claim>p{margin:6px 0 8px!important;color:var(--paper-dim);font-size:8px!important;line-height:1.4!important}
+.combat-claim>p.good{color:#a8c5a0}
+.combat-claim>p.bad{color:#e4a499}
+.combat-claim-list{display:grid;gap:5px}
+.combat-claim-choice{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;width:100%;padding:8px;border:1px solid #46514c;background:#121a17;color:var(--paper);text-align:left}
+.combat-claim-choice span,.combat-claim-choice small{display:block}
+.combat-claim-choice span{font:normal 10px Georgia,serif}
+.combat-claim-choice small{margin-top:2px;color:var(--paper-dim);font-size:8px}
+.combat-claim-choice b{color:var(--gold-2);font:8px ui-monospace,monospace;text-transform:uppercase}
+.combat-claim-choice:not(:disabled):hover{border-color:var(--gold);background:rgba(198,164,95,.12)}
+.combat-claim-choice:disabled{cursor:default;opacity:.58}
+.combat-claim-choice.mine{border-color:var(--teal);opacity:1}
 .combat-turn{margin:10px 0 7px;padding:9px;border-left:3px solid var(--gold);background:rgba(198,164,95,.08)}
 .combat-turn strong,.combat-turn small{display:block}
 .combat-turn strong{font:normal 13px Georgia,serif}

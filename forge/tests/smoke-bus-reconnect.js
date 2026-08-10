@@ -11,7 +11,7 @@ let pass = 0, fail = 0;
 function ok(n, c) { if (c) { pass++; } else { fail++; console.log("  FAIL " + n); } }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function makeFakeSb(rowsStore) {
+function makeFakeSb(rowsStore, readError) {
   const channels = [];
   return {
     channels,
@@ -31,7 +31,9 @@ function makeFakeSb(rowsStore) {
         _gt: 0,
         select() { return q; }, eq() { return q; },
         gt(_c, v) { q._gt = v; return q; },
-        order() { return Promise.resolve({ data: rowsStore.filter((r) => r.id > q._gt), error: null }); },
+        order() { return Promise.resolve(readError.message
+          ? { data: null, error: { message: readError.message } }
+          : { data: rowsStore.filter((r) => r.id > q._gt), error: null }); },
       };
       return q;
     },
@@ -41,7 +43,8 @@ const row = (id) => ({ id, unit: "gob1", actor: "dm", kind: "move_resolved", pay
 
 (async function () {
   const rows = [row(1)];
-  const sb = makeFakeSb(rows);
+  const readError = { message: null };
+  const sb = makeFakeSb(rows, readError);
   const notes = [], got = [];
   const conn = FB.makeSupabaseBus({ sb, sessionId: "s1", retryMs: 1, onTransport: (m) => notes.push(m) }).connect();
   conn.subscribe((e) => got.push(e.seq));
@@ -81,6 +84,21 @@ const row = (id) => ({ id, unit: "gob1", actor: "dm", kind: "move_resolved", pay
   sb.channels[2].statusCb("SUBSCRIBED");
   await sleep(20);
   ok("nothing new to backfill, nothing re-delivered", got.join(",") === "1,2,3,3");
+
+  console.log("\n── membership changes reauthorize the stream and reads narrate failures ──");
+  readError.message = "row-level security denied forge_events";
+  const denied = await conn.fetchAll();
+  ok("a denied history read returns no forged state", denied.length === 0);
+  ok("the denied read remains inspectable", conn.health().lastReadError === readError.message);
+  ok("the denied read is narrated", notes.some((m) => m.indexOf("event history read failed") >= 0));
+  readError.message = null;
+  await conn.fetchAll();
+  ok("a successful retry clears the transport error", conn.health().lastReadError === null);
+  const priorChannel = sb.channels[sb.channels.length - 1];
+  conn.refresh();
+  ok("a permission refresh removes the old channel", priorChannel.removed === true);
+  ok("a permission refresh opens a newly authorized channel", sb.channels.length === 4);
+  ok("the permission refresh is narrated", notes.some((m) => m.indexOf("permissions changed") >= 0));
 
   console.log("\n" + pass + "/" + (pass + fail) + " passed\n");
   process.exit(fail ? 1 : 0);

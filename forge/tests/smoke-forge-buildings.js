@@ -171,7 +171,7 @@ ok("production loads cache-stamped guarded building authority",
   combatHtml.includes('src="forge-buildings.js?v=fbld2"')
   && combatHtml.includes('src="forge-blueprint.js?v=bp6"')
   && combatHtml.includes('src="forge-surfaces.js?v=fs2"')
-  && combatHtml.includes('src="combat.js?v=fc12"')
+  && combatHtml.includes('src="combat.js?v=fc13"')
   && combatHtml.includes('src="forge-combat-local.js?v=fcl3"')
   && combatHtml.includes('src="forge-combat-shared.js?v=fcsw1"')
   && combatHtml.includes('src="forge-replay.js?v=fb20"')

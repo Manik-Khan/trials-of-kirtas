@@ -11,9 +11,10 @@ const Surfaces = window.ForgeSurfaces;
 if (SURFACES_ENABLED && !Surfaces) throw new Error("Forge surface authority did not load");
 const LocalCombat = window.ForgeCombatLocal;
 const SharedCombat = window.ForgeCombatShared;
+const ForgeBoard = window.ForgeBoard;
 const PartySelection = window.ForgePartySelection;
 const CombatSnapshot = window.ForgeCombatSnapshot;
-if (!LocalCombat || !SharedCombat || !PartySelection || !CombatSnapshot) throw new Error("Forge Combat authorities did not load");
+if (!LocalCombat || !SharedCombat || !ForgeBoard || !PartySelection || !CombatSnapshot) throw new Error("Forge Combat authorities did not load");
 const COMBAT_SNAPSHOT_KEY = "tok:forge-combat-snapshot:v1";
 
 const QUALITY = Object.freeze({
@@ -49,7 +50,7 @@ const ui = {};
   "combatRosterStatus", "combatRoster", "prepareLocalCombat", "combatFightGate",
   "combatFightStatus", "combatFightInstruction", "combatTurn", "combatCombatants",
   "combatAttack", "combatEndTurn", "combatFightLog", "saveCombatSnapshot", "reopenCombatSnapshot",
-  "openSharedCombat", "combatSnapshotStatus",
+  "openSharedCombat", "combatSnapshotStatus", "combatClaimPanel", "combatClaimStatus", "combatClaimList",
   "buildHandles", "directBuildStatus", "directBuildMode", "layoutToolGuidance", "massBuildCallout",
   "buildBrushRail", "brushTitle", "brushContextHint", "brushExitBuild", "brushUndo", "brushRedo",
   "buildRadial", "radialUndo", "radialRedo", "radialToolLabel",
@@ -2621,6 +2622,82 @@ function fightFinished() {
   if (!state.fight) return false;
   return !state.fight.units.some((unit) => unit.alive && unit.side === "pc") || !state.fight.units.some((unit) => unit.alive && unit.side === "foe");
 }
+function sharedControllerOf(unit) {
+  const controllers = state.session?.row?.controllers || {};
+  return Object.keys(controllers).find((uid) => (controllers[uid] || []).includes(unit)) || null;
+}
+function claimMessage(message, kind = "") {
+  ui.combatClaimStatus.textContent = message;
+  ui.combatClaimStatus.className = kind;
+}
+function renderCombatClaim() {
+  const session = state.session;
+  if (!session || session.me.overseer) {
+    ui.combatClaimPanel.hidden = true;
+    ui.combatClaimList.replaceChildren();
+    return;
+  }
+  ui.combatClaimPanel.hidden = false;
+  ui.combatClaimList.replaceChildren();
+  const pcs = (session.row.roster || []).filter((unit) => (unit.kind || "pc") === "pc");
+  const readError = session.conn?.health?.().lastReadError;
+  if (!pcs.length) claimMessage("This table has no player characters available to claim.", "bad");
+  else if (!session.pipe || session.busy) claimMessage("Connecting this device to the shared table…");
+  else if (session.claimBusy) claimMessage("Joining the table and recovering its live history…");
+  else if (readError && !session.me.units.length) claimMessage("Live changes are locked until you choose your character.", "bad");
+  else if (readError) claimMessage("The live event history could not be read: " + readError, "bad");
+  else if (session.me.units.length) claimMessage("Connected live as " + session.me.units.map((unit) => pcs.find((row) => row.unit === unit)?.name || unit).join(", ") + ".", "good");
+  else claimMessage("Choose your character to receive live changes and take its turns.");
+  pcs.forEach((row) => {
+    const owner = sharedControllerOf(row.unit), mine = owner === session.me.actor, other = !!owner && !mine;
+    const claim = ForgeBoard.canClaim(session.row, session.me.actor, row.unit);
+    const button = document.createElement("button"), copy = document.createElement("span"), name = document.createElement("span"), detail = document.createElement("small"), badge = document.createElement("b");
+    button.type = "button";
+    button.className = "combat-claim-choice" + (mine ? " mine" : "");
+    button.disabled = session.busy || !session.pipe || session.claimBusy || mine || other || !claim.ok;
+    name.textContent = row.name || row.unit;
+    detail.textContent = mine ? "You control this character" : other ? "Already claimed by another player" : claim.ok ? "Available to join" : claim.why;
+    badge.textContent = mine ? "Yours" : other ? "Claimed" : "Play as";
+    copy.append(name, detail); button.append(copy, badge);
+    button.addEventListener("click", () => claimSharedUnit(row.unit, row.name || row.unit));
+    ui.combatClaimList.appendChild(button);
+  });
+}
+async function refreshSharedControllers() {
+  const session = state.session;
+  if (!session?.sb) throw new Error("The shared table connection is unavailable.");
+  const fresh = await session.sb.from("forge_sessions").select("*").eq("id", session.row.id).single();
+  if (fresh.error || !fresh.data) throw new Error(fresh.error?.message || "The table membership could not be refreshed.");
+  Object.assign(session.row, fresh.data);
+  const mine = session.row.controllers?.[session.me.actor] || [];
+  session.me.units.splice(0, session.me.units.length, ...mine);
+  return mine;
+}
+async function claimSharedUnit(unit, name) {
+  const session = state.session;
+  if (!session || session.claimBusy) return;
+  session.claimBusy = true;
+  renderCombatClaim();
+  try {
+    const rpc = await session.sb.rpc("forge_claim_unit", { p_session: session.row.id, p_unit: unit });
+    const result = rpc.data || {};
+    if (rpc.error || result.ok !== true) throw new Error(rpc.error?.message || result.why || "The character claim was refused.");
+    await refreshSharedControllers();
+    session.conn?.refresh?.();
+    await session.pipe.catchUp();
+    const readError = session.conn?.health?.().lastReadError;
+    if (readError) throw new Error("The character was claimed, but the event history is still unavailable: " + readError);
+    syncSharedSnapshot();
+    claimMessage("Connected live as " + name + ". Missed changes have been recovered.", "good");
+  } catch (error) {
+    try { await refreshSharedControllers(); } catch (_) {}
+    claimMessage("Could not join as " + name + ": " + (error?.message || error), "bad");
+    snapshotMessage("Shared table is not live on this device: " + (error?.message || error), true);
+  } finally {
+    session.claimBusy = false;
+    renderCombatClaim(); renderLocalCombat();
+  }
+}
 function sharedCanControlActive() {
   const active = LocalCombat.activeUnit(state.fight);
   return !!(state.session && active && SharedCombat.canControl(state.session.me, active.unit));
@@ -2628,11 +2705,13 @@ function sharedCanControlActive() {
 function sharedWaitMessage(active) {
   if (!state.session?.pipe) return "Connecting this shared table to the event log…";
   if (state.session.busy) return "Publishing the active turn to every connected table…";
+  if (!state.session.me.overseer && !state.session.me.units.length) return "Choose your character below to connect this device to live changes.";
   if (sharedCanControlActive()) return "Live shared combat. Move, attack, and End Turn publish through the existing event log.";
   return "Watching " + active.name + "’s turn. Their controller—or the DM—can act from another device.";
 }
 function renderLocalCombat() {
   ui.combatCombatants.replaceChildren(); ui.combatFightLog.replaceChildren();
+  renderCombatClaim();
   if (!state.fight) {
     ui.combatFightStatus.textContent = "not prepared"; ui.combatFightStatus.className = "status";
     ui.combatFightInstruction.textContent = state.blueprint.buildingSet
@@ -4104,7 +4183,7 @@ async function bootSharedCombat(sessionId) {
     return;
   }
   const me = { actor: user.id, units: result.data.controllers?.[user.id] || [], overseer: result.data.overseer === user.id };
-  state.session = { row: result.data, me, conn: null, pipe: null, snapshot: route.snapshot, busy: true };
+  state.session = { row: result.data, me, sb: tok.sb, conn: null, pipe: null, snapshot: route.snapshot, busy: true, claimBusy: false };
   restoreCombatSnapshot(route.snapshot, "Loaded shared snapshot authority");
   const conn = window.ForgeBus.makeSupabaseBus({
     sb: tok.sb, sessionId,
@@ -4116,6 +4195,15 @@ async function bootSharedCombat(sessionId) {
   });
   Object.assign(state.session, { conn, pipe, busy: false });
   await pipe.catchUp();
+  const readError = conn.health?.().lastReadError;
+  if (readError) {
+    renderCombatClaim(); renderLocalCombat();
+    if (!me.overseer && !me.units.length) {
+      snapshotMessage("Choose your character to unlock this table’s live event history.", true);
+      return;
+    }
+    throw new Error("The saved table opened, but its live event history could not be read: " + readError);
+  }
   syncSharedSnapshot();
 }
 window.__forgeCombatState = () => ({
@@ -4140,6 +4228,8 @@ window.__forgeCombatState = () => ({
   sessionId: state.session?.row?.id || null,
   sessionEventSeq: state.session?.pipe?.state()?.lastSeq || null,
   sessionReadOnly: !!state.session && !state.session.me?.overseer && !state.session.me?.units?.length,
+  sessionControlledUnits: state.session?.me?.units?.slice() || [],
+  sessionTransportError: state.session?.conn?.health?.().lastReadError || null,
   sessionCanControlActive: sharedCanControlActive(),
   sessionBusy: !!state.session?.busy,
   buildingsEnabled: buildingsEnabled(),
