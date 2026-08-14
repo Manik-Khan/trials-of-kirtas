@@ -49,6 +49,8 @@ ok('preflight captures constraints and indexes', has(audit, /from pg_constraint/
 ok('preflight captures RLS policies', has(audit, /from pg_policies/i));
 ok('preflight captures triggers and function bodies', has(audit, /from pg_trigger/i) && has(audit, /pg_get_functiondef/i));
 ok('preflight captures grants and realtime', has(audit, /from information_schema\.role_table_grants/i) && has(audit, /from pg_publication_tables/i));
+ok('preflight consolidates every section into one JSON result', has(audit, /jsonb_pretty\s*\(\s*jsonb_build_object\s*\(/i) && has(audit, /as item_transfer_preflight/i));
+ok('preflight is one statement so Supabase cannot hide earlier grids', audit.split(';').filter((statement) => statement.trim()).length === 1);
 ok('preflight contains no mutating statement', !has(audit, /^\s*(?:alter|create|drop|insert|update|delete|grant|revoke|truncate)\b/im));
 
 console.log(`\nsmoke-item-provenance-sql: ${pass} passed, ${fail} failed`);
