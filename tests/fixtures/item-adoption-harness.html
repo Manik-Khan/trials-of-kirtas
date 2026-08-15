@@ -1,0 +1,33 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Item adoption production-module harness</title>
+<style>
+  *{box-sizing:border-box}body{margin:0;min-height:100vh;background:#111816;color:#ece2cd;font-family:Georgia,serif}.harness{max-width:920px;margin:34px auto;padding:0 18px}.harness h1{font-size:27px;font-weight:500}.harness p{color:#9d9788}.tok-sheet{margin-top:22px;padding:22px;background:#182826;border:1px solid rgba(199,154,74,.38)}.gm-detail{padding:18px;background:#0d1815;border-left:2px solid #c79a4a}.gm-d-cat{color:#8d8675;text-transform:uppercase;font:11px Arial,sans-serif;letter-spacing:.12em}.gm-d-rar{margin-top:7px;color:#4a6aaa}.gm-d-desc{color:#c2b99f}.gm-d-edit{display:flex;justify-content:flex-end;margin-top:12px}.gm-d-editbtn{border:1px solid #716953;background:transparent;color:#c2b99f;padding:7px 11px}.test-state{margin-top:12px;color:#74b77c;font:12px Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase}
+</style>
+<main class="harness">
+  <h1>Cosmere Runestar · Gear</h1>
+  <p>The harness uses the production item-adoption module and a fake RPC boundary.</p>
+  <section id="sheet-root">
+    <section class="tok-sheet">
+      <div data-equip>
+        <div class="gm-detail">
+          <div class="gm-d-cat">Wondrous item</div><div class="gm-d-rar">Rare</div>
+          <div class="gm-d-desc"><p>A smoke-grey traveling cloak stitched with a faint pattern of silver leaves.</p></div>
+          <div class="gm-d-edit"><button class="gm-d-editbtn" data-editopen="id:cloak-row">Edit item</button></div>
+        </div>
+      </div>
+    </section>
+  </section>
+  <div class="test-state" id="test-state">Mounting…</div>
+</main>
+<script src="../../item-adoption.js?v=ia1"></script>
+<script>
+  const ITEM={id:'cloak-row',name:'Embroidered Cloak',qty:1,rarity:'Rare',entries:['Hood up: Wisdom (Perception) checks made to see the wearer have disadvantage.'],flavor:'A smoke-grey traveling cloak stitched with a faint pattern of silver leaves.'};
+  const root=document.getElementById('sheet-root');
+  root.querySelector('[data-equip]').__gmCtx={inventory:[ITEM]};
+  window.__adoptionTest={rpcCalls:[],successes:0,finishes:0};
+  const supabase={rpc:async(name,payload)=>{window.__adoptionTest.rpcCalls.push({name,payload});return{data:{ok:true,inventoryItem:{...ITEM,instanceId:'item_cloak',_tracked:true}},error:null}}};
+  const characterData={loadCharacter:async()=>({key:'cosmere',name:'Cosmere Runestar',inventory:[ITEM]})};
+  ItemAdoption.mount({document,root,search:location.search,profile:{role:'dm'},characterData,supabase,characterKey:'cosmere',characterName:'Cosmere Runestar',contextOptions:{currentSession:'9',sessions:[{id:'9',label:'Session 9 · Beneath the Watch'}],locations:[{id:'dark-forest',label:'Dark Forest'},{id:'verens-watch',label:"Veren's Watch"}]},onSuccess(){window.__adoptionTest.successes++},onFinish(){window.__adoptionTest.finishes++;document.querySelector('.tok-ia-overlay')?.remove()}}).then(handle=>{window.__adoptionTest.mount=handle;document.getElementById('test-state').textContent=handle.active?'Production bridge active':'Production bridge inactive'});
+</script>

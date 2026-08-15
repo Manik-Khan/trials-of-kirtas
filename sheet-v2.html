@@ -189,13 +189,17 @@ body::after{
 <script src="equip-slots.js"></script>
 <script src="item-icons.js"></script>
 <script src="gear-manager.js"></script>
+<script src="item-adoption.js?v=ia1"></script>
 <script src="soul-shards-data.js?v=ves1"></script>
 <script type="module">
   import { mountSheet } from './sheet-mount.js?v=src12';
   import { mountJournalCapture } from './journal-capture.js?v=jc3';
   var key = new URLSearchParams(location.search).get('character') || 'cosmere';
   var root = document.getElementById('sheet-root');
-  mountSheet(root, key);
+  var mounted = mountSheet(root, key);
+  Promise.resolve(mounted.ready).then(function () {
+    return window.ItemAdoption && window.ItemAdoption.mount({ root: root, characterKey: key });
+  }).catch(function (error) { console.warn('[item-history] adoption bridge:', error); });
   mountJournalCapture(root, key);   // reveals the Notes-tab Journal block once nav:ready + data resolve
 </script>
 <script type="module" src="appearance-boot.js?v=appearance3"></script>
