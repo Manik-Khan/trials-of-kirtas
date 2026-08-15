@@ -19,7 +19,7 @@ const unknown = ItemAdoption.buildPayload({
   item:ITEM, characterKey:'cosmere', characterName:'Cosmere Runestar', inventoryIndex:2,
   identification:'unidentified', publicName:'Embroidered Cloak', publicDescription:'Smoke-grey cloak.',
   trueName:'Cloak of the Last Outrider', rarity:'Rare', rules:'Windstep.', lore:'Woven at the Watch.',
-  sessionId:'9', locationId:'dark-forest', encounterId:'goblin-battalion', battleMapId:'forest-road', recoverySummary:'Recovered after the ambush.'
+  acquisitionKind:'found', sessionId:'9', locationId:'dark-forest', encounterId:'goblin-battalion', battleMapId:'forest-road', recoverySummary:'Recovered after the ambush.'
 });
 ok(unknown.p_character_key === 'cosmere' && unknown.p_inventory_index === 2, 'bearer and exact inventory index are preserved');
 ok(unknown.p_expected_item.name === ITEM.name && unknown.p_expected_item !== ITEM, 'exact expected row is cloned for stale-state protection');
@@ -28,6 +28,9 @@ ok(unknown.p_secret.trueName === 'Cloak of the Last Outrider' && unknown.p_secre
 ok(unknown.p_context.sessionId === '9' && unknown.p_context.locationId === 'dark-forest', 'session and location links are retained');
 ok(unknown.p_context.encounterId === 'goblin-battalion' && unknown.p_context.battleMapId === 'forest-road', 'encounter and battle-map links are retained');
 ok(unknown.p_context.recoverySummary === 'Recovered after the ambush.' && /Cosmere Runestar/.test(unknown.p_context.assignmentSummary), 'both first-history summaries are supplied');
+const backstory = ItemAdoption.buildPayload({ item:ITEM, characterKey:'cosmere', characterName:'Cosmere Runestar', inventoryIndex:0, identification:'identified', trueName:'The Hexblade', acquisitionKind:'backstory' });
+ok(backstory.p_context.recoverySummary === "The Hexblade entered the campaign as part of Cosmere Runestar's backstory.", 'backstory origin does not pretend the item was recovered during play');
+ok(backstory.p_context.assignmentSummary === 'Cosmere Runestar began the campaign carrying The Hexblade.', 'backstory possession does not pretend the party chose the bearer');
 const known = ItemAdoption.buildPayload({ item:ITEM, characterKey:'cosmere', inventoryIndex:0, identification:'identified', publicName:'Unknown cloak', trueName:'Cloak of Elvenkind', rarity:'Rare', rules:'Perception checks have disadvantage.' });
 ok(known.p_public.displayName === 'Cloak of Elvenkind' && known.p_public.rarity === 'Rare' && known.p_public.mechanics.description.includes('Perception'), 'identified public payload publishes true name, rarity, and rules');
 ok(known.p_secret.lore === '' && known.p_item_id === null, 'optional lore is normalized and the server generates identity');
@@ -51,7 +54,8 @@ ok(/loadCharacter\(options\.characterKey\)/.test(source), 'bridge reloads the cu
 ok(/MutationObserver/.test(source) && /data-item-history-action/.test(source), 'real Gear details receive adoption affordances after every repaint');
 ok(/Split this stack to one item before tracking it/.test(source), 'stacked-item refusal explains the required action');
 ok(/view\.location\.reload\(\)/.test(source), 'successful adoption reloads before old sheet state can overwrite the RPC result');
-ok(sheetHtml.includes('item-adoption.js?v=ia1'), 'full sheet loads a cache-stamped adoption module');
+ok(/Acquisition origin/.test(source) && /assignmentSummary/.test(source), 'origin step requires an intentional acquisition and authors both history lines');
+ok(sheetHtml.includes('item-adoption.js?v=ia2'), 'full sheet loads the corrected cache-stamped adoption module');
 ok(/ItemAdoption\.mount\(\{\s*root:\s*root,\s*characterKey:\s*key/.test(sheetHtml), 'full sheet mounts the bridge only after the sheet is ready');
 
 console.log(`\nsmoke-item-adoption-ui: ${pass} passed, ${fail} failed`);

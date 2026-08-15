@@ -12,8 +12,16 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  var VERSION = 'ia-1';
+  var VERSION = 'ia-2';
   var RARITIES = ['Common', 'Uncommon', 'Rare', 'Very Rare', 'Legendary', 'Artifact'];
+  var ACQUISITIONS = [
+    { value: 'backstory', label: 'Backstory possession' },
+    { value: 'found', label: 'Found during play' },
+    { value: 'gift', label: 'Gift or reward' },
+    { value: 'inherited', label: 'Inherited' },
+    { value: 'crafted', label: 'Crafted or created' },
+    { value: 'other', label: 'Other origin' }
+  ];
 
   function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
   function text(value) { return String(value == null ? '' : value).trim(); }
@@ -31,6 +39,17 @@
   function mechanics(value) {
     var description = text(value);
     return description ? { description: description } : {};
+  }
+
+  function acquisitionCopy(kind, itemName, characterName) {
+    var item = text(itemName) || 'The item';
+    var bearer = text(characterName) || 'Its first bearer';
+    if (kind === 'backstory') return { origin: item + ' entered the campaign as part of ' + bearer + "'s backstory.", assignment: bearer + ' began the campaign carrying ' + item + '.', label: 'Backstory possession' };
+    if (kind === 'found') return { origin: 'Recovered ' + item + '.', assignment: 'The party entrusted ' + item + ' to ' + bearer + '.', label: 'Party decision' };
+    if (kind === 'gift') return { origin: item + ' entered the story as a gift or reward.', assignment: bearer + ' received ' + item + ' as a gift or reward.', label: 'Gift or reward' };
+    if (kind === 'inherited') return { origin: item + ' entered the story as part of ' + bearer + "'s inheritance.", assignment: bearer + ' inherited ' + item + '.', label: 'Inheritance' };
+    if (kind === 'crafted') return { origin: item + ' was created by or for ' + bearer + '.', assignment: bearer + ' became the first recorded bearer of ' + item + '.', label: 'Crafted or created' };
+    return { origin: item + ' entered the campaign in ' + bearer + "'s possession.", assignment: bearer + ' is the first recorded bearer of ' + item + '.', label: 'Other origin' };
   }
 
   function buildPayload(input) {
@@ -63,13 +82,14 @@
       mechanics: mechanics(input.rules),
       lore: text(input.lore)
     };
+    var acquisition = acquisitionCopy(input.acquisitionKind, publicName, text(input.characterName || input.characterKey));
     var context = {
       sessionId: text(input.sessionId) || null,
       locationId: text(input.locationId) || null,
       encounterId: text(input.encounterId) || null,
       battleMapId: text(input.battleMapId) || null,
-      recoverySummary: text(input.recoverySummary) || ('Recovered ' + publicName + '.'),
-      assignmentSummary: text(input.assignmentSummary) || ('Entrusted ' + publicName + ' to ' + text(input.characterName || input.characterKey) + '.')
+      recoverySummary: text(input.recoverySummary) || acquisition.origin,
+      assignmentSummary: text(input.assignmentSummary) || acquisition.assignment
     };
     return {
       p_character_key: text(input.characterKey),
@@ -157,7 +177,7 @@
     var knownRarity = normalizeRarity(item.rarity);
     var initialRules = Array.isArray(item.entries) ? item.entries.filter(function (entry) { return typeof entry === 'string'; }).join('\n\n') : '';
     var initialDescription = text(item.flavor || item.publicDescription || '');
-    var state = { step: 0, identification: 'unidentified', busy: false, options: { currentSession: null, sessions: [], locations: [] } };
+    var state = { step: 0, identification: 'unidentified', acquisitionKind: '', busy: false, options: { currentSession: null, sessions: [], locations: [] } };
     var overlay = doc.createElement('div');
     overlay.className = 'tok-ia-overlay';
     overlay.innerHTML = '<section class="tok-ia-dialog" role="dialog" aria-modal="true" aria-labelledby="tok-ia-title">'
@@ -166,10 +186,10 @@
       + '<div data-ia-flow><div class="tok-ia-body">'
         + '<section class="tok-ia-panel" data-ia-panel="0"><h3>What does the party know?</h3><p class="tok-ia-copy">This is what players see on sheets and in references.</p><div class="tok-ia-modes"><button class="tok-ia-mode" type="button" data-ia-identification="unidentified" aria-pressed="true"><b>Unidentified</b><span>Smoke conceals rarity and rules.</span></button><button class="tok-ia-mode" type="button" data-ia-identification="identified" aria-pressed="false"><b>Identified</b><span>Publish the known item now.</span></button></div><div class="tok-ia-fields"><label class="tok-ia-field"><span>Public name</span><input data-ia-field="publicName" value="' + esc(itemName) + '"></label><label class="tok-ia-field"><span>Known rarity</span><select data-ia-field="publicRarity" disabled>' + RARITIES.map(function (rarity) { return '<option' + (rarity === knownRarity ? ' selected' : '') + '>' + rarity + '</option>'; }).join('') + '</select></label><label class="tok-ia-field wide"><span>Visible description</span><textarea data-ia-field="publicDescription">' + esc(initialDescription) + '</textarea></label></div></section>'
         + '<section class="tok-ia-panel" data-ia-panel="1" hidden><h3>What remains behind the screen?</h3><p class="tok-ia-copy" data-ia-secret-copy>Only staff can read this until the item is identified.</p><div class="tok-ia-secret" data-ia-secret><div class="tok-ia-secret-label">Staff-only truth</div><div class="tok-ia-fields"><label class="tok-ia-field"><span>True name</span><input data-ia-field="trueName" value="' + esc(itemName) + '"></label><label class="tok-ia-field"><span>Rarity</span><select data-ia-field="rarity">' + RARITIES.map(function (rarity) { return '<option' + (rarity === knownRarity ? ' selected' : '') + '>' + rarity + '</option>'; }).join('') + '</select></label><label class="tok-ia-field wide"><span>Rules revealed on identification</span><textarea data-ia-field="rules">' + esc(initialRules) + '</textarea></label><label class="tok-ia-field wide"><span>Private lore</span><textarea data-ia-field="lore">' + esc(item.notes || '') + '</textarea></label></div></div></section>'
-        + '<section class="tok-ia-panel" data-ia-panel="2" hidden><h3>Where did it enter the story?</h3><p class="tok-ia-copy">These links can surface in Chronicle and the Party\'s Path later.</p><div class="tok-ia-fields"><label class="tok-ia-field"><span>Session</span><select data-ia-field="sessionId"><option value="">Loading sessions…</option></select></label><label class="tok-ia-field"><span>Location</span><select data-ia-field="locationId"><option value="">Loading locations…</option></select></label><label class="tok-ia-field"><span>Encounter reference</span><input data-ia-field="encounterId" placeholder="Optional"></label><label class="tok-ia-field"><span>Battle map reference</span><input data-ia-field="battleMapId" placeholder="Optional"></label><label class="tok-ia-field wide"><span>Recovery story</span><textarea data-ia-field="recoverySummary">Recovered ' + esc(itemName) + '.</textarea></label></div><div class="tok-ia-origin-note">The durable links are stored now. Choosing an exact World-map moment remains an intentional later step.</div></section>'
-        + '<section class="tok-ia-panel" data-ia-panel="3" hidden><h3>Create one permanent campaign object</h3><p class="tok-ia-copy">Nothing else in the inventory is automatically tracked.</p><div class="tok-ia-review"><div><span class="label">Party sees</span><b data-ia-review="public"></b><span class="sub" data-ia-review="state"></span></div><div><span class="label">Staff knows</span><b data-ia-review="secret"></b><span class="sub" data-ia-review="rarity"></span></div><div><span class="label">Recovered</span><b data-ia-review="location"></b><span class="sub" data-ia-review="session"></span></div><div><span class="label">Initial bearer</span><b>' + esc(options.characterName || options.characterKey) + '</b><span class="sub">The selected inventory row receives the permanent identity.</span></div><div class="wide"><span class="label">Object history begins with</span><div class="tok-ia-events"><div class="tok-ia-event"><b data-ia-review="recovery"></b><span class="sub" data-ia-review="eventPlace"></span></div><div class="tok-ia-event"><b>Entrusted to ' + esc(options.characterName || options.characterKey) + '</b><span class="sub">Party decision · same permanent item</span></div></div></div></div></section>'
+        + '<section class="tok-ia-panel" data-ia-panel="2" hidden><h3>How did it enter the story?</h3><p class="tok-ia-copy">Choose the truth first; optional links can surface in Chronicle and the Party\'s Path later.</p><div class="tok-ia-fields"><label class="tok-ia-field wide"><span>Acquisition origin</span><select data-ia-field="acquisitionKind"><option value="">Choose how this bearer received it…</option>' + ACQUISITIONS.map(function (row) { return '<option value="' + row.value + '">' + row.label + '</option>'; }).join('') + '</select></label><label class="tok-ia-field"><span>Session</span><select data-ia-field="sessionId"><option value="">Loading sessions…</option></select></label><label class="tok-ia-field"><span>Location</span><select data-ia-field="locationId"><option value="">Loading locations…</option></select></label><label class="tok-ia-field"><span>Encounter reference</span><input data-ia-field="encounterId" placeholder="Optional"></label><label class="tok-ia-field"><span>Battle map reference</span><input data-ia-field="battleMapId" placeholder="Optional"></label><label class="tok-ia-field wide"><span>Origin story</span><textarea data-ia-field="recoverySummary" placeholder="Choose an acquisition origin to begin this history."></textarea></label><label class="tok-ia-field wide"><span>Initial possession story</span><textarea data-ia-field="assignmentSummary" placeholder="Describe how this character became its first recorded bearer."></textarea></label></div><div class="tok-ia-origin-note">Both lines remain editable. Session and location can be left empty for a backstory possession.</div></section>'
+        + '<section class="tok-ia-panel" data-ia-panel="3" hidden><h3>Create one permanent campaign object</h3><p class="tok-ia-copy">Nothing else in the inventory is automatically tracked.</p><div class="tok-ia-review"><div><span class="label">Party sees</span><b data-ia-review="public"></b><span class="sub" data-ia-review="state"></span></div><div><span class="label">Staff knows</span><b data-ia-review="secret"></b><span class="sub" data-ia-review="rarity"></span></div><div><span class="label">Entered story</span><b data-ia-review="location"></b><span class="sub" data-ia-review="session"></span></div><div><span class="label">Initial bearer</span><b>' + esc(options.characterName || options.characterKey) + '</b><span class="sub">The selected inventory row receives the permanent identity.</span></div><div class="wide"><span class="label">Object history begins with</span><div class="tok-ia-events"><div class="tok-ia-event"><b data-ia-review="recovery"></b><span class="sub" data-ia-review="eventPlace"></span></div><div class="tok-ia-event"><b data-ia-review="assignment"></b><span class="sub" data-ia-review="assignmentKind"></span></div></div></div></div></section>'
       + '</div><footer class="tok-ia-actions"><label class="tok-ia-preview"><input data-ia-preview type="checkbox">Preview player view</label><div class="tok-ia-buttons"><button class="tok-ia-action" data-ia-back type="button" disabled>Back</button><button class="tok-ia-action primary" data-ia-next type="button">Continue</button></div></footer><div class="tok-ia-status" data-ia-status role="status" aria-live="polite"></div></div>'
-      + '<section class="tok-ia-success" data-ia-success hidden><div class="tok-ia-success-mark">✓</div><h3 data-ia-success-name></h3><p>Recovery and initial assignment are recorded. Hidden truth remains staff-only until identification.</p><button class="tok-ia-action primary" data-ia-finish type="button">Return to item</button></section>'
+      + '<section class="tok-ia-success" data-ia-success hidden><div class="tok-ia-success-mark">✓</div><h3 data-ia-success-name></h3><p>Origin and initial possession are recorded. Hidden truth remains staff-only until identification.</p><button class="tok-ia-action primary" data-ia-finish type="button">Return to item</button></section>'
       + '</section>';
     (doc.body || doc.documentElement).appendChild(overlay);
 
@@ -194,13 +214,31 @@
       one('[data-ia-review="rarity"]').textContent = identified ? rarity + ' · private lore retained' : rarity + ' · private until revealed';
       one('[data-ia-review="location"]').textContent = selectedLabel('locationId', 'No linked location');
       one('[data-ia-review="session"]').textContent = selectedLabel('sessionId', 'No linked session');
-      one('[data-ia-review="recovery"]').textContent = value('recoverySummary') || ('Recovered ' + publicName + '.');
+      var acquisition = acquisitionCopy(state.acquisitionKind, identified ? trueName : publicName, options.characterName || options.characterKey);
+      one('[data-ia-review="recovery"]').textContent = value('recoverySummary') || acquisition.origin;
       one('[data-ia-review="eventPlace"]').textContent = selectedLabel('locationId', 'Unplaced') + ' · ' + selectedLabel('sessionId', 'Unlinked session');
+      one('[data-ia-review="assignment"]').textContent = value('assignmentSummary') || acquisition.assignment;
+      one('[data-ia-review="assignmentKind"]').textContent = acquisition.label + ' · same permanent item';
     }
     function validateStep() {
       if (state.step === 0 && !value('publicName')) return 'Give the party-facing item a name.';
       if (state.step === 1 && !value('trueName')) return 'Add the staff-only true name.';
+      if (state.step >= 2 && !value('acquisitionKind')) return 'Choose how this bearer received the item.';
       return '';
+    }
+    function setAcquisition(kind) {
+      state.acquisitionKind = ACQUISITIONS.some(function (row) { return row.value === kind; }) ? kind : '';
+      if (!state.acquisitionKind) return updateReview();
+      var shownName = state.identification === 'identified' ? value('trueName') : value('publicName');
+      var acquisition = acquisitionCopy(state.acquisitionKind, shownName || itemName, options.characterName || options.characterKey);
+      one('[data-ia-field="recoverySummary"]').value = acquisition.origin;
+      one('[data-ia-field="assignmentSummary"]').value = acquisition.assignment;
+      if (state.acquisitionKind === 'backstory') {
+        one('[data-ia-field="sessionId"]').value = '';
+        one('[data-ia-field="locationId"]').value = '';
+      }
+      status('');
+      updateReview();
     }
     function showStep(step) {
       state.step = Math.max(0, Math.min(3, Number(step) || 0));
@@ -223,6 +261,7 @@
         characterKey: options.characterKey,
         characterName: options.characterName,
         inventoryIndex: options.inventoryIndex,
+        acquisitionKind: state.acquisitionKind,
         identification: state.identification,
         publicName: value('publicName'),
         publicDescription: value('publicDescription'),
@@ -231,7 +270,8 @@
         rules: value('rules'), lore: value('lore'),
         sessionId: value('sessionId'), locationId: value('locationId'),
         encounterId: value('encounterId'), battleMapId: value('battleMapId'),
-        recoverySummary: value('recoverySummary')
+        recoverySummary: value('recoverySummary'),
+        assignmentSummary: value('assignmentSummary')
       };
     }
     async function complete() {
@@ -261,6 +301,7 @@
     one('[data-ia-preview]').addEventListener('change', function (event) { one('[data-ia-secret]').classList.toggle('player', !!event.target.checked); });
     overlay.addEventListener('input', updateReview);
     overlay.addEventListener('change', function (event) {
+      if (event.target === one('[data-ia-field="acquisitionKind"]')) setAcquisition(event.target.value);
       if (state.identification === 'identified') {
         if (event.target === one('[data-ia-field="publicRarity"]')) one('[data-ia-field="rarity"]').value = event.target.value;
         else if (event.target === one('[data-ia-field="rarity"]')) one('[data-ia-field="publicRarity"]').value = event.target.value;
@@ -380,5 +421,5 @@
     return { active: true, decorate: decorate, destroy: function () { hostRoot.removeEventListener('click', onClick, true); if (observer) observer.disconnect(); sheet.classList.remove('item-history-staff'); } };
   }
 
-  return { VERSION: VERSION, RARITIES: RARITIES.slice(), isEnabled: isEnabled, isStaff: isStaff, buildPayload: buildPayload, adopt: adopt, loadContextOptions: loadContextOptions, injectCss: injectCss, open: open, mount: mount, itemByKey: itemByKey };
+  return { VERSION: VERSION, RARITIES: RARITIES.slice(), ACQUISITIONS: ACQUISITIONS.slice(), isEnabled: isEnabled, isStaff: isStaff, acquisitionCopy: acquisitionCopy, buildPayload: buildPayload, adopt: adopt, loadContextOptions: loadContextOptions, injectCss: injectCss, open: open, mount: mount, itemByKey: itemByKey };
 });
