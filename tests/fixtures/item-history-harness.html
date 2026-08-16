@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Item history production-module harness</title>
+  <style>*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#182826;color:#ece2cd;font-family:Georgia,serif}.harness{width:min(760px,calc(100% - 28px));margin:30px auto;padding:18px;border:1px solid rgba(199,154,74,.4);background:#101c19}.gm-detail{padding:18px;border:1px solid rgba(236,226,205,.14)}.gm-d-edit{margin-top:12px}.gm-d-editbtn{min-height:42px;border:1px solid rgba(236,226,205,.2);background:transparent;color:#a9a08d}</style>
+</head>
+<body>
+  <main class="harness"><h1>Tracked Gear detail</h1><p>The production item-history module is mounted below with an in-memory read boundary.</p><section class="tok-sheet"><div data-equip><div class="gm-detail"><div>The selected inventory row already carries a permanent identity.</div><div class="gm-d-edit"><button class="gm-d-editbtn" data-editopen="id:hexblade">Edit item</button></div></div></div></section></main>
+  <script src="../../item-history.js?v=ih3"></script>
+  <script>
+    (function(){
+      var params=new URLSearchParams(location.search),staff=params.get('staff')==='1',identified=params.get('identified')==='1';
+      var item={id:'item_hexblade',display_name:identified?'The Hexblade':'The Runed Longsword',public_description:identified?'A black-steel longsword bearing the oath-runes of the Last Outrider.':'A longsword whose blackened runes vanish whenever they are studied directly.',rarity:identified?'Rare':null,identification:identified?'identified':'unidentified',mechanics:identified?{description:'+1 longsword. Once per long rest, cast Hex without expending a spell slot.'}:{},status:'held',current_bearer_key:'cosmere',slot:'mainHand',attuned:false,created_at:'2026-06-01T12:00:00Z'};
+      var rows={item_instances:item,item_events:[{sequence:2,id:'ev_assign',event_type:'assigned',occurred_at:'2026-06-02T12:00:00Z',actor_character_key:'cosmere',summary:'Cosmere Runestar began the campaign carrying The Runed Longsword.',data:{},session_id:null,location_id:null,encounter_id:null,battle_map_id:null},{sequence:1,id:'ev_recover',event_type:'recovered',occurred_at:'2026-06-01T12:00:00Z',actor_character_key:'cosmere',summary:'The Runed Longsword entered the campaign as part of Cosmere Runestar\'s backstory.',data:{},session_id:null,location_id:null,encounter_id:null,battle_map_id:null}],item_secrets:{item_id:'item_hexblade',true_name:'The Hexblade',definition_key:'tok:hexblade',rarity:'Rare',public_description:'A black-steel longsword.',mechanics:{description:'+1 longsword. Once per long rest, cast Hex without expending a spell slot.'},lore:'The runes are fragments of a vow sworn by the Last Outrider.'}};
+      window.__historyHarness={calls:[]};
+      function builder(table){var b={select:function(){return b},eq:function(){return b},order:function(){return b},maybeSingle:function(){window.__historyHarness.calls.push(table);return Promise.resolve({data:rows[table],error:null});},then:function(resolve,reject){window.__historyHarness.calls.push(table);return Promise.resolve({data:rows[table],error:null}).then(resolve,reject)}};return b;}
+      var sb={from:function(table){return builder(table)}};
+      var box=document.querySelector('[data-equip]');box.__gmCtx={inventory:[{id:'hexblade',instanceId:'item_hexblade',name:item.display_name,identification:item.identification,rarity:item.rarity}]};
+      window.__historyHarness.ready=window.ItemHistory.mount({document:document,root:document,search:location.search,profile:{role:staff?'dm':'player'},supabase:sb,characterKey:'cosmere',characterName:'Cosmere Runestar'});
+    })();
+  </script>
+</body>
+</html>

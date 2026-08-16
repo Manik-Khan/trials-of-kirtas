@@ -1,8 +1,9 @@
 # Durable item system handoff — current through 2026-08-14
 
 Status: **identity/schema, staff adoption, and server-side transfer are applied;
-the first real full-sheet adoption flow is field-proven behind a flag. The next
-slice is tracked-item detail/history and management.**
+the first real full-sheet adoption flow is field-proven behind a flag. The
+flagged tracked-item detail/history reader is now a validated local production
+candidate awaiting M's signed-in field pass; management writes remain next.**
 
 This document is the current item-system authority. Read it with `AGENTS.md`
 and `CONTEXT.md` before touching Gear, inventory imports, item SQL, Chronicle
@@ -22,6 +23,9 @@ The notable-item architecture is now real rather than a standalone concept.
   history are separate database records.
 - Staff can intentionally adopt one existing quantity-one Gear row through the
   real full character sheet.
+- Campaign members can open a flagged read-only tracked-item record in the local
+  full-sheet candidate; staff receive the separate secret projection and can
+  preview the party view.
 - A tracked item can already be transferred atomically on the server without
   losing its identity or historical bearer chain, although no production
   transfer button exists yet.
@@ -175,6 +179,34 @@ smoke-item-transfer-sql:    25 passed, 0 failed
 TOTAL:                     145 passed, 0 failed
 ```
 
+### August 16 local reader candidate
+
+M approved `_edits/mock-item-history-management.html`. The smallest production
+reader now lives in `item-history.js?v=ih3` and mounts only on the full sheet
+when `?itemHistory=1` is present. It:
+
+- claims tracked Gear details before the adoption bridge decorates ordinary
+  items;
+- reads only `item_instances` and oldest-first `item_events` for members;
+- requests `item_secrets` only after the local profile resolves to `dm` or
+  `overseer`, while database RLS remains final authority;
+- gives staff a player-preview lens that removes the secret panel;
+- presents unidentified items with smoke, no public rarity, and no public
+  mechanics;
+- presents identified rarity/mechanics from the public row;
+- displays custody, equipment state, permanent identity, and append-only event
+  chronology; and
+- contains no RPC, insert, update, or delete path.
+
+The production-module harness passed desktop and 390×844 mobile browser checks.
+The default URL stayed inert; a player received no secret panel or audience
+controls; staff saw the separate secret; identified and unidentified states
+rendered correctly; mobile had no horizontal overflow and retained 44–48 px
+controls; no browser warning/error was reported. The five original item suites,
+the approved-mock smoke, and the new reader smoke total **189/189** known
+answers. A deployed signed-in pass against The Hexblade's real rows remains the
+field gate.
+
 Re-run all five plus `node --check` on every touched JS/MJS file. A green smoke
 does not replace real desktop/mobile browser verification for Gear UI.
 
@@ -187,22 +219,27 @@ does not replace real desktop/mobile browser verification for Gear UI.
 - `schema_delta_item_adoption.sql` — atomic staff adoption RPC; applied live.
 - `schema_delta_item_transfer.sql` — atomic member transfer RPC; applied live.
 - `item-adoption.js` — flagged real-sheet staff adoption client and dialog.
+- `item-history.js` — flagged read-only tracked-item reader; public/history for
+  members, separate secrets only for staff; full sheet only.
 - `sheet-v2.html` — current full-sheet include/mount seam.
 - `gear-manager.js` — existing inventory renderer/editor; do not refactor it to
   solve item history unless the approved mock proves that seam is required.
 - `tests/fixtures/item-adoption-harness.html` — standalone production-module
   browser harness.
+- `tests/fixtures/item-history-harness.html` — in-memory production-reader
+  browser harness for audience, state, chronology, desktop, and touch proof.
 - `tests/smoke/smoke-item-*.mjs` — item schema/client/transition gates.
 - `netlify/functions/items2.js` — existing importer endpoint; it does not create
   durable item instances automatically.
 
 ## 7. What is not built
 
-- The adoption bridge is not enabled by default and does not mount into the
-  rail/mounted sheet.
-- A tracked item currently shows only a small **History active** state in Gear;
-  there is no real item-history reader.
-- Smoky unidentified styling is not yet applied to the tracked Gear card/detail.
+- The adoption and reader bridges are not enabled by default and do not mount
+  into the rail/mounted sheet.
+- The flagged tracked-item reader is validated locally but is not yet deployed
+  or signed-in field-proven against the real Hexblade rows.
+- Smoky unidentified styling exists in the reader and tracked-detail opener,
+  but is not applied to the closed Gear list/grid tile.
 - Identification and rename exist in the pure contract but have no narrow live
   RPC or production UI.
 - The transfer RPC exists, but there is no destination picker, confirmation,
@@ -274,8 +311,10 @@ automation yet.
    versus staff-only truth, smoky unidentified state, event chronology, and the
    available identify/rename/transfer actions legible on desktop and touch.
 4. M approves the standalone mock.
-5. Build the smallest flagged production reader for `item_instances`,
-   `item_events`, and staff-visible `item_secrets`.
+5. ~~Build the smallest flagged production reader for `item_instances`,
+   `item_events`, and staff-visible `item_secrets`.~~ Local candidate complete;
+   deploy and field-test it against a real tracked item in staff and player
+   sessions on desktop and mobile.
 6. Add narrow append-only SQL operations for identification/rename only when
    their approved UI requires them; never direct-write history tables.
 7. Wire the already-applied `transfer_item` RPC through a narrated confirmation
