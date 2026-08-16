@@ -4,7 +4,9 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **August 8, 2026 (production Forge Blueprint → Build → Combat,
+Updated: **August 14, 2026 (durable notable-item identity, staff adoption,
+atomic custody transfer, and the first field-proven full-sheet item-history
+bridge; production Forge Blueprint → Build → Combat,
 implemented local map-import workflow, field-approved portal-owned stair architecture,
 Living Codex discovery/curation and NPC/World projection, approved
 reaction/cover integration, disposable Test Fight production candidate,
@@ -15,7 +17,8 @@ production candidate, and the first isolated multi-surface bridge/underpass proo
 Supersedes the earlier July 16 project handoff. The current Forge
 execution state lives in `docs/handoffs/forge/`. Reconciled sources include
 `CONTEXT_Forge.md`, the July 22 handoff, `FORGE_PROTOCOL.md`, `FORGE_BOARD.md`,
-and `FORGE_COVER_CONTEST.md`.
+and `FORGE_COVER_CONTEST.md`. The current item-system execution state lives in
+`docs/handoffs/items/CONTEXT_Items-update-2026-08-14.md`.
 
 **Companion docs: `CONTEXT_Forge.md` and
 `docs/handoffs/forge/CONTEXT_Forge-update-2026-07-22.md` — read both before touching the Forge.** The canonical subsystem doc carries the port
@@ -26,6 +29,67 @@ decisions, and the open bugs. This doc is the project; that one is the subsystem
 deploy). Codex commits **only when M explicitly asks**, staging files by name, and **never
 pushes**. Otherwise Codex's job ends at validated files + a one-line deploy note.
 Cache-stamp every module include (`?v=`) — non-negotiable on iOS.
+
+---
+
+## 🟢 Durable items + first real Gear adoption workflow — August 14
+
+Notable campaign items now have permanent identity independent of their bearer,
+inventory position, or current display name. The applied Supabase contract uses
+`item_instances` for party-readable current truth, `item_secrets` for staff-only
+unrevealed truth, and append-only `item_events` for history. Custody belongs to
+the item instance and the inventory row mirrors its stable `instanceId`; a
+longsword renamed or transferred remains the same object. Event links already
+have stable homes for session, location, Chronicle moment/page, encounter, feed
+post, and battle map.
+
+The staff-only `adopt_inventory_item` RPC deliberately converts exactly one
+existing quantity-one inventory row into a campaign object. It locks and
+rechecks the character row, separates public/secret fields, stamps the permanent
+identity into the inventory, and appends origin plus initial-possession events
+atomically. It never auto-promotes every imported or generic sword. The full
+Gear sheet loads the production candidate through `item-adoption.js?v=ia2` only
+when `?itemHistory=1` is present; the default sheet remains unchanged. M field-
+proved the live path by turning Cosmere's longsword into **The Hexblade**.
+
+That field pass also removed a false universal loot assumption. Origin now
+requires an intentional choice: backstory possession, found during play, gift
+or reward, inherited, crafted/created, or other. The two resulting history
+sentences remain editable. Backstory possession clears the automatically
+suggested current session/location and records that the character began the
+campaign carrying the item. The old `Party decision` caption was review-only,
+not stored verbatim. Historical events remain append-only and must never be
+silently rewritten.
+
+The applied `transfer_item` RPC already moves one tracked item between two
+character inventories and updates canonical custody in one transaction. It
+locks the item and both character rows, rejects stale bearers and duplicate IDs,
+requires containers to be empty, clears slot/attunement/container state, and
+appends a linked transfer event. The real transfer control is not built yet.
+
+Current focused evidence is **145/145** across the item schema, adoption SQL,
+adoption UI/client, pure provenance/replay contract, and transfer SQL. Desktop
+and 390×844 mobile browser passes completed the identified backstory flow with
+no warnings/errors. Exact ownership, applied-state notes, field truth, and the
+ordered roadmap live in
+`docs/handoffs/items/CONTEXT_Items-update-2026-08-14.md`.
+
+The approved sequence is:
+
+1. finish rollout of the real Gear adoption workflow from its field-proven flag;
+2. complete tracked-item presentation, smoky unidentified treatment, history
+   viewing, identification, renaming, transfer, and deliberate import adoption;
+3. establish the shared item/session/Chronicle/NPC/encounter/battle-map/location
+   link layer;
+4. build the desktop mouse/keyboard and mobile touch **Party's Path** on World;
+5. add staff-authored quests with public/secret state, evidence, map targets,
+   objectives, completion, and rewards; and
+6. let completed deeds plus attached campaign evidence awaken or transform an
+   item while preserving identity and appending the change to its history.
+
+The immediate next subsystem slice remains **items**. Start with the tracked-
+item detail/history and management experience; do not cross into Chronicle or
+World until that item workflow is field-approved.
 
 ---
 
@@ -1163,7 +1227,8 @@ Roles: overseer / dm / player. Party: Cosmere Runestar
 Líadan (nazanroseaktas), Vesperian Vale (thebraveruby, M's character). DM: hagakuredisc.
 Supabase tables: `profiles`, `encounters`, `combatants`, `characters`, `journal_pages`,
 `journal_refs`, `entities`, `entity_aliases`, `journal_comments`, `drawings`, `scenes`, `feed`,
-`campaign` (one row, `current_session`), `session_titles`.
+`campaign` (one row, `current_session`), `session_titles`, `item_instances`,
+`item_secrets`, `item_events`.
 
 - **Character sheet v11** (`sheet-v2.html`/`sheet-mount.js`) — primary play surface; full rolling
   (`dice-engine.js`), gear manager, combat float, appearance system, rest/hit-dice.
@@ -1172,6 +1237,12 @@ Supabase tables: `profiles`, `encounters`, `combatants`, `characters`, `journal_
   spell/feature projection. `sheet-progression.js` adds Level Up, read-only
   Facets of the Shard, and the read-only Soul Lineage drawer to both full and
   mounted sheets.
+- **Durable notable items** (`item-provenance.js`, `item-adoption.js`,
+  `schema_delta_item_*.sql`) — stable item identity, staff-only secrets,
+  append-only linked history, atomic staff adoption, and atomic member transfer.
+  The adoption UI is field-proven on the full sheet behind `?itemHistory=1`;
+  tracked-item history/identify/rename/transfer UI and mounted-sheet rollout are
+  still open. Read the item handoff before touching this seam.
 - **Soul Shards charactermancer** (`shards.html`, `soul-shards-*.js`) — full builder off the
   5etools 2014 JSON mirror; multiclass spellcasting, provenance-colored spell
   picker, existing-character Level Up, and pre-level mechanical Facet capture.

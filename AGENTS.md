@@ -61,6 +61,10 @@ These are the source of truth. Do not summarize from memory; open them.
 - **`FORGE_PROTOCOL.md`** — the event protocol deep-design (schema, 17-kind event
   vocabulary, reaction pipeline, rewind/retcon/GOD MODE, test plan). Spec for build step 4.
 - **`forge/README.md`** — the map subsystem's own README (pipeline, module globals).
+- **`docs/handoffs/items/CONTEXT_Items-update-2026-08-14.md`** — the current
+  durable-item authority: applied schema/RPCs, field-proven adoption flow,
+  open management surfaces, and the exact next slice. **Read before touching
+  Gear item history, item SQL, transfer, imports, or item-to-World links.**
 - **`archive/context/sheet/CONTEXT-sheet-and-appearance.md`**,
   **`docs/guides/DEPLOY-*.md`**, **`docs/guides/TOOLTIP-GUIDE.md`** — narrower
   references.

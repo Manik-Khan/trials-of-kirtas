@@ -5,6 +5,7 @@
 - [Project context](CONTEXT.md)
 - [Forge context](CONTEXT_Forge.md)
 - [Current Forge handoff](docs/handoffs/forge/README_NEW_SESSION_2026-07-16.md)
+- [Current item-system handoff](docs/handoffs/items/CONTEXT_Items-update-2026-08-14.md)
 - [Durable guides](docs/README.md)
 - [Historical records](archive/README.md)
 - [Test map](tests/README.md)
