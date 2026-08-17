@@ -1,0 +1,1077 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Trials of Kirtas — Loot Workshop Mock</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #07100e;
+      --panel: #0d1916;
+      --panel-2: #11211d;
+      --panel-3: #172824;
+      --line: rgba(234, 220, 190, .15);
+      --line-strong: rgba(209, 165, 76, .55);
+      --cream: #f2e8d2;
+      --muted: #aaa18e;
+      --dim: #777569;
+      --gold: #d1a54c;
+      --gold-pale: #f0ca77;
+      --green: #6fca88;
+      --teal: #55c7c8;
+      --red: #cf6960;
+      --purple: #b792cf;
+      --shadow: 0 24px 70px rgba(0, 0, 0, .52);
+    }
+
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--ink); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--cream);
+      background:
+        radial-gradient(circle at 76% -10%, rgba(53, 111, 91, .18), transparent 34rem),
+        linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px),
+        #08110f;
+      background-size: auto, 34px 34px, 34px 34px, auto;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    button, select { touch-action: manipulation; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 2px solid var(--gold-pale);
+      outline-offset: 2px;
+    }
+    [hidden] { display: none !important; }
+
+    .mock-note {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 18px;
+      border-bottom: 1px solid rgba(209, 165, 76, .25);
+      color: #bdac88;
+      background: #101812;
+      font: 700 10px/1.3 Arial, sans-serif;
+      letter-spacing: .14em;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .shell { width: min(1540px, calc(100% - 36px)); margin: 28px auto 56px; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      min-height: 86px;
+      padding: 17px 22px;
+      border: 1px solid var(--line-strong);
+      background: rgba(9, 19, 16, .96);
+      box-shadow: var(--shadow);
+    }
+    .brand { flex: 1; min-width: 0; }
+    .eyebrow, .section-label, .field-label, .tiny-label {
+      color: var(--gold);
+      font: 800 10px/1.2 Arial, sans-serif;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .brand h1 { margin: 4px 0 2px; font-size: clamp(30px, 4vw, 52px); line-height: .98; font-weight: 500; }
+    .brand p { margin: 0; color: var(--muted); font-size: 16px; }
+    .staff-seal {
+      display: grid;
+      grid-template-columns: 38px 1fr;
+      gap: 11px;
+      align-items: center;
+      min-width: 205px;
+      padding: 10px 13px;
+      border: 1px solid rgba(183, 146, 207, .48);
+      background: rgba(183, 146, 207, .07);
+    }
+    .seal-icon { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--purple); color: var(--purple); font: 800 18px Arial; }
+    .staff-seal b, .staff-seal span { display: block; }
+    .staff-seal b { color: #d9bee9; font: 800 10px/1.2 Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+    .staff-seal span { margin-top: 3px; color: var(--muted); font-size: 13px; }
+
+    .lifecycle {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      min-height: 42px;
+      padding: 0 18px;
+      border: 1px solid var(--line);
+      border-top: 0;
+      background: #0d1815;
+    }
+    .life-tab {
+      position: relative;
+      min-height: 42px;
+      padding: 8px 30px 8px 20px;
+      border: 0;
+      color: var(--dim);
+      background: transparent;
+      cursor: pointer;
+      text-align: center;
+    }
+    .life-tab:not(:last-child)::after { content: '\203A'; position: absolute; right: 8px; top: 50%; color: #534f45; transform: translateY(-52%); }
+    .life-tab strong { font: 800 9px/1.2 Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+    .life-tab[aria-selected="true"] { color: var(--gold-pale); box-shadow: inset 0 -2px var(--gold); }
+
+    .workshop {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr) 330px;
+      min-height: 720px;
+      border: 1px solid var(--line-strong);
+      border-top: 0;
+      background: rgba(8, 17, 14, .96);
+      box-shadow: var(--shadow);
+    }
+    .rail, .inspector { min-width: 0; background: rgba(12, 24, 20, .86); }
+    .rail { border-right: 1px solid var(--line); }
+    .inspector { border-left: 1px solid var(--line); }
+    .rail-head, .inspector-head { padding: 18px; border-bottom: 1px solid var(--line); }
+    .rail-head h2, .inspector-head h2 { margin: 4px 0 0; font-size: 23px; font-weight: 500; }
+    .quick-actions { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 14px; border-bottom: 1px solid var(--line); }
+    .action-btn, .primary-btn, .secondary-btn, .quiet-btn, .recipient-btn {
+      min-height: 48px;
+      border-radius: 0;
+      cursor: pointer;
+      font: 800 10px/1.2 Arial, sans-serif;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .action-btn { padding: 11px 13px; border: 1px solid rgba(234, 220, 190, .18); color: var(--cream); background: #14221e; text-align: left; }
+    .action-btn span { display: inline-grid; place-items: center; width: 24px; color: var(--gold-pale); }
+    .action-btn:hover { border-color: var(--line-strong); background: #192a25; }
+    .bundle-list { padding: 8px; }
+    .bundle-empty { padding: 28px 18px; color: var(--muted); text-align: center; line-height: 1.45; }
+    .bundle-card {
+      width: 100%;
+      min-height: 92px;
+      margin: 0 0 6px;
+      padding: 13px;
+      border: 1px solid transparent;
+      color: var(--cream);
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+    }
+    .bundle-card:hover { background: rgba(255,255,255,.025); }
+    .bundle-card[aria-current="true"] { border-color: var(--line-strong); background: rgba(209, 165, 76, .08); }
+    .bundle-card b { display: block; font-size: 17px; font-weight: 500; }
+    .bundle-card span { display: block; margin-top: 5px; color: var(--muted); font-size: 13px; line-height: 1.25; }
+    .bundle-card small { display: inline-block; margin-top: 8px; color: var(--gold); font: 800 9px Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+
+    .canvas { min-width: 0; }
+    .canvas-head { display: flex; align-items: flex-start; gap: 18px; padding: 22px 24px 18px; border-bottom: 1px solid var(--line); }
+    .canvas-title { flex: 1; min-width: 0; }
+    .canvas-title h2 { margin: 4px 0 3px; font-size: clamp(26px, 3vw, 38px); line-height: 1.04; font-weight: 500; }
+    .canvas-title p { margin: 0; color: var(--muted); font-size: 15px; }
+    .stage-chip { flex: none; padding: 9px 11px; border: 1px solid rgba(209, 165, 76, .4); color: var(--gold-pale); background: rgba(209, 165, 76, .07); font: 800 9px Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+    .editor { padding: 22px 24px 28px; }
+    .notice {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 18px;
+      padding: 13px 15px;
+      border-left: 3px solid var(--teal);
+      color: #b8c8c0;
+      background: rgba(85, 199, 200, .07);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+    .notice-icon { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid rgba(85,199,200,.5); color: var(--teal); font: 800 16px Arial; }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field { display: block; min-width: 0; }
+    .field.wide { grid-column: 1 / -1; }
+    .field-label { display: block; margin-bottom: 7px; color: #9d9688; }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      min-height: 48px;
+      padding: 11px 12px;
+      border: 1px solid rgba(234, 220, 190, .2);
+      border-radius: 0;
+      color: var(--cream);
+      background: #0b1613;
+    }
+    .field textarea { min-height: 76px; resize: vertical; line-height: 1.4; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--gold); outline: 0; }
+    .link-card { margin: 19px 0; padding: 16px; border: 1px solid rgba(85,199,200,.27); background: rgba(85,199,200,.035); }
+    .link-card h3, .items-head h3 { margin: 4px 0 12px; font-size: 20px; font-weight: 500; }
+    .link-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .link-grid .wide { grid-column: 1 / -1; }
+
+    .items-head { display: flex; align-items: end; gap: 16px; margin-top: 22px; }
+    .items-head > div { flex: 1; }
+    .items-head p { margin: -5px 0 0; color: var(--muted); font-size: 13px; }
+    .quiet-btn { min-height: 42px; padding: 9px 12px; border: 1px solid var(--line); color: var(--muted); background: transparent; }
+    .loot-lines { display: grid; gap: 9px; margin-top: 13px; }
+    .loot-line { border: 1px solid var(--line); background: #101c19; }
+    .loot-summary { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 70px; padding: 11px 13px; }
+    .loot-icon { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid rgba(209,165,76,.35); color: var(--gold-pale); background: rgba(209,165,76,.06); }
+    .loot-name b, .loot-name span { display: block; }
+    .loot-name b { font-size: 17px; font-weight: 500; }
+    .loot-name span { margin-top: 3px; color: var(--muted); font-size: 13px; }
+    .loot-tags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+    .tag { padding: 5px 7px; border: 1px solid rgba(234,220,190,.18); color: #9d9788; font: 800 8px Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+    .tag.magic { border-color: rgba(111,202,136,.5); color: var(--green); }
+    .tag.secret { border-color: rgba(183,146,207,.45); color: #caabdc; }
+    .loot-detail { padding: 0 13px 13px 61px; color: var(--muted); font-size: 13px; line-height: 1.4; }
+    .loot-detail strong { color: #d5c5a6; font-weight: 500; }
+    .identity-toggle { display: flex; gap: 6px; margin-top: 10px; }
+    .identity-toggle button { min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); color: var(--dim); background: transparent; cursor: pointer; font: 800 9px Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+    .identity-toggle button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold-pale); background: rgba(209,165,76,.08); }
+
+    .canvas-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 9px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .primary-btn, .secondary-btn { padding: 11px 16px; }
+    .primary-btn { border: 1px solid var(--gold); color: #1a1b13; background: var(--gold-pale); }
+    .primary-btn:hover { background: #f5d993; }
+    .primary-btn:disabled { border-color: var(--line); color: var(--dim); background: #18201c; cursor: not-allowed; opacity: .72; }
+    .secondary-btn { border: 1px solid rgba(209,165,76,.55); color: var(--gold-pale); background: rgba(209,165,76,.07); }
+    .secondary-btn:hover { background: rgba(209,165,76,.13); }
+
+    .inspector-body { padding: 16px; }
+    .world-projection { position: relative; min-height: 260px; overflow: hidden; border: 1px solid rgba(85,199,200,.25); background: #0a1514; }
+    .map-grid { position: absolute; inset: 0; opacity: .5; background: radial-gradient(circle at 32% 28%, rgba(85,199,200,.14), transparent 22%), radial-gradient(circle at 72% 66%, rgba(209,165,76,.14), transparent 22%), linear-gradient(35deg, transparent 45%, rgba(85,199,200,.11) 46%, transparent 47%), linear-gradient(-35deg, transparent 55%, rgba(209,165,76,.1) 56%, transparent 57%); }
+    .map-land { position: absolute; inset: 34px 24px 25px; border: 1px solid rgba(234,220,190,.12); border-radius: 47% 53% 42% 58% / 59% 36% 64% 41%; transform: rotate(-5deg); background: rgba(24,47,39,.55); }
+    .map-pin { position: absolute; z-index: 1; display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid currentColor; transform: rotate(45deg); background: #101d19; box-shadow: 0 8px 18px rgba(0,0,0,.4); }
+    .map-pin span { transform: rotate(-45deg); font: 800 13px Arial; }
+    .pin-fight { left: 29%; top: 34%; color: var(--red); }
+    .pin-loot { left: 49%; top: 48%; color: var(--gold-pale); }
+    .pin-place { left: 69%; top: 26%; color: var(--teal); }
+    .map-caption { position: absolute; z-index: 2; left: 10px; right: 10px; bottom: 8px; padding: 7px 8px; color: #b9b09e; background: rgba(5,12,10,.82); font: 800 8px/1.3 Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+    .legend { display: grid; gap: 9px; margin: 14px 0 18px; }
+    .legend-row { display: grid; grid-template-columns: 17px 1fr; gap: 9px; align-items: start; color: var(--muted); font-size: 13px; line-height: 1.3; }
+    .legend-dot { width: 10px; height: 10px; margin-top: 3px; transform: rotate(45deg); border: 1px solid currentColor; }
+    .legend-row strong { display: block; color: #d6c9b0; font-weight: 500; }
+    .rules-card { padding: 14px; border-left: 2px solid var(--purple); background: rgba(183,146,207,.06); }
+    .rules-card h3 { margin: 4px 0 10px; color: #d5b8e5; font-size: 18px; font-weight: 500; }
+    .rules-card ul { margin: 0; padding: 0 0 0 18px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .rules-card li + li { margin-top: 6px; }
+
+    .toast { position: fixed; z-index: 60; left: 50%; bottom: 24px; width: min(560px, calc(100% - 28px)); padding: 13px 16px; border: 1px solid var(--line-strong); color: var(--cream); background: #14221d; box-shadow: var(--shadow); transform: translate(-50%, 18px); opacity: 0; pointer-events: none; transition: opacity .16s, transform .16s; text-align: center; line-height: 1.35; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .modal { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(2,8,6,.82); }
+    .dialog { width: min(760px, 100%); max-height: calc(100vh - 40px); overflow: auto; border: 1px solid var(--line-strong); background: #0e1c18; box-shadow: var(--shadow); }
+    .dialog-head { display: flex; align-items: flex-start; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--line); background: #0a1512; }
+    .dialog-head > div { flex: 1; }
+    .dialog-head h2 { margin: 4px 0 3px; font-size: 29px; font-weight: 500; }
+    .dialog-head p { margin: 0; color: var(--muted); font-size: 14px; }
+    .close-btn { width: 48px; height: 48px; border: 1px solid var(--line); color: var(--muted); background: transparent; cursor: pointer; font-size: 24px; }
+    .dialog-body { padding: 20px; }
+    .recipient-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 20px; }
+    .recipient-btn { padding: 11px 12px; border: 1px solid var(--line); color: var(--muted); background: #101d19; text-align: left; }
+    .recipient-btn span { display: block; margin-top: 4px; color: #7f7a6e; font: 400 13px Georgia, serif; letter-spacing: 0; text-transform: none; }
+    .recipient-btn[aria-pressed="true"] { border-color: var(--gold); color: var(--gold-pale); background: rgba(209,165,76,.08); }
+    .award-preview { padding: 14px; border: 1px solid var(--line); background: #0a1512; }
+    .award-preview h3 { margin: 4px 0 8px; font-size: 19px; font-weight: 500; }
+    .award-preview p { margin: 0; color: var(--muted); line-height: 1.45; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 9px; padding: 16px 20px; border-top: 1px solid var(--line); }
+    .roll-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 11px 0 18px; }
+    .roll-type {
+      min-height: 62px;
+      padding: 11px 12px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: #101d19;
+      cursor: pointer;
+      text-align: left;
+    }
+    .roll-type b, .roll-type span { display: block; }
+    .roll-type b { color: inherit; font: 800 10px/1.2 Arial, sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+    .roll-type span { margin-top: 5px; color: #878173; font-size: 13px; line-height: 1.25; }
+    .roll-type[aria-pressed="true"] { border-color: var(--gold); color: var(--gold-pale); background: rgba(209,165,76,.08); }
+    .roll-source-note { margin: 14px 0 0; padding: 12px 13px; border-left: 2px solid var(--purple); color: #b8a9bf; background: rgba(183,146,207,.06); font-size: 13px; line-height: 1.4; }
+    .roster-receipt { margin-top: 15px; padding: 13px; border: 1px solid rgba(85,199,200,.25); background: rgba(85,199,200,.04); }
+    .roster-receipt h3 { margin: 4px 0 7px; font-size: 18px; font-weight: 500; }
+    .roster-receipt p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
+    .dice-receipt { margin: 14px 0 18px; border: 1px solid rgba(209,165,76,.3); background: rgba(209,165,76,.035); }
+    .dice-receipt > summary { min-height: 48px; display: flex; align-items: center; padding: 10px 13px; color: var(--gold-pale); cursor: pointer; font: 800 9px Arial,sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+    .dice-receipt-head { padding: 11px 13px; border-bottom: 1px solid rgba(209,165,76,.18); }
+    .dice-receipt-head h3 { margin: 4px 0 0; font-size: 19px; font-weight: 500; }
+    .dice-row { display: grid; grid-template-columns: minmax(120px,.55fr) 1fr; gap: 12px; padding: 10px 13px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.35; }
+    .dice-row:last-child { border-bottom: 0; }
+    .dice-row b { color: #d9c8a5; font-weight: 500; }
+    .mock-value-warning { padding: 10px 13px; border-top: 1px solid rgba(207,105,96,.3); color: #d3aaa1; background: rgba(207,105,96,.05); font: 800 9px/1.4 Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+    .guided-workshop { border: 1px solid var(--line-strong); border-top: 0; background: rgba(8,17,14,.96); box-shadow: var(--shadow); }
+    .guide-head { display: flex; align-items: flex-start; gap: 18px; padding: 20px 24px; border-bottom: 1px solid var(--line); background: #0d1916; }
+    .guide-head > div:first-child { flex: 1; min-width: 0; }
+    .guide-head h2 { margin: 4px 0 3px; font-size: clamp(27px,3vw,38px); line-height: 1.05; font-weight: 500; }
+    .guide-head p { margin: 0; color: var(--muted); font-size: 14px; }
+    .workflow-path { display: grid; grid-template-columns: 230px minmax(0,1fr); min-height: 610px; }
+    .guide-steps { position: relative; display: flex; flex-direction: column; padding: 18px 12px; border-right: 1px solid var(--line); background: #0b1613; }
+    .guide-steps::before { content: ''; position: absolute; left: 29px; top: 44px; bottom: 44px; width: 1px; background: var(--line); }
+    .guide-step { position: relative; z-index: 1; min-height: 58px; padding: 10px 10px 10px 42px; border: 0; color: var(--dim); background: transparent; cursor: pointer; text-align: left; }
+    .guide-step::before { content: ''; position: absolute; left: 10px; top: 50%; width: 12px; height: 12px; border: 1px solid #5d584d; border-radius: 50%; background: #0b1613; transform: translateY(-50%); }
+    .guide-step[data-state="complete"]::before { content: '\2713'; display: grid; place-items: center; border-color: var(--green); color: var(--green); font: 800 9px Arial,sans-serif; }
+    .guide-step[data-state="current"]::before { border-color: var(--gold); background: var(--gold); box-shadow: 0 0 0 4px rgba(209,165,76,.12); }
+    .guide-step b, .guide-step span { display: block; }
+    .guide-step b { font: 800 10px/1.2 Arial,sans-serif; letter-spacing: .11em; text-transform: uppercase; }
+    .guide-step span { margin-top: 5px; color: #777368; font-size: 13px; }
+    .guide-step[aria-current="step"] { color: var(--gold-pale); background: rgba(209,165,76,.08); }
+    .guide-step[aria-current="step"] span { color: var(--muted); }
+    #bundle-editor { min-width: 0; }
+    .step-panel { max-width: 980px; margin: 0 auto; padding: 26px 28px 30px; }
+    .step-panel[hidden] { display: none; }
+    .step-intro { max-width: 720px; margin-bottom: 20px; }
+    .step-intro h3 { margin: 5px 0 6px; font-size: 28px; font-weight: 500; }
+    .step-intro p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; }
+    .choice-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 16px 0 20px; }
+    .choice-card { min-height: 86px; padding: 14px; border: 1px solid var(--line); color: var(--cream); background: #101d19; cursor: pointer; text-align: left; }
+    .choice-card:hover { border-color: var(--line-strong); }
+    .choice-card b, .choice-card span { display: block; }
+    .choice-card b { font: 800 10px/1.2 Arial,sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+    .choice-card span { margin-top: 6px; color: var(--muted); font-size: 13px; line-height: 1.35; }
+    .bundle-list.guided { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; padding: 0; }
+    .bundle-list.guided .bundle-card { margin: 0; border-color: var(--line); background: #0d1916; }
+    .connection-summary { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; margin: 16px 0; padding: 15px; border: 1px solid rgba(85,199,200,.25); background: rgba(85,199,200,.04); }
+    .connection-summary h4 { margin: 4px 0 4px; font-size: 20px; font-weight: 500; }
+    .connection-summary p { margin: 0; color: var(--muted); font-size: 13px; }
+    .cr-orb { display: grid; place-items: center; width: 66px; height: 66px; border: 1px solid var(--teal); color: var(--teal); background: #0c1815; text-align: center; }
+    .cr-orb b, .cr-orb span { display: block; }
+    .cr-orb b { font: 800 9px Arial,sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+    .cr-orb span { margin-top: 2px; color: var(--cream); font-size: 24px; }
+    .roll-simple { padding: 18px; border: 1px solid rgba(209,165,76,.3); background: rgba(209,165,76,.035); }
+    .roll-simple h4 { margin: 4px 0 5px; font-size: 22px; font-weight: 500; }
+    .roll-simple p { margin: 0 0 15px; color: var(--muted); font-size: 14px; line-height: 1.4; }
+    .roll-simple-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+    .advanced-roll { margin-top: 15px; border-top: 1px solid var(--line); padding-top: 12px; }
+    .advanced-roll summary { min-height: 44px; display: flex; align-items: center; color: var(--muted); cursor: pointer; font: 800 9px Arial,sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+    .advanced-roll[open] summary { color: var(--gold-pale); }
+    .mini-status { margin-top: 14px; color: var(--muted); font-size: 13px; }
+    .mini-status strong { color: var(--cream); font-weight: 500; }
+    .step-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .step-actions .right { display: flex; gap: 9px; margin-left: auto; }
+    .review-summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 18px; }
+    .review-fact { padding: 12px; border: 1px solid var(--line); background: #0d1916; }
+    .review-fact b, .review-fact span { display: block; }
+    .review-fact b { color: var(--gold); font: 800 8px Arial,sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+    .review-fact span { margin-top: 5px; color: #d9ccb2; font-size: 15px; }
+
+    @media (max-width: 1120px) {
+      .workshop { grid-template-columns: 260px minmax(0, 1fr); }
+      .inspector { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); }
+      .inspector-body { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    }
+    @media (max-width: 760px) {
+      .shell { width: 100%; margin: 0 0 38px; }
+      .mock-note { min-height: 44px; padding-left: 12px; padding-right: 12px; }
+      .topbar { min-height: 0; padding: 16px; border-left: 0; border-right: 0; box-shadow: none; }
+      .brand p { font-size: 14px; }
+      .staff-seal { min-width: 0; width: 48px; height: 48px; padding: 4px; grid-template-columns: 1fr; }
+      .staff-seal .seal-icon { width: 38px; height: 38px; }
+      .staff-seal div:last-child { display: none; }
+      .lifecycle { border-left: 0; border-right: 0; }
+      .life-tab { flex: 1; min-width: 0; min-height: 48px; padding: 9px 20px 9px 8px; }
+      .workshop { display: block; min-height: 0; border-left: 0; border-right: 0; box-shadow: none; }
+      .rail { border-right: 0; border-bottom: 1px solid var(--line); }
+      .rail-head { display: none; }
+      .quick-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 10px; overflow-x: auto; }
+      .action-btn { min-width: 126px; min-height: 52px; padding: 9px; text-align: center; }
+      .action-btn span { width: auto; margin-right: 5px; }
+      .bundle-list { display: flex; gap: 7px; padding: 10px; overflow-x: auto; scroll-snap-type: x proximity; }
+      .bundle-card { flex: 0 0 225px; min-height: 102px; margin: 0; scroll-snap-align: start; }
+      .bundle-empty { width: 100%; }
+      .canvas-head { padding: 18px 16px 15px; }
+      .canvas-title h2 { font-size: 29px; }
+      .stage-chip { display: none; }
+      .editor { padding: 17px 15px 22px; }
+      .field-grid, .link-grid, .inspector-body, .recipient-grid, .roll-type-grid { grid-template-columns: 1fr; }
+      .field.wide, .link-grid .wide { grid-column: auto; }
+      .items-head { align-items: flex-start; }
+      .loot-summary { grid-template-columns: 36px minmax(0, 1fr); }
+      .loot-tags { grid-column: 2; justify-content: flex-start; }
+      .loot-detail { padding-left: 61px; }
+      .canvas-actions { display: grid; grid-template-columns: 1fr; }
+      .canvas-actions button { width: 100%; }
+      .inspector { border-left: 0; }
+      .inspector-body { display: grid; }
+      .dialog { max-height: calc(100vh - 18px); }
+      .modal { align-items: end; padding: 9px; }
+      .dialog-head, .dialog-body, .dialog-actions { padding-left: 15px; padding-right: 15px; }
+      .dialog-actions { display: grid; grid-template-columns: 1fr; }
+      .dialog-actions button { width: 100%; }
+      .guide-head { padding: 17px 15px; }
+      .workflow-path { grid-template-columns: 1fr; }
+      .guide-steps { border-right: 0; border-bottom: 1px solid var(--line); }
+      .step-panel { padding: 21px 15px 26px; }
+      .step-intro h3 { font-size: 25px; }
+      .choice-grid, .bundle-list.guided, .review-summary { grid-template-columns: 1fr; }
+      .connection-summary { grid-template-columns: 1fr; }
+      .cr-orb { width: 100%; height: 52px; grid-template-columns: auto auto; gap: 7px; }
+      .roll-simple-actions, .step-actions, .step-actions .right { display: grid; grid-template-columns: 1fr; width: 100%; }
+      .step-actions button, .roll-simple-actions button { width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .001ms !important; animation-duration: .001ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="mock-note">Standalone interaction mock · Nothing here saves or changes the campaign</div>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="eyebrow">Staff campaign planning</div>
+        <h1>Loot Workshop</h1>
+        <p>Roll or prepare loot first, then optionally attach it and introduce it when play reaches the moment.</p>
+      </div>
+      <div class="staff-seal" aria-label="Staff-only planning surface">
+        <div class="seal-icon" aria-hidden="true">✦</div>
+        <div><b>Staff only</b><span>Players see nothing until introduction.</span></div>
+      </div>
+    </header>
+
+    <nav class="lifecycle" role="tablist" aria-label="Loot lifecycle">
+      <button class="life-tab" role="tab" aria-selected="true" data-stage="planned"><strong>Planned</strong></button>
+      <button class="life-tab" role="tab" aria-selected="false" data-stage="ready"><strong>Ready</strong></button>
+      <button class="life-tab" role="tab" aria-selected="false" data-stage="introduced"><strong>In the world</strong></button>
+    </nav>
+
+    <section class="guided-workshop" aria-label="Guided Loot Workshop">
+      <header class="guide-head">
+        <div>
+          <div class="eyebrow" id="bundle-kicker">Private draft</div>
+          <h2 id="bundle-title">The Fallen Observatory</h2>
+          <p id="bundle-summary">A sealed coffer planned for the upper tower.</p>
+        </div>
+      </header>
+
+      <div class="workflow-path">
+        <nav class="guide-steps" aria-label="Loot preparation sections">
+          <button class="guide-step" type="button" data-work-step="1" data-state="current" aria-current="step"><b>Roll loot</b><span>Choose a table and encounter</span></button>
+          <button class="guide-step" type="button" data-work-step="2" data-state="upcoming"><b>Review bundle</b><span>Edit the generated result</span></button>
+          <button class="guide-step" type="button" data-work-step="3" data-state="upcoming"><b>Attach</b><span>Optional battle or location</span></button>
+          <button class="guide-step" type="button" data-work-step="4" data-state="upcoming"><b>Release</b><span>Ready, place, or award</span></button>
+        </nav>
+
+        <div id="bundle-editor">
+        <section class="step-panel" data-step-panel="1">
+          <div class="step-intro"><h3>Roll treasure</h3><p>Start with the rules information needed for the roll. The result will automatically become a private loot bundle.</p></div>
+          <div class="roll-simple">
+            <div class="section-label">Treasure roll</div>
+            <h4 id="roll-simple-title">2014 Random Treasure · CR 3</h4>
+            <p id="roll-simple-copy">No battle or location is required. The selected rules source determines which controls appear.</p>
+            <label class="field wide"><span class="field-label">Rules source</span><select id="roll-profile"><option value="2014">2014 · Random Treasure by CR</option><option value="2024">2024 · Random Treasure Hoard by CR</option><option value="custom">Kirtas custom table</option></select></label>
+
+            <div id="rules-2014" style="margin-top:16px">
+              <div class="roll-type-grid" role="group" aria-label="2014 treasure type">
+                <button class="roll-type" type="button" data-roll-type="individual" aria-pressed="false"><b>Individual treasure</b><span>Roll once for each creature that logically carries treasure.</span></button>
+                <button class="roll-type" type="button" data-roll-type="hoard" aria-pressed="true"><b>Treasure hoard</b><span>Roll one complete cache using the hoard CR.</span></button>
+              </div>
+              <div class="field-grid">
+                <label class="field"><span class="field-label" id="roll-cr-label">Hoard CR</span><select id="roll-cr"><option>1/2</option><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option></select></label>
+                <label class="field"><span class="field-label">Party size · reference only</span><select id="party-size"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></label>
+                <label class="field wide" id="individual-count-field" hidden><span class="field-label">Creatures at this CR</span><input id="roll-quantity" type="number" min="1" max="20" value="1"></label>
+              </div>
+              <div class="roster-receipt"><div class="section-label">2014 roll</div><h3 id="roll-derivation-title">One treasure hoard at CR 3</h3><p id="roll-derivation-copy">Party size is recorded for staff reference. It does not silently change the official table result.</p></div>
+            </div>
+
+            <div id="rules-2024" style="margin-top:16px" hidden>
+              <div class="field-grid">
+                <label class="field wide"><span class="field-label">Treasure-hoard CR</span><select id="roll-cr-2024"><option>1/2</option><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option></select></label>
+              </div>
+              <div class="roster-receipt"><div class="section-label">2024 roll</div><h3 id="roll-2024-title">One random treasure hoard at CR 3</h3><p>The 2024 profile does not borrow the 2014 Individual Treasure choice or creature-count field.</p></div>
+            </div>
+
+            <div id="rules-custom" style="margin-top:16px" hidden>
+              <label class="field wide"><span class="field-label">Custom table</span><select disabled><option>No Kirtas custom table configured</option></select></label>
+              <div class="roster-receipt"><div class="section-label">Custom rules required</div><h3>Choose a configured Kirtas table</h3><p>This mock will not invent CR, creature-count, or hoard controls for a custom table that does not define them.</p></div>
+            </div>
+
+            <div class="roll-simple-actions" style="margin-top:16px">
+              <button class="primary-btn" id="roll-submit" type="button" data-action="confirm-roll">⚄ Roll one hoard and create bundle</button>
+            </div>
+          </div>
+          <div class="choice-grid">
+            <button class="choice-card" type="button" data-action="import"><b>⇩ Import instead</b><span>Create a private bundle from a Compendium item.</span></button>
+            <button class="choice-card" type="button" data-action="create"><b>＋ Build manually</b><span>Create a private bundle without rolling.</span></button>
+            <button class="choice-card" type="button" data-action="continue-current"><b>→ Open existing</b><span>Continue the selected private draft below.</span></button>
+          </div>
+          <details class="advanced-roll"><summary>Existing private drafts</summary><div class="bundle-list guided" id="bundle-list" aria-live="polite"></div></details>
+          <input id="roll-cr-source" type="hidden" value="manual">
+        </section>
+
+        <section class="step-panel" data-step-panel="2" hidden>
+          <div class="step-intro"><h3>Review the generated bundle</h3><p>The roll has already created this private bundle. Adjust its name, contents, or identification before deciding what happens next.</p></div>
+          <div class="notice" id="draft-notice"><div class="notice-icon" aria-hidden="true">i</div><div><strong>Planning is not history.</strong> Permanent item history begins only when staff introduces notable loot.</div></div>
+          <div class="review-summary">
+            <div class="review-fact"><b>Status</b><span id="review-status">Private draft</span></div>
+            <div class="review-fact"><b>Attachment</b><span id="review-context">Not attached yet</span></div>
+            <div class="review-fact"><b>Contents</b><span id="review-count">3 entries</span></div>
+          </div>
+          <div class="field-grid">
+            <label class="field"><span class="field-label">Bundle name</span><input id="bundle-name" value="CR 3 Treasure Hoard"></label>
+            <label class="field"><span class="field-label">Kind</span><select id="bundle-kind"><option>Encounter treasure</option><option>Area discovery</option><option>NPC reward</option><option>Travel discovery</option><option>Unplaced preparation</option></select></label>
+            <label class="field wide"><span class="field-label">Private staff note</span><textarea id="bundle-note">Generated from the 2014 Random Treasure table.</textarea></label>
+          </div>
+          <div class="items-head">
+            <div><div class="section-label">Bundle contents</div><h3>What the roll created</h3><p>Ordinary stacks stay ordinary. Notable items can enter play identified or unidentified.</p></div>
+          </div>
+          <div class="loot-lines" id="loot-lines"></div>
+          <div class="roll-simple-actions" style="margin-top:14px">
+            <button class="secondary-btn" type="button" data-action="add-item">＋ Add a specific item</button>
+            <button class="secondary-btn" type="button" data-action="import-into">⇩ Import an item</button>
+          </div>
+          <div class="step-actions"><button class="secondary-btn" type="button" data-go-step="1">Roll another</button><div class="right"><button class="secondary-btn" type="button" data-action="ready">Mark ready now</button><button class="primary-btn" type="button" data-go-step="3">Attach somewhere · optional</button><button class="primary-btn" type="button" data-go-step="4">Skip attachment · release</button></div></div>
+        </section>
+
+        <section class="step-panel" data-step-panel="3" hidden>
+          <div class="step-intro"><h3>Attach it if useful</h3><p>This bundle is already complete. Add a battle, place, or discovery moment only if that helps your preparation.</p></div>
+          <div class="field-grid">
+            <label class="field"><span class="field-label">Battle · optional</span><select id="fight-link"><option selected>No fight linked</option><option>Sky-Watcher Ambush</option><option>The Broken Causeway</option></select></label>
+            <label class="field"><span class="field-label">Place · optional</span><select id="area-link"><option selected>No area linked</option><option>Veren's Northern Tower · Upper Observatory</option><option>The Ashen Road · Mile Shrine</option></select></label>
+            <label class="field wide"><span class="field-label">When does it appear? · optional</span><input id="trigger-link" value="No trigger chosen"></label>
+          </div>
+          <div class="connection-summary">
+            <div><div class="section-label">Optional attachment</div><h4><span id="legend-loot">CR 3 Treasure Hoard</span></h4><p><span id="legend-fight">No fight linked</span> · <span id="legend-area">No area linked</span> · No production World link is being written.</p></div>
+          </div>
+          <div class="step-actions"><button class="secondary-btn" type="button" data-go-step="2">Back to review</button><div class="right"><button class="primary-btn" type="button" data-go-step="4">Continue to release</button></div></div>
+        </section>
+
+        <section class="step-panel" data-step-panel="4" hidden>
+          <div class="step-intro"><h3>Ready for play</h3><p>The bundle can remain private, wait in Ready, appear at an attached place, or be awarded directly.</p></div>
+          <div class="notice"><div class="notice-icon" aria-hidden="true">✓</div><div><strong>The loot bundle already exists.</strong> Attachments are optional. Introducing notable loot is the moment permanent item history begins.</div></div>
+          <div class="canvas-actions" id="canvas-actions">
+            <button class="secondary-btn" type="button" data-action="save-draft">Keep private</button>
+            <button class="secondary-btn" type="button" data-action="ready">Mark ready</button>
+            <button class="primary-btn" type="button" data-action="place">Place at linked location</button>
+            <button class="primary-btn" type="button" data-action="award">Award to party or character…</button>
+          </div>
+          <div class="step-actions"><button class="secondary-btn" type="button" data-go-step="3">Back to attachment</button><span></span></div>
+        </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="award-modal" role="dialog" aria-modal="true" aria-labelledby="award-title" hidden>
+    <div class="dialog">
+      <header class="dialog-head">
+        <div><div class="eyebrow">Introduce and transfer</div><h2 id="award-title">Award this loot</h2><p>Choose who receives the bundle when it enters play.</p></div>
+        <button class="close-btn" type="button" data-action="close-award" aria-label="Close award dialog">×</button>
+      </header>
+      <div class="dialog-body">
+        <div class="section-label">Recipient</div>
+        <div class="recipient-grid" id="recipient-grid">
+          <button class="recipient-btn" type="button" data-recipient="Party Stash" aria-pressed="true">Party Stash<span>Available to the group; no character custody yet.</span></button>
+          <button class="recipient-btn" type="button" data-recipient="Cosmere Runestar" aria-pressed="false">Cosmere Runestar<span>Move eligible items into Cosmere's Gear.</span></button>
+          <button class="recipient-btn" type="button" data-recipient="Caim" aria-pressed="false">Caim<span>Move eligible items into Caim's Gear.</span></button>
+          <button class="recipient-btn" type="button" data-recipient="Líadan Luchóg" aria-pressed="false">Líadan Luchóg<span>Move eligible items into Líadan's Gear.</span></button>
+          <button class="recipient-btn" type="button" data-recipient="Vesperian Vale" aria-pressed="false">Vesperian Vale<span>Move eligible items into Vesperian's Gear.</span></button>
+        </div>
+        <div class="award-preview">
+          <div class="section-label">Receipt preview</div>
+          <h3 id="award-preview-title">The Fallen Observatory → Party Stash</h3>
+          <p id="award-preview-copy">The bundle will enter the campaign. The magic item begins its permanent history; coins and ordinary supplies remain ordinary stacks.</p>
+        </div>
+      </div>
+      <footer class="dialog-actions">
+        <button class="secondary-btn" type="button" data-action="close-award">Cancel</button>
+        <button class="primary-btn" type="button" data-action="confirm-award">Introduce and award</button>
+      </footer>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    var state = {
+      stage: 'planned',
+      selectedId: 'roll-setup',
+      recipient: 'Party Stash',
+      rollCount: 0,
+      rollType: 'hoard',
+      workStep: 1,
+      bundles: [
+        {
+          id: 'roll-setup', status: 'planned', name: 'New treasure roll', kind: 'Unplaced preparation',
+          note: 'Choose a table and roll. A private loot bundle will be created automatically.', fight: 'No fight linked',
+          area: 'No area linked', trigger: 'No trigger chosen', items: []
+        },
+        {
+          id: 'observatory', status: 'planned', name: 'The Fallen Observatory', kind: 'Encounter treasure',
+          note: 'A sealed coffer planned for the upper tower.', fight: 'Sky-Watcher Ambush',
+          area: "Veren's Northern Tower · Upper Observatory", trigger: 'When the sealed coffer is opened after the sentry captain falls',
+          items: [
+            { icon: '◉', name: '85 gp and 140 sp', meta: 'Currency · ordinary stack', type: 'ordinary' },
+            { icon: '✚', name: 'Potion of Healing', meta: 'Consumable · identified', type: 'ordinary' },
+            { icon: '✦', name: 'Runed Quarterstaff', trueName: 'Skyblinder Staff', meta: 'Magic weapon · Uncommon', type: 'notable', identification: 'unidentified', description: 'Fine silver lines turn through the dark wood like a map of unfamiliar stars.' }
+          ]
+        },
+        {
+          id: 'smugglers', status: 'planned', name: "The Smuggler's Quiet Cache", kind: 'Area discovery',
+          note: 'Hidden below the third loose wharf stone.', fight: 'No fight linked', area: 'The Ashen Road · Mile Shrine',
+          trigger: 'When the party follows the salt-marked stones',
+          items: [
+            { icon: '◈', name: 'Two moonstone rings', meta: 'Valuables · ordinary stack', type: 'ordinary' },
+            { icon: '⌁', name: 'Oil of Slipperiness', meta: 'Consumable · unidentified', type: 'notable', identification: 'unidentified', trueName: 'Oil of Slipperiness', description: 'A stoppered clay flask filled with pearlescent oil.' }
+          ]
+        },
+        {
+          id: 'abbess', status: 'ready', name: "The Abbess's Promise", kind: 'NPC reward',
+          note: 'Prepared reward if the reliquary is returned unopened.', fight: 'The Broken Causeway', area: "Veren's Northern Tower · Upper Observatory",
+          trigger: 'When Abbess Serai keeps her promise',
+          items: [
+            { icon: '✦', name: 'Lantern of Revealing', meta: 'Wondrous item · Uncommon', type: 'notable', identification: 'identified', trueName: 'Lantern of Revealing', description: 'A hooded lantern whose glass never gathers soot.' }
+          ]
+        },
+        {
+          id: 'causeway', status: 'introduced', name: 'The Broken Causeway Spoils', kind: 'Encounter treasure',
+          note: 'Placed beneath the western watch post.', fight: 'The Broken Causeway', area: 'The Ashen Road · Mile Shrine',
+          trigger: 'Introduced during play', recipient: 'Party Stash',
+          items: [
+            { icon: '◉', name: '34 gp', meta: 'Currency · Party Stash', type: 'ordinary' },
+            { icon: '✦', name: 'Weathered bronze key', meta: 'Tracked campaign object · history active', type: 'notable', identification: 'identified', trueName: 'Weathered bronze key', description: 'The bow bears the split-sun seal.' }
+          ]
+        }
+      ]
+    };
+
+    var $ = function (sel, root) { return (root || document).querySelector(sel); };
+    var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
+    var toastTimer = 0;
+
+    function current() { return state.bundles.find(function (bundle) { return bundle.id === state.selectedId; }) || state.bundles[0]; }
+    function escapeHtml(value) { return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function stageKicker(status) { return status === 'ready' ? 'Reviewed preparation' : status === 'introduced' ? 'Introduced campaign truth' : 'Private draft'; }
+
+    function say(message) {
+      var el = $('#toast');
+      clearTimeout(toastTimer);
+      el.textContent = message;
+      el.classList.add('show');
+      toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2600);
+    }
+
+    function syncFromFields() {
+      var bundle = current();
+      if (!bundle) return;
+      bundle.name = $('#bundle-name').value.trim() || 'Untitled loot bundle';
+      bundle.kind = $('#bundle-kind').value;
+      bundle.note = $('#bundle-note').value.trim();
+      bundle.fight = $('#fight-link').value;
+      bundle.area = $('#area-link').value;
+      bundle.trigger = $('#trigger-link').value.trim();
+      $('#bundle-title').textContent = bundle.name;
+      $('#bundle-summary').textContent = bundle.note || 'No staff note yet.';
+      $('#legend-fight').textContent = bundle.fight;
+      $('#legend-area').textContent = bundle.area;
+      $('#legend-loot').textContent = bundle.name;
+      updateConnection();
+    }
+
+    function renderList() {
+      var rows = state.bundles.filter(function (bundle) { return bundle.status === state.stage && bundle.id !== 'roll-setup'; });
+      var box = $('#bundle-list');
+      if (!rows.length) {
+        box.innerHTML = '<div class="bundle-empty">Nothing is in this stage yet.</div>';
+        return;
+      }
+      box.innerHTML = rows.map(function (bundle) {
+        var links = [bundle.fight !== 'No fight linked' ? 'Fight linked' : '', bundle.area !== 'No area linked' ? 'Area linked' : ''].filter(Boolean).join(' · ') || 'Unplaced preparation';
+        return '<button class="bundle-card" type="button" data-bundle="' + escapeHtml(bundle.id) + '" aria-current="' + (bundle.id === state.selectedId ? 'true' : 'false') + '"><b>' + escapeHtml(bundle.name) + '</b><span>' + escapeHtml(bundle.note || 'No staff note yet.') + '</span><small>' + escapeHtml(bundle.items.length + ' entries · ' + links) + '</small></button>';
+      }).join('');
+    }
+
+    function renderItems() {
+      var bundle = current();
+      var receipt = bundle.rollReceipt ? '<details class="dice-receipt"><summary>See roll details</summary><div class="dice-receipt-head"><div class="section-label">Roll receipt</div><h3>' + escapeHtml(bundle.rollReceipt.title) + '</h3></div>' + bundle.rollReceipt.rows.map(function (row) { return '<div class="dice-row"><b>' + escapeHtml(row.label) + '</b><span>' + escapeHtml(row.value) + '</span></div>'; }).join('') + '<div class="mock-value-warning">Illustrative mock values · production must resolve every result against the approved rules data</div></details>' : '';
+      $('#loot-lines').innerHTML = receipt + bundle.items.map(function (item, index) {
+        var tags = item.type === 'notable'
+          ? '<span class="tag magic">Notable</span><span class="tag secret">' + (item.identification === 'identified' ? 'Identified' : 'Unidentified') + '</span>'
+          : '<span class="tag">Ordinary</span>';
+        var details = item.type === 'notable'
+          ? '<div class="loot-detail"><strong>Player-facing:</strong> ' + escapeHtml(item.name) + '<br><strong>Staff truth:</strong> ' + escapeHtml(item.trueName || item.name) + '<br>' + escapeHtml(item.description || '') + '<div class="identity-toggle" role="group" aria-label="Identification for ' + escapeHtml(item.name) + '"><button type="button" data-identify="unidentified" data-item-index="' + index + '" aria-pressed="' + (item.identification !== 'identified') + '">Introduce unidentified</button><button type="button" data-identify="identified" data-item-index="' + index + '" aria-pressed="' + (item.identification === 'identified') + '">Introduce identified</button></div></div>'
+          : '<div class="loot-detail">This remains an ordinary inventory or currency stack. It does not receive a permanent item history.</div>';
+        return '<article class="loot-line"><div class="loot-summary"><div class="loot-icon" aria-hidden="true">' + escapeHtml(item.icon) + '</div><div class="loot-name"><b>' + escapeHtml(item.name) + '</b><span>' + escapeHtml(item.meta) + '</span></div><div class="loot-tags">' + tags + '</div></div>' + details + '</article>';
+      }).join('');
+    }
+
+    function fillSelect(id, value) {
+      var select = $(id);
+      var found = $$('#' + select.id + ' option').some(function (option) { return option.value === value; });
+      if (!found) {
+        var option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+      }
+      select.value = value;
+    }
+
+    function renderEditor() {
+      var bundle = current();
+      if (!bundle) return;
+      $('#bundle-kicker').textContent = stageKicker(bundle.status);
+      $('#bundle-title').textContent = bundle.name;
+      $('#bundle-summary').textContent = bundle.note || 'No staff note yet.';
+      $('#bundle-name').value = bundle.name;
+      fillSelect('#bundle-kind', bundle.kind);
+      $('#bundle-note').value = bundle.note;
+      fillSelect('#fight-link', bundle.fight);
+      fillSelect('#area-link', bundle.area);
+      $('#trigger-link').value = bundle.trigger;
+      $('#legend-fight').textContent = bundle.fight;
+      $('#legend-area').textContent = bundle.area;
+      $('#legend-loot').textContent = bundle.name;
+      $('#review-status').textContent = bundle.status === 'introduced' ? 'In the world' : bundle.status === 'ready' ? 'Ready for play' : 'Private draft';
+      $('#review-context').textContent = bundle.fight !== 'No fight linked' ? bundle.fight : bundle.area !== 'No area linked' ? bundle.area : 'Not attached yet';
+      $('#review-count').textContent = bundle.items.length + (bundle.items.length === 1 ? ' entry' : ' entries');
+      $('#draft-notice').innerHTML = bundle.status === 'introduced'
+        ? '<div class="notice-icon" aria-hidden="true">✓</div><div><strong>This bundle has entered the campaign.</strong> Notable items now have permanent identity and append-only history. The mock does not perform a real write.</div>'
+        : '<div class="notice-icon" aria-hidden="true">i</div><div><strong>Planning is not history.</strong> Rolling or preparing this bundle creates no permanent item and tells no player. History begins only when staff introduces notable loot to the campaign.</div>';
+      var fieldsDisabled = bundle.status === 'introduced';
+      $$('#bundle-editor input, #bundle-editor select, #bundle-editor textarea').forEach(function (el) { el.disabled = fieldsDisabled; });
+      $$('[data-action="ready"]').forEach(function (button) { button.hidden = bundle.status !== 'planned'; });
+      $('[data-action="place"]').hidden = bundle.status === 'introduced' || bundle.area === 'No area linked';
+      $('[data-action="award"]').hidden = bundle.status === 'introduced';
+      $('[data-action="save-draft"]').hidden = bundle.status === 'introduced';
+      $('[data-action="add-item"]').hidden = bundle.status === 'introduced';
+      renderItems();
+      renderList();
+      updateConnection();
+    }
+
+    function goStep(step) {
+      state.workStep = Math.max(1, Math.min(4, Number(step) || 1));
+      $$('[data-work-step]').forEach(function (button) {
+        var buttonStep = Number(button.dataset.workStep);
+        var isCurrent = buttonStep === state.workStep;
+        button.setAttribute('aria-current', isCurrent ? 'step' : 'false');
+        button.dataset.state = isCurrent ? 'current' : buttonStep < state.workStep ? 'complete' : 'upcoming';
+      });
+      $$('[data-step-panel]').forEach(function (panel) { panel.hidden = Number(panel.dataset.stepPanel) !== state.workStep; });
+    }
+
+    function selectStage(stage) {
+      syncFromFields();
+      state.stage = stage;
+      $$('.life-tab').forEach(function (button) { button.setAttribute('aria-selected', button.dataset.stage === stage ? 'true' : 'false'); });
+      var first = state.bundles.find(function (bundle) { return bundle.status === stage; });
+      if (first) state.selectedId = first.id;
+      renderEditor();
+      goStep(first ? 2 : 1);
+    }
+
+    function createDraft(mode) {
+      var id = 'draft-' + Date.now();
+      var imported = mode === 'import';
+      var bundle = {
+        id: id, status: 'planned', name: imported ? 'Imported magic-item draft' : 'Untitled loot bundle', kind: 'Unplaced preparation',
+        note: imported ? 'Imported from the Compendium as a private draft.' : 'A new private preparation.', fight: 'No fight linked', area: 'No area linked', trigger: 'Choose the moment this enters play',
+        items: imported
+          ? [{ icon: '✦', name: 'Unidentified wand', trueName: 'Wand of Web', meta: 'Magic item · Uncommon', type: 'notable', identification: 'unidentified', description: 'A slender wand wrapped in old grey silk.' }]
+          : [{ icon: '◇', name: 'New loot entry', meta: 'Ordinary until configured', type: 'ordinary' }]
+      };
+      state.bundles.unshift(bundle);
+      state.selectedId = id;
+      state.stage = 'planned';
+      $$('.life-tab').forEach(function (button) { button.setAttribute('aria-selected', button.dataset.stage === 'planned' ? 'true' : 'false'); });
+      renderEditor();
+      goStep(2);
+      say(imported ? 'Compendium item imported as a private, unidentified draft. No history was created.' : 'New private loot draft created.');
+    }
+
+    function updateConnection() {
+      var bundle = current();
+      if (!bundle) return;
+      updateRollDerivation();
+    }
+
+    function updateRollDerivation() {
+      var profile = $('#roll-profile').value;
+      var individual = state.rollType === 'individual';
+      $('#rules-2014').hidden = profile !== '2014';
+      $('#rules-2024').hidden = profile !== '2024';
+      $('#rules-custom').hidden = profile !== 'custom';
+      $('#roll-submit').disabled = profile === 'custom';
+
+      if (profile === 'custom') {
+        $('#roll-simple-title').textContent = 'Kirtas custom table';
+        $('#roll-simple-copy').textContent = 'No custom table is configured, so the mock exposes no invented rules controls.';
+        $('#roll-submit').textContent = 'Configure a custom table first';
+        return;
+      }
+
+      if (profile === '2024') {
+        var cr2024 = $('#roll-cr-2024').value;
+        $('#roll-simple-title').textContent = '2024 Random Treasure Hoard · CR ' + cr2024;
+        $('#roll-simple-copy').textContent = 'The 2024 source provides its treasure-hoard CR control without the 2014 Individual Treasure choice.';
+        $('#roll-2024-title').textContent = 'One random treasure hoard at CR ' + cr2024;
+        $('#roll-submit').textContent = '⚄ Roll 2024 hoard and create bundle';
+        return;
+      }
+
+      var cr = $('#roll-cr').value;
+      var quantity = Math.max(1, Number($('#roll-quantity').value) || 1);
+      var partySize = $('#party-size').value;
+      $('#individual-count-field').hidden = !individual;
+      $('#roll-cr-label').textContent = individual ? 'Creature CR' : 'Hoard CR';
+      $('#roll-simple-title').textContent = '2014 Random Treasure · CR ' + cr;
+      $('#roll-simple-copy').textContent = individual
+        ? 'Roll once for each creature at this CR that logically carries treasure.'
+        : 'Roll one complete treasure hoard using this CR.';
+      $('#roll-derivation-title').textContent = individual
+        ? quantity + (quantity === 1 ? ' creature' : ' creatures') + ' at CR ' + cr
+        : 'One treasure hoard at CR ' + cr;
+      $('#roll-derivation-copy').textContent = 'Party size: ' + partySize + '. It is recorded for staff reference and does not silently change the official table result.';
+      $('#roll-submit').textContent = individual ? '⚄ Roll individual treasure and create bundle' : '⚄ Roll one hoard and create bundle';
+    }
+
+    function sampleIndividualForCr(cr, quantity) {
+      var value = cr === '1/2' ? .5 : Number(cr) || 0;
+      var count = Math.max(1, Math.min(20, Number(quantity) || 1));
+      var totals = { cp: 0, sp: 0, gp: 0, pp: 0 };
+      var rolls = [];
+      var band = value <= 4 ? 'CR 0–4' : value <= 10 ? 'CR 5–10' : value <= 16 ? 'CR 11–16' : 'CR 17+';
+      for (var index = 0; index < count; index += 1) {
+        var roll = ((Math.round(value * 19) + 17 + (index * 31)) % 100) + 1;
+        rolls.push(roll);
+        if (value <= 4) {
+          totals.cp += 5 + (roll % 16);
+          totals.sp += 2 + (roll % 9);
+        } else if (value <= 10) {
+          totals.sp += 20 + (roll % 40);
+          totals.gp += 5 + (roll % 16);
+        } else if (value <= 16) {
+          totals.gp += 50 + (roll % 80);
+          totals.pp += 3 + (roll % 10);
+        } else {
+          totals.gp += 200 + (roll * 5);
+          totals.pp += 20 + (roll % 30);
+        }
+      }
+      var parts = ['pp', 'gp', 'sp', 'cp'].filter(function (coin) { return totals[coin] > 0; }).map(function (coin) { return totals[coin] + ' ' + coin; });
+      var aggregate = parts.join(' and ');
+      return {
+        band: band,
+        dice: 'd100 results: ' + rolls.join(' · '),
+        outcome: aggregate,
+        items: [
+          { icon: '◉', name: aggregate, meta: 'Individual treasure · ' + count + (count === 1 ? ' creature roll' : ' creature rolls') + ' · ordinary stack', type: 'ordinary' }
+        ]
+      };
+    }
+
+    function sampleHoardForCr(cr) {
+      var value = cr === '1/2' ? .5 : Number(cr) || 0;
+      if (value <= 4) return {
+        band: 'CR 0–4', dice: 'd100 → 64', outcome: '42 gp · 60 sp · one Common consumable',
+        items: [
+          { icon: '◉', name: '42 gp and 60 sp', meta: 'Currency · ordinary stack', type: 'ordinary' },
+          { icon: '◆', name: 'Bloodstone worth 50 gp', meta: 'Valuable · ordinary stack', type: 'ordinary' },
+          { icon: '✦', name: 'Smoky glass vial', trueName: 'Potion of Climbing', meta: 'Magic consumable · Common', type: 'notable', identification: 'unidentified', description: 'Silver motes crawl upward through thick grey liquid.' }
+        ]
+      };
+      if (value <= 10) return {
+        band: 'CR 5–10', dice: 'd100 → 38', outcome: '320 gp · 110 pp · one Uncommon item',
+        items: [
+          { icon: '◉', name: '320 gp and 110 pp', meta: 'Currency · ordinary stack', type: 'ordinary' },
+          { icon: '◆', name: 'Jeweled silver cup worth 250 gp', meta: 'Art object · ordinary stack', type: 'ordinary' },
+          { icon: '✦', name: 'Silvery travel cloak', trueName: 'Cloak of Protection', meta: 'Wondrous item · Uncommon', type: 'notable', identification: 'unidentified', description: 'The rain slides away without ever darkening the cloth.' }
+        ]
+      };
+      if (value <= 16) return {
+        band: 'CR 11–16', dice: 'd100 → 81', outcome: '1,800 gp · 600 pp · one Rare item',
+        items: [
+          { icon: '◉', name: '1,800 gp and 600 pp', meta: 'Currency · ordinary stack', type: 'ordinary' },
+          { icon: '◆', name: 'Star sapphire worth 1,000 gp', meta: 'Gem · ordinary stack', type: 'ordinary' },
+          { icon: '✦', name: 'Black iron rod', trueName: 'Rod of Rulership', meta: 'Rod · Rare', type: 'notable', identification: 'unidentified', description: 'A thin crown is worked into the pommel.' }
+        ]
+      };
+      return {
+        band: 'CR 17+', dice: 'd100 → 96', outcome: '12,000 gp · 2,400 pp · one Legendary item',
+        items: [
+          { icon: '◉', name: '12,000 gp and 2,400 pp', meta: 'Currency · ordinary stack', type: 'ordinary' },
+          { icon: '◆', name: 'Black star sapphire worth 5,000 gp', meta: 'Gem · ordinary stack', type: 'ordinary' },
+          { icon: '✦', name: 'Sealed celestial crown', trueName: 'Crown of Stars', meta: 'Wondrous item · Legendary', type: 'notable', identification: 'unidentified', description: 'No reflection appears in its seven dark stones.' }
+        ]
+      };
+    }
+
+    function rollTreasure() {
+      state.rollCount += 1;
+      var profile = $('#roll-profile').value;
+      if (profile === 'custom') {
+        say('Choose a configured Kirtas table before rolling.');
+        return;
+      }
+      var cr = profile === '2024' ? $('#roll-cr-2024').value : $('#roll-cr').value;
+      var individual = profile === '2014' && state.rollType === 'individual';
+      var quantity = individual ? Math.max(1, Number($('#roll-quantity').value) || 1) : 1;
+      var partySize = profile === '2014' ? $('#party-size').value : null;
+      var sourceName = profile === '2024' ? '2024 Random Treasure Hoard' : '2014 Random Treasure';
+      var sample = individual ? sampleIndividualForCr(cr, quantity) : sampleHoardForCr(cr);
+      var bundle = {
+        id: 'roll-' + Date.now(),
+        status: 'planned',
+        name: sample.band + ' ' + (individual ? 'Individual Treasure × ' + quantity : 'Treasure Hoard'),
+        kind: 'Unplaced preparation',
+        note: 'Generated from ' + sourceName + ' at CR ' + cr + (partySize ? ' for a party of ' + partySize : '') + '.',
+        fight: 'No fight linked',
+        area: 'No area linked',
+        trigger: 'No trigger chosen',
+        items: sample.items,
+        rollReceipt: {
+        title: (individual ? 'Individual treasure' : 'Treasure hoard') + ' · ' + sample.band + ' · ' + sourceName,
+        rows: [
+          { label: 'Rules source', value: sourceName },
+          { label: 'Encounter CR', value: cr },
+          { label: 'Roll size', value: individual ? quantity + (quantity === 1 ? ' creature' : ' creatures') : 'One treasure hoard' },
+          { label: 'Party size', value: partySize ? partySize + ' PCs · recorded, not silently scaled' : 'Not used by this profile' },
+          { label: 'Dice transcript', value: sample.dice },
+          { label: 'Illustrative result', value: sample.outcome }
+        ]
+        }
+      };
+      state.bundles.unshift(bundle);
+      state.selectedId = bundle.id;
+      state.stage = 'planned';
+      $$('.life-tab').forEach(function (button) { button.setAttribute('aria-selected', button.dataset.stage === 'planned' ? 'true' : 'false'); });
+      renderEditor();
+      goStep(2);
+      say(sample.band + ' sample rolled. Its private loot bundle was created automatically.');
+    }
+
+    function moveTo(status) {
+      syncFromFields();
+      var bundle = current();
+      bundle.status = status;
+      state.stage = status;
+      $$('.life-tab').forEach(function (button) { button.setAttribute('aria-selected', button.dataset.stage === status ? 'true' : 'false'); });
+      renderEditor();
+      if (status === 'ready') say('Bundle marked ready. It is still staff-only and has no item history yet.');
+    }
+
+    function introduceAtPlace() {
+      syncFromFields();
+      var bundle = current();
+      bundle.status = 'introduced';
+      bundle.recipient = 'At linked place';
+      state.stage = 'introduced';
+      $$('.life-tab').forEach(function (button) { button.setAttribute('aria-selected', button.dataset.stage === 'introduced' ? 'true' : 'false'); });
+      renderEditor();
+      say('Introduced at ' + bundle.area + '. Notable item history begins now; ordinary stacks stay ordinary.');
+    }
+
+    function openAward() {
+      syncFromFields();
+      state.recipient = 'Party Stash';
+      $$('.recipient-btn').forEach(function (button) { button.setAttribute('aria-pressed', button.dataset.recipient === state.recipient ? 'true' : 'false'); });
+      updateAwardPreview();
+      $('#award-modal').hidden = false;
+      $('.recipient-btn').focus();
+    }
+
+    function closeAward() {
+      $('#award-modal').hidden = true;
+      $('[data-action="award"]').focus();
+    }
+
+    function updateAwardPreview() {
+      var bundle = current();
+      $('#award-preview-title').textContent = bundle.name + ' → ' + state.recipient;
+      $('#award-preview-copy').textContent = state.recipient === 'Party Stash'
+        ? 'The bundle will enter the campaign. The magic item begins its permanent history; coins and ordinary supplies remain ordinary stacks.'
+        : 'Eligible inventory rows will move to ' + state.recipient + '. The notable item begins or continues its permanent history under that character’s custody.';
+    }
+
+    function confirmAward() {
+      var bundle = current();
+      bundle.status = 'introduced';
+      bundle.recipient = state.recipient;
+      bundle.note = 'Awarded to ' + state.recipient + ' from ' + (bundle.fight !== 'No fight linked' ? bundle.fight : bundle.area) + '.';
+      state.stage = 'introduced';
+      $('#award-modal').hidden = true;
+      $$('.life-tab').forEach(function (button) { button.setAttribute('aria-selected', button.dataset.stage === 'introduced' ? 'true' : 'false'); });
+      renderEditor();
+      say('Awarded to ' + state.recipient + '. The mock shows the future custody receipt; no campaign data changed.');
+    }
+
+    document.addEventListener('click', function (event) {
+      var stage = event.target.closest('[data-stage]');
+      if (stage) { selectStage(stage.dataset.stage); return; }
+      var workStep = event.target.closest('[data-work-step]');
+      if (workStep) { syncFromFields(); goStep(workStep.dataset.workStep); return; }
+      var nextStep = event.target.closest('[data-go-step]');
+      if (nextStep) { syncFromFields(); goStep(nextStep.dataset.goStep); return; }
+      var bundleButton = event.target.closest('[data-bundle]');
+      if (bundleButton) { syncFromFields(); state.selectedId = bundleButton.dataset.bundle; renderEditor(); goStep(2); return; }
+      var identityButton = event.target.closest('[data-identify]');
+      if (identityButton) {
+        var item = current().items[Number(identityButton.dataset.itemIndex)];
+        item.identification = identityButton.dataset.identify;
+        if (item.identification === 'identified') item.name = item.trueName || item.name;
+        renderItems();
+        say(item.identification === 'identified' ? 'This item will enter play identified.' : 'This item will enter play with its staff truth hidden.');
+        return;
+      }
+      var recipient = event.target.closest('[data-recipient]');
+      if (recipient) {
+        state.recipient = recipient.dataset.recipient;
+        $$('.recipient-btn').forEach(function (button) { button.setAttribute('aria-pressed', button === recipient ? 'true' : 'false'); });
+        updateAwardPreview();
+        return;
+      }
+      var rollType = event.target.closest('[data-roll-type]');
+      if (rollType) {
+        state.rollType = rollType.dataset.rollType;
+        $$('[data-roll-type]').forEach(function (button) { button.setAttribute('aria-pressed', button === rollType ? 'true' : 'false'); });
+        updateRollDerivation();
+        return;
+      }
+      var action = event.target.closest('[data-action]');
+      if (!action) return;
+      if (action.dataset.action === 'create') createDraft('create');
+      if (action.dataset.action === 'import') createDraft('import');
+      if (action.dataset.action === 'continue-current') goStep(2);
+      if (action.dataset.action === 'add-item') { current().items.push({ icon: '◇', name: 'New loot entry', meta: 'Ordinary until configured', type: 'ordinary' }); renderEditor(); say('New ordinary loot row added to this private draft.'); }
+      if (action.dataset.action === 'import-into') { current().items.push({ icon: '✦', name: 'Unidentified wand', trueName: 'Wand of Web', meta: 'Magic item · Uncommon', type: 'notable', identification: 'unidentified', description: 'A slender wand wrapped in old grey silk.' }); renderEditor(); say('Compendium item added to this private bundle as unidentified.'); }
+      if (action.dataset.action === 'save-draft') { syncFromFields(); renderList(); say('Private draft updated in this mock only.'); }
+      if (action.dataset.action === 'ready') moveTo('ready');
+      if (action.dataset.action === 'place') introduceAtPlace();
+      if (action.dataset.action === 'award') openAward();
+      if (action.dataset.action === 'close-award') closeAward();
+      if (action.dataset.action === 'confirm-award') confirmAward();
+      if (action.dataset.action === 'confirm-roll') rollTreasure();
+    });
+
+    ['bundle-name', 'bundle-note', 'fight-link', 'area-link', 'trigger-link'].forEach(function (id) {
+      $('#' + id).addEventListener('input', syncFromFields);
+      $('#' + id).addEventListener('change', syncFromFields);
+    });
+    $('#bundle-kind').addEventListener('change', syncFromFields);
+    $('#roll-cr').addEventListener('change', updateRollDerivation);
+    $('#roll-cr-2024').addEventListener('change', updateRollDerivation);
+    $('#roll-profile').addEventListener('change', updateRollDerivation);
+    $('#party-size').addEventListener('change', updateRollDerivation);
+    $('#roll-quantity').addEventListener('input', updateRollDerivation);
+    $('#award-modal').addEventListener('click', function (event) { if (event.target === $('#award-modal')) closeAward(); });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !$('#award-modal').hidden) closeAward();
+    });
+
+    window.__lootWorkshopMock = {
+      state: state,
+      rollTreasure: rollTreasure,
+      selectStage: selectStage,
+      current: current,
+      introduceAtPlace: introduceAtPlace
+    };
+    renderEditor();
+    goStep(1);
+  })();
+  </script>
+</body>
+</html>
