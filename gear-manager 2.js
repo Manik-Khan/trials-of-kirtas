@@ -232,9 +232,7 @@
         + '<div class="ge-f"><label>Quantity</label><input type="number" min="1" data-ef="qty" value="' + (it.qty || 1) + '"></div>'
         + '<div class="ge-f"><label>Weight (lb)</label><input type="number" min="0" step="0.1" data-ef="weight" value="' + (it.weight || 0) + '"></div>'
         + '<div class="ge-f"><label>Rarity</label><select data-ef="rarity">' + RARITIES.map(function (r) { return '<option' + (r === (it.rarity || 'None') ? ' selected' : '') + '>' + r + '</option>'; }).join('') + '</select></div>'
-        + (it.instanceId && (function () { try { return new URLSearchParams(location.search).get('itemHistory') === '1'; } catch (_) { return false; } })()
-          ? '<div class="ge-f"><label>Attunement</label><div class="ge-toggle' + (it.reqAttune ? ' on' : '') + '" aria-disabled="true"><span class="box"></span><span>' + (it.reqAttune ? 'Requires attunement' : 'No attunement required') + ' · managed in Item History</span></div></div>'
-          : '<div class="ge-f"><label>Attunement</label><div class="ge-toggle' + (it.reqAttune ? ' on' : '') + '" data-eftoggle="reqAttune"><span class="box"></span><span>Requires attunement</span></div></div>')
+        + '<div class="ge-f"><label>Attunement</label><div class="ge-toggle' + (it.reqAttune ? ' on' : '') + '" data-eftoggle="reqAttune"><span class="box"></span><span>Requires attunement</span></div></div>'
         + '<div class="ge-f"><label>Container</label><div class="ge-toggle' + (it.isContainer ? ' on' : '') + '" data-eftoggle="isContainer"><span class="box"></span><span>Holds other items</span></div></div>'
         + '<div class="ge-f wide"><label>Flavor / Notes</label><textarea data-ef="flavor" placeholder="A line of description, history, or a table note\u2026">' + esc(it.flavor || '') + '</textarea></div>'
       + '</div>'

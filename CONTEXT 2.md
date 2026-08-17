@@ -1241,10 +1241,8 @@ Supabase tables: `profiles`, `encounters`, `combatants`, `characters`, `journal_
   `schema_delta_item_*.sql`) — stable item identity, staff-only secrets,
   append-only linked history, atomic staff adoption, and atomic member transfer.
   The adoption UI is field-proven on the full sheet behind `?itemHistory=1`;
-  a flagged local tracked-item reader and atomic identify/rename/attunement/
-  transfer management candidate now exist, while SQL application, signed-in
-  field proof, and mounted-sheet rollout remain open. Read the item handoff
-  before touching this seam.
+  tracked-item history/identify/rename/transfer UI and mounted-sheet rollout are
+  still open. Read the item handoff before touching this seam.
 - **Soul Shards charactermancer** (`shards.html`, `soul-shards-*.js`) — full builder off the
   5etools 2014 JSON mirror; multiclass spellcasting, provenance-colored spell
   picker, existing-character Level Up, and pre-level mechanical Facet capture.

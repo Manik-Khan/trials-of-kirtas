@@ -2,9 +2,8 @@
 
 Status: **identity/schema, staff adoption, and server-side transfer are applied;
 the first real full-sheet adoption flow is field-proven behind a flag. The
-flagged tracked-item detail/history and management experience is now a validated
-local production candidate awaiting SQL application and M's signed-in field
-pass.**
+flagged tracked-item detail/history reader is now a validated local production
+candidate awaiting M's signed-in field pass; management writes remain next.**
 
 This document is the current item-system authority. Read it with `AGENTS.md`
 and `CONTEXT.md` before touching Gear, inventory imports, item SQL, Chronicle
@@ -24,9 +23,9 @@ The notable-item architecture is now real rather than a standalone concept.
   history are separate database records.
 - Staff can intentionally adopt one existing quantity-one Gear row through the
   real full character sheet.
-- Campaign members can open a flagged tracked-item record in the local full-sheet
-  candidate; staff receive the separate secret projection, can preview the party
-  view, and receive the approved narrow management controls.
+- Campaign members can open a flagged read-only tracked-item record in the local
+  full-sheet candidate; staff receive the separate secret projection and can
+  preview the party view.
 - A tracked item can already be transferred atomically on the server without
   losing its identity or historical bearer chain, although no production
   transfer button exists yet.
@@ -180,73 +179,33 @@ smoke-item-transfer-sql:    25 passed, 0 failed
 TOTAL:                     145 passed, 0 failed
 ```
 
-### August 16 local tracked-item management candidate
+### August 16 local reader candidate
 
 M approved `_edits/mock-item-history-management.html`. The smallest production
-reader now lives in `item-history.js?v=ih8` and mounts only on the full sheet
+reader now lives in `item-history.js?v=ih3` and mounts only on the full sheet
 when `?itemHistory=1` is present. It:
 
 - claims tracked Gear details before the adoption bridge decorates ordinary
   items;
-- reads `item_instances`, oldest-first `item_events`, and character display names
-  for members;
+- reads only `item_instances` and oldest-first `item_events` for members;
 - requests `item_secrets` only after the local profile resolves to `dm` or
   `overseer`, while database RLS remains final authority;
 - gives staff a player-preview lens that removes the secret panel;
 - presents unidentified items with smoke, no public rarity, and no public
   mechanics;
 - presents identified rarity/mechanics from the public row;
-- displays custody by character name, keeps equipment as a quiet custody detail,
-  and gives attunement its own explicit marker;
-- uses the current public item name as the Overview heading instead of permission
-  or form language; and
-- gives staff narrow identification, public rename, attunement-requirement, and
-  real transfer actions.
-
-The approved refinement adds the unapplied append-only
-`schema_delta_item_attunement.sql`. It adds `requires_attunement`, backfills
-existing tracked Gear truth, and provides two transactional RPCs. Staff use
-`set_item_attunement_requirement`; turning the rule off clears active
-attunement in both the durable row and bearer inventory. A campaign member's
-existing flagged Gear Attune/Release control uses `set_item_attuned`, which
-locks the current bearer, enforces the three-item cap, and updates both records
-together. The default and mounted-sheet paths remain unchanged without
-`?itemHistory=1`.
-
-The second unapplied append-only delta is
-`schema_delta_item_management.sql`. `identify_item` publishes the prepared
-secret name/rarity/description/rules into public truth, updates the held Gear
-row, and appends an `identified` event in one transaction. `rename_item` updates
-the public and held-inventory names while preserving identity and appending a
-`renamed` event. The production transfer confirmation calls the already-applied
-`transfer_item` RPC with stale-bearer protection and a real destination
-character key. None of these actions updates or deletes an existing history
-event.
+- displays custody, equipment state, permanent identity, and append-only event
+  chronology; and
+- contains no RPC, insert, update, or delete path.
 
 The production-module harness passed desktop and 390×844 mobile browser checks.
 The default URL stayed inert; a player received no secret panel or audience
 controls; staff saw the separate secret; identified and unidentified states
 rendered correctly; mobile had no horizontal overflow and retained 44–48 px
-controls; no browser warning/error was reported. The current item-focused known
-answers are **241/241**: 145 original schema/adoption/transfer/provenance checks,
-30 approved-mock checks, 34 reader/management checks, 17 atomic-attunement
-checks, and 15 identification/rename SQL checks. The production harness was
-rechecked at 1440×900 and 390×844; custody
-showed `Cosmere Runestar`, mobile had no horizontal overflow, and the management
-controls retained 48px touch targets. Identification showed the prepared public
-reveal and confirmation; rename preserved a separate history summary; transfer
-offered the human destination `Líadan Luchóg` and narrated cleared bearer state.
-The repository still does not provide
-`jsdom`, so its older optional Gear DOM smoke could not start; the real browser
-harness is the visual gate used here.
-
-Remaining field gates: apply `schema_delta_item_attunement.sql` and then
-`schema_delta_item_management.sql`; deploy the cache-stamped files; verify The
-Hexblade as **No attunement required**; exercise a separate required item through
-Attune/Release; identify and rename a safe tracked test item; and transfer it
-between two test bearers on desktop and mobile. Confirm both sheets refresh and
-the new history moments appear oldest-first. The candidate is not yet
-field-proven against live rows.
+controls; no browser warning/error was reported. The five original item suites,
+the approved-mock smoke, and the new reader smoke total **189/189** known
+answers. A deployed signed-in pass against The Hexblade's real rows remains the
+field gate.
 
 Re-run all five plus `node --check` on every touched JS/MJS file. A green smoke
 does not replace real desktop/mobile browser verification for Gear UI.
@@ -259,14 +218,9 @@ does not replace real desktop/mobile browser verification for Gear UI.
   grants, and append-only event trigger; applied live.
 - `schema_delta_item_adoption.sql` — atomic staff adoption RPC; applied live.
 - `schema_delta_item_transfer.sql` — atomic member transfer RPC; applied live.
-- `schema_delta_item_attunement.sql` — explicit durable requirement plus atomic
-  staff rule and bearer Attune/Release RPCs; local and unapplied.
-- `schema_delta_item_management.sql` — atomic staff identification and rename
-  RPCs with append-only events; local and unapplied.
 - `item-adoption.js` — flagged real-sheet staff adoption client and dialog.
-- `item-history.js` — flagged tracked-item reader plus staff attunement-rule
-  control; public/history for members, separate secrets only for staff; full
-  sheet only.
+- `item-history.js` — flagged read-only tracked-item reader; public/history for
+  members, separate secrets only for staff; full sheet only.
 - `sheet-v2.html` — current full-sheet include/mount seam.
 - `gear-manager.js` — existing inventory renderer/editor; do not refactor it to
   solve item history unless the approved mock proves that seam is required.
@@ -286,8 +240,10 @@ does not replace real desktop/mobile browser verification for Gear UI.
   or signed-in field-proven against the real Hexblade rows.
 - Smoky unidentified styling exists in the reader and tracked-detail opener,
   but is not applied to the closed Gear list/grid tile.
-- Identification, rename, and transfer management are local candidates but are
-  not deployed or signed-in field-proven.
+- Identification and rename exist in the pure contract but have no narrow live
+  RPC or production UI.
+- The transfer RPC exists, but there is no destination picker, confirmation,
+  failure narration, or post-transfer refresh in Gear.
 - Import can populate ordinary inventory, but it has no deliberate adopt-this-
   import action.
 - Item events are not yet projected into Chronicle, World, NPCs, encounters, or
@@ -356,15 +312,13 @@ automation yet.
    available identify/rename/transfer actions legible on desktop and touch.
 4. M approves the standalone mock.
 5. ~~Build the smallest flagged production reader for `item_instances`,
-   `item_events`, and staff-visible `item_secrets`.~~ Local candidate complete.
-   Apply `schema_delta_item_attunement.sql`, deploy, and field-test the reader
-   plus Attune/Release against real tracked items in staff and player sessions
-   on desktop and mobile.
-6. ~~Add narrow append-only SQL operations for identification/rename; never
-   direct-write history tables.~~ Local candidate complete; apply and field-test.
-7. ~~Wire the already-applied `transfer_item` RPC through a narrated
-   confirmation flow.~~ Local candidate complete; verify both bearer sheets
-   after a field transfer.
+   `item_events`, and staff-visible `item_secrets`.~~ Local candidate complete;
+   deploy and field-test it against a real tracked item in staff and player
+   sessions on desktop and mobile.
+6. Add narrow append-only SQL operations for identification/rename only when
+   their approved UI requires them; never direct-write history tables.
+7. Wire the already-applied `transfer_item` RPC through a narrated confirmation
+   flow and verify both bearer sheets after transfer.
 8. Field-test the complete tracked-item workflow before crossing into entity
    links or World.
 

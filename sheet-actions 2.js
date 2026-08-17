@@ -744,10 +744,6 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   // on the inventory, then persist. EquipSlots owns the taxonomy + classifier. ──
   function equipAPI() { return (typeof window !== 'undefined' ? window : globalThis).EquipSlots || null; }
   function armorAPI() { return (typeof window !== 'undefined' ? window : globalThis).ArmorAC || null; }
-  function itemHistoryEnabled() {
-    try { return new URLSearchParams((typeof window !== 'undefined' && window.location && window.location.search) || '').get('itemHistory') === '1'; }
-    catch (_) { return false; }
-  }
   // First load: if nothing is slotted, assign best-fit slots so the doll is populated.
   // In-memory only here (matches toRenderShape's display backfill); persisted on the
   // first explicit equip change, so opening a sheet never writes on its own.
@@ -773,24 +769,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     if (it.attuned) { it.attuned = false; return; }
     if (inventory.filter(function (x) { return x.attuned; }).length < 3) it.attuned = true;
   }
-  async function persistTrackedAttunement(idx, next, prev) {
-    busy(true);
-    try {
-      var it = inventory[idx];
-      var sb = (typeof window !== 'undefined' && window.__tok && window.__tok.sb) || null;
-      if (!it || !it.instanceId || !sb || typeof sb.rpc !== 'function') throw new Error('Tracked-item attunement is unavailable.');
-      var result = await sb.rpc('set_item_attuned', { p_item_id: it.instanceId, p_expected_bearer_key: key, p_attuned: !!next });
-      if (result && result.error) throw new Error(result.error.message || 'The attunement change was rejected.');
-      if (!result || !result.data || !result.data.inventoryItem) throw new Error('The server did not confirm the attunement change.');
-      inventory[idx] = result.data.inventoryItem;
-      refresh();
-      showStat('saved', next ? 'attuned \u2713' : 'released \u2713', true);
-    } catch (error) {
-      inventory = prev; refresh();
-      showStat('error', (error && error.message) || "couldn't save · tap to retry", false);
-    } finally { busy(false); }
-  }
-  async function onEquipClick(e) {
+  function onEquipClick(e) {
     var eq = e.target.closest('[data-eq]'), un = e.target.closest('[data-un]'), at = e.target.closest('[data-at]');
     if (!eq && !un && !at) return;
     e.stopPropagation();
@@ -799,18 +778,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     var endedMageArmor = false;
     if (eq) { if (eq.classList.contains('capped')) return; doEquip(parseInt(eq.getAttribute('data-eq'), 10)); }
     else if (un) { doUnequip(un.getAttribute('data-un')); }
-    else if (at) {
-      if (at.classList.contains('capped')) return;
-      var attuneIndex = parseInt(at.getAttribute('data-at'), 10);
-      var attuneItem = inventory[attuneIndex];
-      if (attuneItem && attuneItem.instanceId && itemHistoryEnabled()) {
-        var nextAttunement = !attuneItem.attuned;
-        if (nextAttunement && inventory.filter(function (x) { return x.attuned; }).length >= 3) return;
-        await persistTrackedAttunement(attuneIndex, nextAttunement, prev);
-        return;
-      }
-      doAttune(attuneIndex);
-    }
+    else if (at) { if (at.classList.contains('capped')) return; doAttune(parseInt(at.getAttribute('data-at'), 10)); }
     if (eq && mageArmorActive(vitals)) {
       var equipped = inventory[parseInt(eq.getAttribute('data-eq'), 10)];
       if (equipped && equipped.slot === 'ARMOUR') { vitals = setMageArmor(vitals, false); endedMageArmor = true; }
@@ -917,8 +885,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
     if (it && d) {
       var prev = JSON.parse(JSON.stringify(inventory));
       it.name = d.name; it.qty = d.qty; it.weight = d.weight; it.rarity = d.rarity;
-      if (!it.instanceId || !itemHistoryEnabled()) it.reqAttune = !!d.reqAttune;
-      it.flavor = d.flavor;
+      it.reqAttune = !!d.reqAttune; it.flavor = d.flavor;
       // weapon-combat fields (only meaningful on weapons; harmless otherwise) — magic bonuses,
       // an extra-damage rider, and a pinned attack ability. buildWeaponActions reads these
       // straight off the item, so a +1 / Dex pin flows into the attack with no reforge.
