@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 const sql = readFileSync(new URL('../../schema_delta_item_attunement.sql', import.meta.url), 'utf8');
 const actions = readFileSync(new URL('../../sheet-actions.js', import.meta.url), 'utf8');
 const gear = readFileSync(new URL('../../gear-manager.js', import.meta.url), 'utf8');
+const mount = readFileSync(new URL('../../sheet-mount.js', import.meta.url), 'utf8');
 let pass = 0, fail = 0;
 function ok(value, name) { if (value) { pass++; console.log('  PASS ' + name); } else { fail++; console.log('  FAIL ' + name); } }
 function has(pattern) { return pattern.test(sql); }
@@ -24,6 +25,7 @@ ok(has(/grant execute on function public\.set_item_attunement_requirement/i) && 
 ok(actions.includes("sb.rpc('set_item_attuned'") && actions.includes('p_expected_bearer_key: key'), 'flagged Gear control calls the atomic bearer RPC');
 ok(actions.includes('if (!it.instanceId || !itemHistoryEnabled()) it.reqAttune'), 'tracked requirement cannot drift through the flagged ordinary editor');
 ok(gear.includes('managed in Item History'), 'tracked editor explains where staff changes the rule');
+ok(actions.includes("root.dataset.itemHistoryActive === '1'") && gear.includes('st.itemHistoryActive') && mount.includes('itemHistoryActive:!!(root.dataset'), 'promotion is scoped to the full-sheet root and does not activate mounted Gear');
 
 console.log(`\nsmoke-item-attunement-sql: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

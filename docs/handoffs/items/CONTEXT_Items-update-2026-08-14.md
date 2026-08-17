@@ -1,18 +1,19 @@
-# Durable item system handoff — current through 2026-08-14
+# Durable item system handoff — current through 2026-08-16
 
 Status: **identity/schema, staff adoption, and server-side transfer are applied;
-the first real full-sheet adoption flow is field-proven behind a flag. The
-flagged tracked-item detail/history and management experience is now a validated
-local production candidate awaiting SQL application and M's signed-in field
-pass.**
+the first real full-sheet adoption flow and tracked-item reader are deployed and
+field-visible behind a flag. A validated local promotion now enables both on the
+normal full sheet by default, with `?itemHistory=0` retained as the rollback
+switch. The mounted/rail sheet remains untouched.**
 
 This document is the current item-system authority. Read it with `AGENTS.md`
 and `CONTEXT.md` before touching Gear, inventory imports, item SQL, Chronicle
 links, or World-map item projection.
 
-Baseline when this handoff was written: clean `main` at `cc388e1`
-(`items and ownership`), matching `origin/main`. M deploys manually. Codex never
-pushes and commits only when M explicitly asks.
+Current working baseline: clean `main` at `438fcc5` (`item history updates`),
+matching `origin/main`, before the uncommitted August 16 promotion slice. The
+original handoff checkpoint was `cc388e1` (`items and ownership`). M deploys
+manually. Codex never pushes and commits only when M explicitly asks.
 
 ## 1. Executive verdict
 
@@ -24,12 +25,12 @@ The notable-item architecture is now real rather than a standalone concept.
   history are separate database records.
 - Staff can intentionally adopt one existing quantity-one Gear row through the
   real full character sheet.
-- Campaign members can open a flagged tracked-item record in the local full-sheet
-  candidate; staff receive the separate secret projection, can preview the party
-  view, and receive the approved narrow management controls.
+- Campaign members can open a tracked-item record in the full-sheet reader;
+  staff receive the separate secret projection, can preview the party view, and
+  receive the approved narrow management controls.
 - A tracked item can already be transferred atomically on the server without
-  losing its identity or historical bearer chain, although no production
-  transfer button exists yet.
+  losing its identity or historical bearer chain; the production reader now
+  provides the narrated transfer control, pending a signed-in field pass.
 - Imported and ordinary inventory rows remain ordinary until staff deliberately
   adopt them. Never automatically turn every generic weapon into a campaign
   object.
@@ -114,8 +115,11 @@ schema changes in new append-only deltas.
 
 ## 4. Real Gear adoption flow
 
-`sheet-v2.html` loads `item-adoption.js?v=ia2`. The bridge is inert unless the
-URL includes `?itemHistory=1`, and it mounts only for a `dm` or `overseer`.
+The deployed `sheet-v2.html` loads the staff adoption bridge behind
+`?itemHistory=1`. The August 16 local promotion loads
+`item-adoption.js?v=ia3` on the normal full sheet, with `?itemHistory=0` as an
+explicit rollback switch. Staff controls still mount only for a `dm` or
+`overseer`, and the mounted/rail sheet remains outside this slice.
 
 Staff open an ordinary Gear item and choose **Begin item history**. Before the
 RPC, the bridge reloads the current character and resolves the exact fresh
@@ -167,7 +171,11 @@ Live field result:
 - the acquisition wording issue was reported from real use and corrected;
 - corrected desktop and 390×844 mobile flows completed identified backstory
   adoption with no browser warnings/errors;
-- the default URL without `itemHistory=1` remained inert.
+- the deployed reader opened The Hexblade and displayed its public Overview and
+  history in M's signed-in full sheet; and
+- M approved promoting the reader and adoption bridge to the normal full-sheet
+  URL after reporting that the History tab's unexplained event count should be
+  removed.
 
 Current focused known answers at `cc388e1`:
 
@@ -180,11 +188,11 @@ smoke-item-transfer-sql:    25 passed, 0 failed
 TOTAL:                     145 passed, 0 failed
 ```
 
-### August 16 local tracked-item management candidate
+### August 16 tracked-item reader, management, and promotion candidate
 
 M approved `_edits/mock-item-history-management.html`. The smallest production
-reader now lives in `item-history.js?v=ih8` and mounts only on the full sheet
-when `?itemHistory=1` is present. It:
+reader lives in `item-history.js`; the August 16 local promotion is cache-stamped
+as `item-history.js?v=ih9` and mounts on the normal full sheet by default. It:
 
 - claims tracked Gear details before the adoption bridge decorates ordinary
   items;
@@ -203,18 +211,21 @@ when `?itemHistory=1` is present. It:
 - gives staff narrow identification, public rename, attunement-requirement, and
   real transfer actions.
 
-The approved refinement adds the unapplied append-only
-`schema_delta_item_attunement.sql`. It adds `requires_attunement`, backfills
-existing tracked Gear truth, and provides two transactional RPCs. Staff use
+The approved refinement adds the append-only
+`schema_delta_item_attunement.sql`; its live application state still needs an
+explicit field confirmation. It adds `requires_attunement`, backfills existing
+tracked Gear truth, and provides two transactional RPCs. Staff use
 `set_item_attunement_requirement`; turning the rule off clears active
 attunement in both the durable row and bearer inventory. A campaign member's
-existing flagged Gear Attune/Release control uses `set_item_attuned`, which
+Gear Attune/Release control uses `set_item_attuned`, which
 locks the current bearer, enforces the three-item cap, and updates both records
-together. The default and mounted-sheet paths remain unchanged without
-`?itemHistory=1`.
+together. The full-sheet root explicitly activates the promoted item
+experience. The mounted-sheet root does not, and `?itemHistory=0` disables the
+promoted path for rollback.
 
-The second unapplied append-only delta is
-`schema_delta_item_management.sql`. `identify_item` publishes the prepared
+The second append-only delta is `schema_delta_item_management.sql`; its live
+application state likewise needs explicit confirmation. `identify_item`
+publishes the prepared
 secret name/rarity/description/rules into public truth, updates the held Gear
 row, and appends an `identified` event in one transaction. `rename_item` updates
 the public and held-inventory names while preserving identity and appending a
@@ -224,14 +235,16 @@ character key. None of these actions updates or deletes an existing history
 event.
 
 The production-module harness passed desktop and 390×844 mobile browser checks.
-The default URL stayed inert; a player received no secret panel or audience
-controls; staff saw the separate secret; identified and unidentified states
-rendered correctly; mobile had no horizontal overflow and retained 44–48 px
-controls; no browser warning/error was reported. The current item-focused known
-answers are **241/241**: 145 original schema/adoption/transfer/provenance checks,
-30 approved-mock checks, 34 reader/management checks, 17 atomic-attunement
-checks, and 15 identification/rename SQL checks. The production harness was
-rechecked at 1440×900 and 390×844; custody
+A player received no secret panel or audience controls; staff saw the separate
+secret; identified and unidentified states rendered correctly; mobile had no
+horizontal overflow and retained 44–48 px controls; no browser warning/error
+was reported. After promotion, the no-flag URL opened the tracked reader and
+staff adoption bridge, the tab read exactly **History**, and
+`?itemHistory=0` removed both bridges. The current item-focused known answers
+are **245/245**: 145 original schema/adoption/transfer/provenance checks, 31
+approved-mock checks, 36 reader/management checks, 18 atomic-attunement checks,
+and 15 identification/rename SQL checks. The production harness was rechecked
+at 1440×900 and 390×844; custody
 showed `Cosmere Runestar`, mobile had no horizontal overflow, and the management
 controls retained 48px touch targets. Identification showed the prepared public
 reveal and confirmation; rename preserved a separate history summary; transfer
@@ -240,16 +253,17 @@ The repository still does not provide
 `jsdom`, so its older optional Gear DOM smoke could not start; the real browser
 harness is the visual gate used here.
 
-Remaining field gates: apply `schema_delta_item_attunement.sql` and then
-`schema_delta_item_management.sql`; deploy the cache-stamped files; verify The
-Hexblade as **No attunement required**; exercise a separate required item through
+Remaining field gates: confirm the live application state of
+`schema_delta_item_attunement.sql` and `schema_delta_item_management.sql`; deploy
+the promoted cache-stamped files; exercise a separate required item through
 Attune/Release; identify and rename a safe tracked test item; and transfer it
 between two test bearers on desktop and mobile. Confirm both sheets refresh and
-the new history moments appear oldest-first. The candidate is not yet
-field-proven against live rows.
+the new history moments appear oldest-first. The reader is field-visible, but
+the complete management pass is not yet field-proven against live rows.
 
-Re-run all five plus `node --check` on every touched JS/MJS file. A green smoke
-does not replace real desktop/mobile browser verification for Gear UI.
+Re-run all nine item smokes plus `node --check` on every touched JS/MJS file. A
+green smoke does not replace real desktop/mobile browser verification for Gear
+UI.
 
 ## 6. File ownership map
 
@@ -260,11 +274,13 @@ does not replace real desktop/mobile browser verification for Gear UI.
 - `schema_delta_item_adoption.sql` — atomic staff adoption RPC; applied live.
 - `schema_delta_item_transfer.sql` — atomic member transfer RPC; applied live.
 - `schema_delta_item_attunement.sql` — explicit durable requirement plus atomic
-  staff rule and bearer Attune/Release RPCs; local and unapplied.
+  staff rule and bearer Attune/Release RPCs; committed, live application state
+  to confirm.
 - `schema_delta_item_management.sql` — atomic staff identification and rename
-  RPCs with append-only events; local and unapplied.
-- `item-adoption.js` — flagged real-sheet staff adoption client and dialog.
-- `item-history.js` — flagged tracked-item reader plus staff attunement-rule
+  RPCs with append-only events; committed, live application state to confirm.
+- `item-adoption.js` — full-sheet staff adoption client and dialog; promoted by
+  default locally with `?itemHistory=0` rollback.
+- `item-history.js` — tracked-item reader plus staff attunement-rule
   control; public/history for members, separate secrets only for staff; full
   sheet only.
 - `sheet-v2.html` — current full-sheet include/mount seam.
@@ -278,16 +294,14 @@ does not replace real desktop/mobile browser verification for Gear UI.
 - `netlify/functions/items2.js` — existing importer endpoint; it does not create
   durable item instances automatically.
 
-## 7. What is not built
+## 7. What is not built or not yet field-proven
 
-- The adoption and reader bridges are not enabled by default and do not mount
-  into the rail/mounted sheet.
-- The flagged tracked-item reader is validated locally but is not yet deployed
-  or signed-in field-proven against the real Hexblade rows.
+- The local default-on promotion is not yet deployed. The adoption and reader
+  bridges still do not mount into the rail/mounted sheet.
 - Smoky unidentified styling exists in the reader and tracked-detail opener,
   but is not applied to the closed Gear list/grid tile.
-- Identification, rename, and transfer management are local candidates but are
-  not deployed or signed-in field-proven.
+- Identification, rename, required-attunement, and transfer management are not
+  yet signed-in field-proven as one complete live workflow.
 - Import can populate ordinary inventory, but it has no deliberate adopt-this-
   import action.
 - Item events are not yet projected into Chronicle, World, NPCs, encounters, or
@@ -297,16 +311,16 @@ does not replace real desktop/mobile browser verification for Gear UI.
   a contract capability today.
 
 Do not describe any of these as absent without grepping again; this list records
-the state at `cc388e1`, not an eternal claim.
+the state at the August 16 promotion candidate, not an eternal claim.
 
 ## 8. Approved build order
 
 ### A. Finish the item workflow
 
-Promote the field-proven full-sheet adoption flow deliberately. Decide whether
-the next field candidate removes `?itemHistory=1`, and separately port it to the
-mounted/rail sheet only after the full-sheet behavior remains stable. Preserve
-staff authority and deliberate one-item adoption.
+Deploy and field-test the approved default-on full-sheet promotion with
+`?itemHistory=0` available for rollback. Separately port it to the mounted/rail
+sheet only after the full-sheet behavior remains stable. Preserve staff
+authority and deliberate one-item adoption.
 
 ### B. Complete item management
 
@@ -351,21 +365,23 @@ automation yet.
    working tree, and changes since `cc388e1`.
 2. Grep the real full-sheet and mounted-sheet Gear callers before claiming a
    seam is missing.
-3. Mock the tracked-item detail/history experience first. It should make public
-   versus staff-only truth, smoky unidentified state, event chronology, and the
-   available identify/rename/transfer actions legible on desktop and touch.
-4. M approves the standalone mock.
-5. ~~Build the smallest flagged production reader for `item_instances`,
-   `item_events`, and staff-visible `item_secrets`.~~ Local candidate complete.
-   Apply `schema_delta_item_attunement.sql`, deploy, and field-test the reader
-   plus Attune/Release against real tracked items in staff and player sessions
+3. ~~Mock the tracked-item detail/history experience first.~~ M approved the
+   standalone mock.
+4. ~~Build and field-display the smallest flagged production reader for
+   `item_instances`, `item_events`, and staff-visible `item_secrets`.~~ Complete.
+5. ~~Promote the reader and deliberate staff adoption bridge to the normal full
+   sheet while preserving a rollback switch and leaving mounted Gear alone.~~
+   Validated local candidate complete; deploy and field-test it.
+6. Confirm the live state of `schema_delta_item_attunement.sql`, then exercise
+   Attune/Release against a separate required item in staff and player sessions
    on desktop and mobile.
-6. ~~Add narrow append-only SQL operations for identification/rename; never
-   direct-write history tables.~~ Local candidate complete; apply and field-test.
-7. ~~Wire the already-applied `transfer_item` RPC through a narrated
+7. ~~Add narrow append-only SQL operations for identification/rename; never
+   direct-write history tables.~~ Local candidate complete; confirm live SQL
+   state and field-test.
+8. ~~Wire the already-applied `transfer_item` RPC through a narrated
    confirmation flow.~~ Local candidate complete; verify both bearer sheets
    after a field transfer.
-8. Field-test the complete tracked-item workflow before crossing into entity
+9. Field-test the complete tracked-item workflow before crossing into entity
    links or World.
 
 The immediate product question is no longer whether permanent item identity is

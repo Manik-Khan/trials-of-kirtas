@@ -1,7 +1,7 @@
 /* item-adoption.js — staff-only bridge from one existing inventory row to the
- * durable item history tables. The risky production path is inert unless the
- * host URL carries ?itemHistory=1; Supabase's adopt_inventory_item RPC remains
- * the final staff/concurrency authority.
+ * durable item history tables. The full sheet enables it by default; the
+ * ?itemHistory=0 kill switch keeps rollback available. Supabase's
+ * adopt_inventory_item RPC remains the final staff/concurrency authority.
  *
  * Plain script + CommonJS dual export: window.ItemAdoption / module.exports.
  */
@@ -12,7 +12,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  var VERSION = 'ia-2';
+  var VERSION = 'ia-3';
   var RARITIES = ['Common', 'Uncommon', 'Rare', 'Very Rare', 'Legendary', 'Artifact'];
   var ACQUISITIONS = [
     { value: 'backstory', label: 'Backstory possession' },
@@ -28,7 +28,7 @@
   function esc(value) { return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function isStaff(profile) { return !!(profile && (profile.role === 'dm' || profile.role === 'overseer')); }
   function isEnabled(search) {
-    try { return new URLSearchParams(search == null ? '' : String(search)).get('itemHistory') === '1'; }
+    try { return new URLSearchParams(search == null ? '' : String(search)).get('itemHistory') !== '0'; }
     catch (_) { return false; }
   }
   function normalizeRarity(value) {

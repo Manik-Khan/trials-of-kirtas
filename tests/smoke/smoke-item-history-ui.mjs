@@ -1,4 +1,4 @@
-// Dependency-free reader contract for the flagged production item-history module.
+// Dependency-free reader contract for the production item-history module.
 import { readFileSync } from 'node:fs';
 import ItemHistory from '../../item-history.js';
 
@@ -6,9 +6,9 @@ let pass = 0;
 let fail = 0;
 function ok(condition, name) { if (condition) { pass++; console.log('  PASS ' + name); } else { fail++; console.log('  FAIL ' + name); } }
 
-ok(ItemHistory.VERSION === 'ih-5', 'reader exposes the ih-5 management contract');
-ok(ItemHistory.isEnabled('?itemHistory=1'), 'explicit itemHistory flag enables the reader');
-ok(!ItemHistory.isEnabled('') && !ItemHistory.isEnabled('?itemHistory=0'), 'default and zero keep the reader inert');
+ok(ItemHistory.VERSION === 'ih-6', 'reader exposes the ih-6 promoted contract');
+ok(ItemHistory.isEnabled('') && ItemHistory.isEnabled('?itemHistory=1'), 'full-sheet default and explicit flag enable the reader');
+ok(!ItemHistory.isEnabled('?itemHistory=0'), 'zero remains an explicit rollback switch');
 ok(ItemHistory.isStaff({ role: 'dm' }) && ItemHistory.isStaff({ role: 'overseer' }) && !ItemHistory.isStaff({ role: 'player' }), 'only campaign staff receive the staff projection');
 ok(ItemHistory.mechanicsText({ description: 'Known rules' }) === 'Known rules', 'known mechanics description becomes readable copy');
 ok(ItemHistory.labelKey('mainHand') === 'Main hand', 'equipment slot keys become human-readable labels');
@@ -72,6 +72,7 @@ ok(managementCalls.map(row => row.name).join(',') === 'identify_item,rename_item
 ok(managementCalls[2].payload.p_expected_from_character_key === 'cosmere-ae1a' && managementCalls[2].payload.p_to_character_key === 'liadan', 'transfer sends stale-bearer protection and the real destination key');
 ok(source.includes("from('item_instances')") && source.includes("from('item_events')") && source.includes("from('item_secrets')") && source.includes("from('characters')"), 'reader loads durable truth plus human character names');
 ok(source.includes('Oldest first · append-only'), 'dialog labels chronological append-only history');
+ok(source.includes('data-ih-tab="history" aria-selected="false">History</button>') && !source.includes("'History ' + record.events.length"), 'history tab uses a plain label without an unexplained count');
 ok(source.includes('Rarity unrevealed') && source.includes('Properties unrevealed'), 'unidentified presentation withholds rarity and mechanics');
 ok(source.includes("'<section class=\"tok-ih-panel on\"") && !source.includes('<div class="tok-ih-facts">'), 'overview uses the item name and omits the old three fact blocks');
 ok(source.includes('No attunement required') && source.includes('Requires attunement · not attuned'), 'attunement is presented independently from equipment');
@@ -79,10 +80,11 @@ ok(source.includes('data-ih-action="identify"') && source.includes('data-ih-acti
 ok(source.includes('moves the real inventory row and canonical custody together'), 'transfer confirmation narrates its atomic effect');
 ok(source.includes('data-ih-view="player"') && source.includes('tok-ih-player'), 'staff can preview the party projection');
 ok(source.includes('@media(max-width:700px)') && source.includes('min-height:48px'), 'mobile bottom sheet retains touch-sized controls');
-ok(sheet.includes('item-history.js?v=ih8'), 'full sheet loads the cache-stamped reader');
+ok(sheet.includes('item-history.js?v=ih9'), 'full sheet loads the cache-stamped reader');
+ok(sheet.includes("root.dataset.itemHistoryActive = new URLSearchParams(location.search).get('itemHistory') === '0' ? '0' : '1'"), 'full sheet promotes item history while retaining a rollback switch');
 ok(sheet.indexOf('ItemHistory.mount') < sheet.indexOf('ItemAdoption.mount'), 'reader claims tracked details before adoption decorates ordinary items');
 ok(!/item-history\.js/.test(readFileSync(new URL('../../sheet-mount.js', import.meta.url), 'utf8')), 'mounted sheet remains untouched');
-ok(harness.includes('../../item-history.js?v=ih8') && harness.includes('window.ItemHistory.mount'), 'browser harness uses the production reader module');
+ok(harness.includes('../../item-history.js?v=ih9') && harness.includes('window.ItemHistory.mount'), 'browser harness uses the production reader module');
 
 console.log(`\nsmoke-item-history-ui: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

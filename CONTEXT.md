@@ -47,10 +47,13 @@ The staff-only `adopt_inventory_item` RPC deliberately converts exactly one
 existing quantity-one inventory row into a campaign object. It locks and
 rechecks the character row, separates public/secret fields, stamps the permanent
 identity into the inventory, and appends origin plus initial-possession events
-atomically. It never auto-promotes every imported or generic sword. The full
-Gear sheet loads the production candidate through `item-adoption.js?v=ia2` only
-when `?itemHistory=1` is present; the default sheet remains unchanged. M field-
-proved the live path by turning Cosmere's longsword into **The Hexblade**.
+atomically. It never auto-promotes every imported or generic sword. The
+deployed full Gear sheet loads the production candidate behind
+`?itemHistory=1`; M field-proved that path by turning Cosmere's longsword into
+**The Hexblade**. The approved August 16 local promotion loads
+`item-adoption.js?v=ia3` and `item-history.js?v=ih9` on the normal full sheet,
+retains `?itemHistory=0` as a rollback switch, and leaves mounted/rail Gear
+untouched.
 
 That field pass also removed a false universal loot assumption. Origin now
 requires an intentional choice: backstory possession, found during play, gift
@@ -65,18 +68,22 @@ The applied `transfer_item` RPC already moves one tracked item between two
 character inventories and updates canonical custody in one transaction. It
 locks the item and both character rows, rejects stale bearers and duplicate IDs,
 requires containers to be empty, clears slot/attunement/container state, and
-appends a linked transfer event. The real transfer control is not built yet.
+appends a linked transfer event. The production reader now includes the
+narrated transfer control, pending a signed-in field pass between two safe test
+bearers.
 
-Current focused evidence is **145/145** across the item schema, adoption SQL,
-adoption UI/client, pure provenance/replay contract, and transfer SQL. Desktop
-and 390×844 mobile browser passes completed the identified backstory flow with
-no warnings/errors. Exact ownership, applied-state notes, field truth, and the
-ordered roadmap live in
+Current focused evidence is **245/245** across item schema, adoption,
+provenance/replay, transfer, the approved management mock, the production
+reader, atomic attunement, and identification/rename SQL. Desktop and 390×844
+mobile browser passes completed the promoted no-flag reader with the plain
+**History** tab and no warnings/errors; `?itemHistory=0` removed both bridges.
+Exact ownership, applied-state notes, field truth, and the ordered roadmap live in
 `docs/handoffs/items/CONTEXT_Items-update-2026-08-14.md`.
 
 The approved sequence is:
 
-1. finish rollout of the real Gear adoption workflow from its field-proven flag;
+1. deploy and field-test the default-on full-sheet item promotion, with the
+   rollback switch available;
 2. complete tracked-item presentation, smoky unidentified treatment, history
    viewing, identification, renaming, transfer, and deliberate import adoption;
 3. establish the shared item/session/Chronicle/NPC/encounter/battle-map/location
@@ -1240,11 +1247,12 @@ Supabase tables: `profiles`, `encounters`, `combatants`, `characters`, `journal_
 - **Durable notable items** (`item-provenance.js`, `item-adoption.js`,
   `schema_delta_item_*.sql`) — stable item identity, staff-only secrets,
   append-only linked history, atomic staff adoption, and atomic member transfer.
-  The adoption UI is field-proven on the full sheet behind `?itemHistory=1`;
-  a flagged local tracked-item reader and atomic identify/rename/attunement/
-  transfer management candidate now exist, while SQL application, signed-in
-  field proof, and mounted-sheet rollout remain open. Read the item handoff
-  before touching this seam.
+  The adoption UI and reader are field-visible on the full sheet behind
+  `?itemHistory=1`; an approved, validated local candidate promotes them to the
+  normal full-sheet URL with `?itemHistory=0` rollback. Atomic
+  identify/rename/attunement/transfer management exists, while live SQL-state
+  confirmation, complete signed-in management proof, and mounted-sheet rollout
+  remain open. Read the item handoff before touching this seam.
 - **Soul Shards charactermancer** (`shards.html`, `soul-shards-*.js`) — full builder off the
   5etools 2014 JSON mirror; multiclass spellcasting, provenance-colored spell
   picker, existing-character Level Up, and pre-level mechanical Facet capture.

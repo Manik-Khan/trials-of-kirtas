@@ -18,6 +18,7 @@ ok('smoky treatment is an explicit visual state', /class="smoke"/.test(html) && 
 ok('identified state publishes name rarity and rules', /The Hexblade · Rare/.test(html) && /Known properties/.test(html));
 ok('staff truth includes name rarity rules and lore', /True name/.test(html) && /True rarity/.test(html) && /Rules on identification/.test(html) && /Private lore/.test(html));
 ok('history is declared oldest-first and append-only', /Oldest first · append-only/.test(html));
+ok('history tab is plain language without an unexplained count', />History<\/button>/.test(html) && !/data-event-count/.test(html));
 ok('recovered and assigned origin events are present', /kind:'Recovered'/.test(html) && /kind:'Assigned'/.test(html));
 ok('identify action requires reveal confirmation', /data-action="identify"/.test(html) && /this reveals the prepared public truth/.test(html));
 ok('rename promises stable permanent identity', /data-action="rename"/.test(html) && /permanent ID preserved/.test(html));

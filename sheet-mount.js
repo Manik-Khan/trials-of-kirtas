@@ -16,7 +16,7 @@
 // ---------------------------------------------------------------------------
 
 import './trance-proficiencies.js?v=tp3';
-import { wireInspiration } from './sheet-actions.js?v=tp7';
+import { wireInspiration } from './sheet-actions.js?v=tp8';
 import { assembleActions } from './weapon-actions.js';
 import { applyFeatureCorrections, applySpellCorrections } from './sheet-corrections.js?v=cp1';
 import { mountSheetProgression } from './sheet-progression.js?v=facets1';
@@ -342,7 +342,7 @@ function renderEquipment(root, inventory, currency, strScore){
   var box = root.querySelector('[data-equip]');
   if(box){
     var GM=(typeof window!=='undefined'&&window.GearManager)?window.GearManager:((typeof globalThis!=='undefined'&&globalThis.GearManager)?globalThis.GearManager:null);
-    if(GM){ GM.render(box,{inventory:inventory,currency:currency,strScore:strScore,ES:ES}); GM.bind(box); }
+    if(GM){ GM.render(box,{inventory:inventory,currency:currency,strScore:strScore,ES:ES,itemHistoryActive:!!(root.dataset&&root.dataset.itemHistoryActive==='1')}); GM.bind(box); }
     else {
     var order={}; if(ES) ES.SLOTS.forEach(function(s,i){ order[s.key]=i; });
     var rows=inventory.map(function(it,i){ return { it:it, i:i }; });
@@ -1398,7 +1398,7 @@ function ensureDeps(doc){
   var jobs = [];
   if(!w.ArmorAC)    jobs.push(loadScript('armor-ac.js?v=um1'));
   if(!w.EquipSlots) jobs.push(loadScript('equip-slots.js'));
-  if(!w.GearManager) jobs.push(loadScript('gear-manager.js?v=gm2'));
+  if(!w.GearManager) jobs.push(loadScript('gear-manager.js?v=gm3'));
   if(!w.ItemIcons)  jobs.push(loadScript('item-icons.js'));
   // The spell drawer (sheet-actions.js) reads spell text through window.SoulShardsData.
   // sheet-v2.html loads it statically; the rail loader and the combat float mount the

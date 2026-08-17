@@ -1,4 +1,4 @@
-// Dependency-free client contract for the flagged item-adoption bridge. The
+// Dependency-free client contract for the promoted item-adoption bridge. The
 // browser harness drives the real DOM; PostgreSQL behavior is covered by the
 // dedicated SQL smoke and the live SQL-editor field pass.
 import { readFileSync } from 'node:fs';
@@ -7,9 +7,9 @@ import ItemAdoption from '../../item-adoption.js';
 let pass = 0, fail = 0;
 const ok = (condition, label) => { if (condition) pass++; else { fail++; console.log('  FAIL:', label); } };
 
-console.log('--- flag + authority gate ---');
-ok(ItemAdoption.isEnabled('?itemHistory=1'), 'explicit itemHistory flag enables the candidate');
-ok(!ItemAdoption.isEnabled('') && !ItemAdoption.isEnabled('?itemHistory=0'), 'default and zero keep the candidate inert');
+console.log('--- promotion + authority gate ---');
+ok(ItemAdoption.isEnabled('') && ItemAdoption.isEnabled('?itemHistory=1'), 'full-sheet default and explicit flag enable adoption');
+ok(!ItemAdoption.isEnabled('?itemHistory=0'), 'zero remains an explicit rollback switch');
 ok(ItemAdoption.isStaff({ role:'dm' }) && ItemAdoption.isStaff({ role:'overseer' }), 'DM and overseer are staff');
 ok(!ItemAdoption.isStaff({ role:'player' }) && !ItemAdoption.isStaff(null), 'players and missing profiles are not staff');
 
@@ -55,7 +55,7 @@ ok(/MutationObserver/.test(source) && /data-item-history-action/.test(source), '
 ok(/Split this stack to one item before tracking it/.test(source), 'stacked-item refusal explains the required action');
 ok(/view\.location\.reload\(\)/.test(source), 'successful adoption reloads before old sheet state can overwrite the RPC result');
 ok(/Acquisition origin/.test(source) && /assignmentSummary/.test(source), 'origin step requires an intentional acquisition and authors both history lines');
-ok(sheetHtml.includes('item-adoption.js?v=ia2'), 'full sheet loads the corrected cache-stamped adoption module');
+ok(sheetHtml.includes('item-adoption.js?v=ia3'), 'full sheet loads the promoted cache-stamped adoption module');
 ok(/ItemAdoption\.mount\(\{\s*root:\s*root,\s*characterKey:\s*key/.test(sheetHtml), 'full sheet mounts the bridge only after the sheet is ready');
 
 console.log(`\nsmoke-item-adoption-ui: ${pass} passed, ${fail} failed`);

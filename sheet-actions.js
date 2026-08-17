@@ -745,8 +745,7 @@ export function wireInspiration({ root, characterData, key, depsReady } = {}) {
   function equipAPI() { return (typeof window !== 'undefined' ? window : globalThis).EquipSlots || null; }
   function armorAPI() { return (typeof window !== 'undefined' ? window : globalThis).ArmorAC || null; }
   function itemHistoryEnabled() {
-    try { return new URLSearchParams((typeof window !== 'undefined' && window.location && window.location.search) || '').get('itemHistory') === '1'; }
-    catch (_) { return false; }
+    return !!(root && root.dataset && root.dataset.itemHistoryActive === '1');
   }
   // First load: if nothing is slotted, assign best-fit slots so the doll is populated.
   // In-memory only here (matches toRenderShape's display backfill); persisted on the

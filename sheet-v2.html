@@ -188,15 +188,16 @@ body::after{
 <script src="armor-ac.js?v=um1"></script>
 <script src="equip-slots.js"></script>
 <script src="item-icons.js"></script>
-<script src="gear-manager.js?v=gm2"></script>
-<script src="item-history.js?v=ih8"></script>
-<script src="item-adoption.js?v=ia2"></script>
+<script src="gear-manager.js?v=gm3"></script>
+<script src="item-history.js?v=ih9"></script>
+<script src="item-adoption.js?v=ia3"></script>
 <script src="soul-shards-data.js?v=ves1"></script>
 <script type="module">
-  import { mountSheet } from './sheet-mount.js?v=src14';
+  import { mountSheet } from './sheet-mount.js?v=src15';
   import { mountJournalCapture } from './journal-capture.js?v=jc3';
   var key = new URLSearchParams(location.search).get('character') || 'cosmere';
   var root = document.getElementById('sheet-root');
+  root.dataset.itemHistoryActive = new URLSearchParams(location.search).get('itemHistory') === '0' ? '0' : '1';
   var mounted = mountSheet(root, key);
   Promise.resolve(mounted.ready).then(function () {
     var reader = window.ItemHistory ? window.ItemHistory.mount({ root: root, characterKey: key }) : Promise.resolve();

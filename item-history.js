@@ -11,7 +11,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  var VERSION = 'ih-5';
+  var VERSION = 'ih-6';
   var EVENT_LABELS = {
     recovered: 'Recovered', assigned: 'Assigned', identified: 'Identified',
     renamed: 'Renamed', transferred: 'Transferred', transformed: 'Transformed',
@@ -26,7 +26,7 @@
   function esc(value) { return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function isStaff(profile) { return !!(profile && (profile.role === 'dm' || profile.role === 'overseer')); }
   function isEnabled(search) {
-    try { return new URLSearchParams(search == null ? '' : String(search)).get('itemHistory') === '1'; }
+    try { return new URLSearchParams(search == null ? '' : String(search)).get('itemHistory') !== '0'; }
     catch (_) { return false; }
   }
   function errorMessage(result, fallback) { return result && result.error && result.error.message ? result.error.message : fallback; }
@@ -213,7 +213,7 @@
       + (staff ? '<div class="tok-ih-audience" aria-label="Preview audience"><button type="button" data-ih-view="staff" aria-pressed="true">Staff view</button><button type="button" data-ih-view="player" aria-pressed="false">Player view</button></div>' : '')
       + '<button class="tok-ih-close" type="button" aria-label="Close">×</button></header><div class="tok-ih-scroll">'
       + '<section class="tok-ih-hero ' + (identified ? 'identified' : 'unidentified') + '"><div class="tok-ih-sigil" aria-hidden="true"><span>✦</span></div><div class="tok-ih-identity"><div class="tok-ih-state">' + (identified ? 'Identified' : 'Unidentified · smoky truth') + ' · history active</div><h3>' + esc(name) + '</h3><p>' + esc(description) + '</p><div class="tok-ih-badges"><span class="tok-ih-badge rarity">' + esc(rarity || 'Rarity unrevealed') + '</span><span class="tok-ih-badge" data-ih-attunement>' + esc(attunement) + '</span></div></div><div class="tok-ih-custody"><span>Current bearer</span><b>' + esc(bearer) + '</b><em>' + esc(equipment) + '</em><small>' + esc(item.id) + ' · permanent identity</small></div></section>'
-      + '<div class="tok-ih-body"><section class="tok-ih-main"><nav class="tok-ih-tabs" aria-label="Item detail sections"><button type="button" role="tab" data-ih-tab="overview" aria-selected="true">Overview</button><button type="button" role="tab" data-ih-tab="history" aria-selected="false">History ' + record.events.length + '</button></nav>'
+      + '<div class="tok-ih-body"><section class="tok-ih-main"><nav class="tok-ih-tabs" aria-label="Item detail sections"><button type="button" role="tab" data-ih-tab="overview" aria-selected="true">Overview</button><button type="button" role="tab" data-ih-tab="history" aria-selected="false">History</button></nav>'
       + '<section class="tok-ih-panel on" data-ih-panel="overview" role="tabpanel"><div class="tok-ih-label">' + esc(name) + '</div><p class="tok-ih-copy">' + esc(description) + '</p>'
       + '<div class="tok-ih-rules"><h4>' + (identified ? 'Known properties' : 'Properties unrevealed') + '</h4><p>' + esc(identified ? (rules || 'No public mechanics recorded.') : 'True rarity and mechanics remain outside the party-readable item until identification.') + '</p></div></section>'
       + '<section class="tok-ih-panel" data-ih-panel="history" role="tabpanel"><div class="tok-ih-history-head"><div><div class="tok-ih-label">Permanent campaign record</div><h3>Chronological history</h3></div><div class="tok-ih-order">Oldest first · append-only</div></div><div class="tok-ih-timeline">' + eventsHtml(record.events, options) + '</div></section></section>'
