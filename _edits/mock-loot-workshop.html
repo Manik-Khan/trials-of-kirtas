@@ -329,6 +329,67 @@
     .choice-card b, .choice-card span { display: block; }
     .choice-card b { font: 800 10px/1.2 Arial,sans-serif; letter-spacing: .1em; text-transform: uppercase; }
     .choice-card span { margin-top: 6px; color: var(--muted); font-size: 13px; line-height: 1.35; }
+    .intent-grid { margin-top: 10px; }
+    .intent-grid .choice-card[aria-pressed="true"] { border-color: var(--gold); color: var(--gold-pale); background: rgba(209,165,76,.09); box-shadow: inset 3px 0 0 var(--gold); }
+    .intent-config { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .first-run { max-width: 850px; margin: 26px auto; padding: 30px; border: 1px solid rgba(209,165,76,.42); background: linear-gradient(135deg,rgba(209,165,76,.07),rgba(85,199,200,.025)); }
+    .first-run[hidden], .lifecycle[hidden], .guided-workshop[hidden] { display: none; }
+    .first-run h2 { margin: 7px 0 12px; color: var(--cream); font-size: clamp(34px,5vw,52px); font-weight: 500; }
+    .first-run .welcome-copy { max-width: 700px; color: #d9ccb2; font-size: 17px; line-height: 1.58; }
+    .first-run .welcome-copy p { margin: 0 0 12px; }
+    .setup-card { margin-top: 22px; padding: 20px; border: 1px solid var(--line); background: #0b1613; }
+    .setup-card h3 { margin: 3px 0 5px; color: var(--cream); font-size: 22px; font-weight: 500; }
+    .setup-card > p { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+    .setup-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+    .preference-summary { display: flex; align-items: center; gap: 12px; margin-left: auto; padding-left: 18px; }
+    .preference-summary span { color: var(--muted); font: 700 10px/1.45 Arial,sans-serif; letter-spacing: .06em; text-transform: uppercase; text-align: right; }
+    .settings-link { min-height: 40px; padding: 0 12px; border: 1px solid var(--line); color: var(--gold-pale); background: transparent; cursor: pointer; font: 800 9px Arial,sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+    .guide-head.preferences-only { min-height: 58px; padding-top: 8px; padding-bottom: 8px; }
+    .guide-head.preferences-only > div:first-child { display: none; }
+    .guide-head.preferences-only .preference-summary { width: 100%; justify-content: flex-end; margin-left: 0; padding-left: 0; }
+    .purpose-question { padding: 17px; border: 1px solid rgba(209,165,76,.28); background: rgba(209,165,76,.035); }
+    .purpose-question .field-label { color: var(--gold-pale); font-size: 11px; }
+    .purpose-question select { font-size: 18px; }
+    .question-number { display: inline-grid; place-items: center; width: 26px; height: 26px; margin-right: 8px; border: 1px solid var(--gold); color: var(--gold); font: 800 10px Arial,sans-serif; }
+    .encounter-direction { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 14px 0; }
+    .direction-btn { min-height: 66px; padding: 12px; border: 1px solid var(--line); color: var(--muted); background: #0b1613; cursor: pointer; text-align: left; }
+    .direction-btn b, .direction-btn span { display: block; }
+    .direction-btn b { color: var(--cream); font: 800 10px/1.2 Arial,sans-serif; letter-spacing: .09em; text-transform: uppercase; }
+    .direction-btn span { margin-top: 5px; font-size: 12px; line-height: 1.35; }
+    .direction-btn[aria-pressed="true"] { border-color: var(--teal); background: rgba(85,199,200,.07); box-shadow: inset 3px 0 0 var(--teal); }
+    .encounter-panel { padding: 15px; border: 1px solid rgba(85,199,200,.25); background: rgba(85,199,200,.035); }
+    .encounter-panel[hidden] { display: none; }
+    .encounter-panel h5 { margin: 4px 0 5px; color: var(--cream); font-size: 19px; font-weight: 500; }
+    .encounter-panel > p { margin-bottom: 13px; }
+    .encounter-grid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(280px,.85fr); gap: 12px; align-items: start; }
+    .monster-picker, .roster-box { padding: 12px; border: 1px solid var(--line); background: #091411; }
+    .monster-results { display: grid; gap: 6px; margin-top: 8px; }
+    .monster-result, .roster-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 9px 10px; border: 1px solid rgba(234,220,190,.11); background: #0d1916; }
+    .monster-result b, .monster-result span, .roster-row b, .roster-row span { display: block; }
+    .monster-result span, .roster-row span { margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .monster-result button, .roster-row button { min-width: 38px; min-height: 34px; border: 1px solid var(--line-strong); color: var(--gold-pale); background: transparent; cursor: pointer; }
+    .roster-list { display: grid; gap: 6px; margin-top: 8px; }
+    .roster-row { grid-template-columns: minmax(0,1fr) auto auto; }
+    .roster-count { display: flex; align-items: center; gap: 6px; }
+    .roster-count output { min-width: 20px; color: var(--cream); text-align: center; }
+    .leader-choice { display: flex; gap: 5px; align-items: center; color: var(--muted); font: 700 9px Arial,sans-serif; letter-spacing: .07em; text-transform: uppercase; }
+    .leader-choice input { accent-color: var(--gold); }
+    .encounter-read { margin-top: 10px; padding: 13px; border-left: 3px solid var(--teal); background: rgba(85,199,200,.07); }
+    .encounter-read b, .encounter-read span { display: block; }
+    .encounter-read b { color: var(--teal); font-size: 16px; }
+    .encounter-read span { margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.4; }
+    .forge-handoff { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .forge-handoff-note { margin-top: 8px !important; color: var(--muted); font-size: 12px !important; }
+    .reward-warning { margin: 10px 0; padding: 11px 12px; border-left: 2px solid var(--purple); color: var(--muted); background: rgba(183,146,207,.06); font-size: 13px; line-height: 1.45; }
+    .reward-suggestion { margin-top: 10px; padding: 13px; border: 1px solid rgba(183,146,207,.28); background: rgba(183,146,207,.045); }
+    .reward-suggestion h6 { margin: 3px 0 5px; color: #d5b8e5; font-size: 17px; font-weight: 500; }
+    .reward-suggestion p { margin-bottom: 10px; }
+    .item-library { margin-top: 18px; padding: 15px; border: 1px solid rgba(183,146,207,.32); background: rgba(183,146,207,.055); }
+    .item-library h5 { margin: 4px 0 5px; color: #d5b8e5; font-size: 17px; font-weight: 500; }
+    .item-library > p { margin-bottom: 13px; }
+    .source-checks { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; margin-top: 10px; }
+    .source-check { display: flex; gap: 8px; align-items: center; min-height: 42px; padding: 8px 10px; border: 1px solid var(--line); color: var(--muted); background: #0b1613; font-size: 13px; }
+    .source-check input { accent-color: var(--purple); }
     .bundle-list.guided { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; padding: 0; }
     .bundle-list.guided .bundle-card { margin: 0; border-color: var(--line); background: #0d1916; }
     .connection-summary { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; margin: 16px 0; padding: 15px; border: 1px solid rgba(85,199,200,.25); background: rgba(85,199,200,.04); }
@@ -342,6 +403,21 @@
     .roll-simple h4 { margin: 4px 0 5px; font-size: 22px; font-weight: 500; }
     .roll-simple p { margin: 0 0 15px; color: var(--muted); font-size: 14px; line-height: 1.4; }
     .roll-simple-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+    .loot-plan-card { margin-top: 10px; padding: 15px; border: 1px solid var(--line); background: #0d1916; }
+    .include-row { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; cursor: pointer; }
+    .include-row input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--gold); }
+    .include-row b, .include-row span { display: block; }
+    .include-row b { color: var(--cream); font-size: 17px; font-weight: 500; }
+    .include-row span { margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.35; }
+    .plan-controls { margin: 14px 0 0 32px; padding-top: 13px; border-top: 1px solid var(--line); }
+    .creature-groups { display: grid; gap: 8px; }
+    .creature-group { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) auto; gap: 8px; align-items: end; padding: 10px; border: 1px solid rgba(234,220,190,.12); background: #0a1512; }
+    .remove-group { width: 48px; height: 48px; border: 1px solid var(--line); color: var(--muted); background: transparent; cursor: pointer; font-size: 20px; }
+    .rule-guidance { margin-top: 9px; padding: 12px 13px; border-left: 2px solid var(--gold); background: rgba(209,165,76,.055); }
+    .rule-guidance b, .rule-guidance span { display: block; }
+    .rule-guidance b { color: var(--gold-pale); font-size: 14px; }
+    .rule-guidance span { margin-top: 5px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .rule-guidance .table-band { color: var(--cream); }
     .advanced-roll { margin-top: 15px; border-top: 1px solid var(--line); padding-top: 12px; }
     .advanced-roll summary { min-height: 44px; display: flex; align-items: center; color: var(--muted); cursor: pointer; font: 800 9px Arial,sans-serif; letter-spacing: .1em; text-transform: uppercase; }
     .advanced-roll[open] summary { color: var(--gold-pale); }
@@ -403,8 +479,15 @@
       .guide-steps { border-right: 0; border-bottom: 1px solid var(--line); }
       .step-panel { padding: 21px 15px 26px; }
       .step-intro h3 { font-size: 25px; }
-      .choice-grid, .bundle-list.guided, .review-summary { grid-template-columns: 1fr; }
+      .first-run { margin: 0; padding: 23px 16px 28px; border-left: 0; border-right: 0; }
+      .setup-actions, .preference-summary { display: grid; grid-template-columns: 1fr; width: 100%; }
+      .preference-summary { margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); }
+      .preference-summary span { text-align: left; }
+      .choice-grid, .bundle-list.guided, .review-summary, .source-checks { grid-template-columns: 1fr; }
+      .encounter-direction, .encounter-grid { grid-template-columns: 1fr; }
       .connection-summary { grid-template-columns: 1fr; }
+      .plan-controls { margin-left: 0; }
+      .creature-group { grid-template-columns: 1fr 1fr 48px; }
       .cr-orb { width: 100%; height: 52px; grid-template-columns: auto auto; gap: 7px; }
       .roll-simple-actions, .step-actions, .step-actions .right { display: grid; grid-template-columns: 1fr; width: 100%; }
       .step-actions button, .roll-simple-actions button { width: 100%; }
@@ -415,7 +498,7 @@
   </style>
 </head>
 <body>
-  <div class="mock-note">Standalone interaction mock · Nothing here saves or changes the campaign</div>
+  <div class="mock-note">Standalone interaction mock · Preferences save only in this browser · Nothing changes the campaign</div>
   <main class="shell">
     <header class="topbar">
       <div class="brand">
@@ -429,24 +512,53 @@
       </div>
     </header>
 
-    <nav class="lifecycle" role="tablist" aria-label="Loot lifecycle">
+    <section class="first-run" id="dm-setup">
+      <div class="eyebrow">Before we begin</div>
+      <h2>Greetings, DM.</h2>
+      <div class="welcome-copy">
+        <p>Your party may have defeated something grand and earned a reward for their trouble. Or perhaps you are planning something for the near future. Let me help you get it squared away.</p>
+        <p>Here are a few questions to get you situated. You can always return and change these answers. Unlike your players, you get to re-roll at will.</p>
+      </div>
+      <div class="setup-card">
+        <div class="section-label">Workshop preferences</div>
+        <h3>Which rules belong at your table?</h3>
+        <p>These answers are remembered in this browser, so the workshop will not ask every time.</p>
+        <div class="field-grid">
+          <label class="field"><span class="field-label">Rules editions</span><select id="rules-preference"><option value="2014">2014 rules</option><option value="2024">2024 rules</option><option value="both" selected>2014 + 2024</option></select></label>
+          <label class="field"><span class="field-label">Allowed books</span><select id="books-preference"><option value="all" selected>All campaign-approved books</option><option value="specific">Choose specific books</option></select></label>
+          <label class="field"><span class="field-label">Default party</span><select id="party-preference"><option value="current" selected>Current party · 4 characters</option><option value="manual">Ask me each time</option></select></label>
+        </div>
+        <div class="source-checks" id="setup-book-choices" hidden>
+          <label class="source-check"><input type="checkbox" value="2014-core" checked>2014 core books</label>
+          <label class="source-check"><input type="checkbox" value="2024-core" checked>2024 core books</label>
+          <label class="source-check"><input type="checkbox" value="xanathar" checked>Xanathar’s Guide</label>
+          <label class="source-check"><input type="checkbox" value="tasha" checked>Tasha’s Cauldron</label>
+          <label class="source-check"><input type="checkbox" value="fizban" checked>Fizban’s Treasury</label>
+          <label class="source-check"><input type="checkbox" value="kirtas" checked>Kirtas homebrew</label>
+        </div>
+        <div class="setup-actions"><button class="primary-btn" type="button" data-action="save-preferences">Save preferences and start →</button></div>
+      </div>
+    </section>
+
+    <nav class="lifecycle" id="lifecycle-bar" role="tablist" aria-label="Loot lifecycle" hidden>
       <button class="life-tab" role="tab" aria-selected="true" data-stage="planned"><strong>Planned</strong></button>
       <button class="life-tab" role="tab" aria-selected="false" data-stage="ready"><strong>Ready</strong></button>
       <button class="life-tab" role="tab" aria-selected="false" data-stage="introduced"><strong>In the world</strong></button>
     </nav>
 
-    <section class="guided-workshop" aria-label="Guided Loot Workshop">
+    <section class="guided-workshop" id="guided-workshop" aria-label="Guided Loot Workshop" hidden>
       <header class="guide-head">
         <div>
           <div class="eyebrow" id="bundle-kicker">Private draft</div>
           <h2 id="bundle-title">The Fallen Observatory</h2>
           <p id="bundle-summary">A sealed coffer planned for the upper tower.</p>
         </div>
+        <div class="preference-summary"><span id="preference-summary">Rules: 2014 + 2024 · All approved books · Current party</span><button class="settings-link" type="button" data-action="change-preferences">Change settings</button></div>
       </header>
 
       <div class="workflow-path">
         <nav class="guide-steps" aria-label="Loot preparation sections">
-          <button class="guide-step" type="button" data-work-step="1" data-state="current" aria-current="step"><b>Roll loot</b><span>Choose a table and encounter</span></button>
+          <button class="guide-step" type="button" data-work-step="1" data-state="current" aria-current="step"><b>Gimme the Loot</b><span>Answer the guided questions</span></button>
           <button class="guide-step" type="button" data-work-step="2" data-state="upcoming"><b>Review bundle</b><span>Edit the generated result</span></button>
           <button class="guide-step" type="button" data-work-step="3" data-state="upcoming"><b>Attach</b><span>Optional battle or location</span></button>
           <button class="guide-step" type="button" data-work-step="4" data-state="upcoming"><b>Release</b><span>Ready, place, or award</span></button>
@@ -454,31 +566,129 @@
 
         <div id="bundle-editor">
         <section class="step-panel" data-step-panel="1">
-          <div class="step-intro"><h3>Roll treasure</h3><p>Start with the rules information needed for the roll. The result will automatically become a private loot bundle.</p></div>
+          <div class="step-intro"><div class="eyebrow">Your table is ready</div><h3>Gimme the Loot</h3><p>Answer one question at a time. We will calculate the reward, then automatically turn the result into a private loot bundle.</p></div>
           <div class="roll-simple">
-            <div class="section-label">Treasure roll</div>
-            <h4 id="roll-simple-title">2014 Random Treasure · CR 3</h4>
-            <p id="roll-simple-copy">No battle or location is required. The selected rules source determines which controls appear.</p>
-            <label class="field wide"><span class="field-label">Rules source</span><select id="roll-profile"><option value="2014">2014 · Random Treasure by CR</option><option value="2024">2024 · Random Treasure Hoard by CR</option><option value="custom">Kirtas custom table</option></select></label>
+            <div class="purpose-question">
+              <label class="field wide"><span class="field-label"><span class="question-number">1</span>What is the loot for?</span><select id="loot-purpose"><option value="encounter" data-edition="2014" selected>An encounter or defeated foe</option><option value="adventure" data-edition="2024">An adventure or quest reward</option><option value="party" data-edition="2014">The party’s magic-item allowance</option><option value="dragon" data-edition="2014">A dragon’s hoard</option><option value="table" data-edition="both">A specific published loot table</option><option value="custom" data-edition="both">A Kirtas custom bundle</option></select></label>
+            </div>
+
+            <div class="intent-config">
+              <div class="section-label"><span class="question-number">2</span>Let’s figure out how much they deserve</div>
+              <h4 id="roll-simple-title">Encounter loot</h4>
+              <p id="roll-simple-copy">No battle or location is required. Describe the creatures and any separate shared cache.</p>
+              <div class="mini-status" id="intent-source">Using the 2014 Dungeon Master’s Guide</div>
 
             <div id="rules-2014" style="margin-top:16px">
-              <div class="roll-type-grid" role="group" aria-label="2014 treasure type">
-                <button class="roll-type" type="button" data-roll-type="individual" aria-pressed="false"><b>Individual treasure</b><span>Roll once for each creature that logically carries treasure.</span></button>
-                <button class="roll-type" type="button" data-roll-type="hoard" aria-pressed="true"><b>Treasure hoard</b><span>Roll one complete cache using the hoard CR.</span></button>
+              <label class="field wide"><span class="field-label">How should we calculate this encounter?</span><select id="encounter-method"><option value="roster" selected>Find monsters and build the fight</option><option value="reward">Start with the reward they should earn</option><option value="manual">Enter known CRs manually</option></select></label>
+
+              <div class="encounter-panel" id="encounter-roster-panel">
+                <div class="section-label">Encounter plan</div>
+                <h5>Who might the party fight?</h5>
+                <p>Search the same kind of bestiary records the Compendium and Forge use. The mock catalogue is intentionally small; production would use the full approved library.</p>
+                <div class="field-grid">
+                  <label class="field"><span class="field-label">Party members</span><input id="enc-party-count" type="number" min="1" max="10" value="4"></label>
+                  <label class="field"><span class="field-label">Average party level</span><select id="enc-party-level"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option></select></label>
+                  <label class="field"><span class="field-label">Difficulty goal</span><select id="enc-target"><option>Easy</option><option>Medium</option><option selected>Hard</option><option>Deadly</option></select></label>
+                </div>
+                <div class="encounter-grid" style="margin-top:10px">
+                  <div class="monster-picker">
+                    <label class="field wide"><span class="field-label">Find a monster and its CR</span><input id="monster-search" type="search" placeholder="Try goblin, orc, bugbear…" autocomplete="off"></label>
+                    <div class="monster-results" id="monster-results" aria-live="polite"></div>
+                  </div>
+                  <div class="roster-box">
+                    <div class="section-label">Possible fight</div>
+                    <div class="roster-list" id="encounter-roster"></div>
+                  </div>
+                </div>
+                <div class="encounter-read" id="encounter-read"><b>Calculating encounter…</b><span>The roster will be compared with this party.</span></div>
+                <label class="include-row" style="margin-top:12px"><input id="roster-include-hoard" type="checkbox" checked><span><b>Add a separate cache</b><span>Use the monster marked as leader to select the Treasure Hoard CR band.</span></span></label>
+                <div class="forge-handoff">
+                  <button class="quiet-btn" type="button" data-action="save-roster">Save roster draft</button>
+                  <button class="quiet-btn" type="button" data-action="prepare-forge">Prepare this fight in Forge →</button>
+                </div>
+                <p class="forge-handoff-note">Mock preview only: neither action creates a Forge encounter or changes campaign data.</p>
               </div>
-              <div class="field-grid">
-                <label class="field"><span class="field-label" id="roll-cr-label">Hoard CR</span><select id="roll-cr"><option>1/2</option><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option></select></label>
-                <label class="field"><span class="field-label">Party size · reference only</span><select id="party-size"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></label>
-                <label class="field wide" id="individual-count-field" hidden><span class="field-label">Creatures at this CR</span><input id="roll-quantity" type="number" min="1" max="20" value="1"></label>
+
+              <div class="encounter-panel" id="encounter-reward-panel" hidden>
+                <div class="section-label">Reward-first planning</div>
+                <h5>What should this encounter feel worthy of?</h5>
+                <p>Choose the reward and the experience you want for the party. The workshop can then propose a roster for Forge review.</p>
+                <div class="field-grid">
+                  <label class="field wide"><span class="field-label">Desired item</span><input id="desired-reward" value="Uncommon magic item" placeholder="Item name or reward"></label>
+                  <label class="field"><span class="field-label">Rarity</span><select id="desired-rarity"><option>Common</option><option selected>Uncommon</option><option>Rare</option><option>Very rare</option><option>Legendary</option></select></label>
+                  <label class="field"><span class="field-label">Party members</span><input id="reward-party-count" type="number" min="1" max="10" value="4"></label>
+                  <label class="field"><span class="field-label">Average party level</span><select id="reward-party-level"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option></select></label>
+                  <label class="field"><span class="field-label">Desired challenge</span><select id="reward-target"><option>Easy</option><option>Medium</option><option selected>Hard</option><option>Deadly</option></select></label>
+                </div>
+                <div class="reward-warning"><b>Planning guidance, not an item-price rule.</b> Fifth edition does not say that a specific item requires a specific monster or CR. This combines an appropriate party challenge with the reward you chose, so the DM can judge whether it feels fair.</div>
+                <div class="reward-suggestion">
+                  <div class="section-label">Suggested encounter concept</div>
+                  <h6 id="reward-suggestion-title">One leader with a related retinue</h6>
+                  <p id="reward-suggestion-copy">1 × Bugbear Chief and 3 × Goblin creates a Hard encounter for four level-4 characters. The item remains a separate DM reward decision.</p>
+                  <button class="quiet-btn" type="button" data-action="use-suggested-roster">Use this roster and review the fight</button>
+                </div>
               </div>
-              <div class="roster-receipt"><div class="section-label">2014 roll</div><h3 id="roll-derivation-title">One treasure hoard at CR 3</h3><p id="roll-derivation-copy">Party size is recorded for staff reference. It does not silently change the official table result.</p></div>
+
+              <div id="encounter-manual-panel" hidden>
+              <article class="loot-plan-card">
+                <label class="include-row"><input id="include-individual" type="checkbox" checked><span><b>Creatures carrying treasure</b><span>Roll Individual Treasure once for every creature that logically carries coins or valuables.</span></span></label>
+                <div class="plan-controls" id="individual-controls">
+                  <div class="creature-groups" id="individual-groups">
+                    <div class="creature-group" data-individual-group>
+                      <label class="field"><span class="field-label">Creature CR</span><select data-group-cr><option selected>1/2</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option></select></label>
+                      <label class="field"><span class="field-label">Creatures at this CR</span><input data-group-count type="number" min="1" max="20" value="4"></label>
+                      <button class="remove-group" type="button" data-remove-group aria-label="Remove creature group">×</button>
+                    </div>
+                  </div>
+                  <button class="quiet-btn" type="button" data-action="add-group" style="margin-top:8px">＋ Add another creature CR</button>
+                </div>
+              </article>
+
+              <article class="loot-plan-card">
+                <label class="include-row"><input id="include-hoard" type="checkbox" checked><span><b>A separate treasure cache</b><span>Roll one Treasure Hoard for a vault, lair, boss chest, or other major cache.</span></span></label>
+                <div class="plan-controls" id="hoard-controls">
+                  <label class="field wide"><span class="field-label">Who does this cache belong to?</span><select id="hoard-basis"><option value="leader" selected>A group led by one monster</option><option value="owner">One powerful monster</option><option value="lair">An unclaimed dungeon or lair</option><option value="benefactor">A quest reward from a benefactor</option></select></label>
+                  <label class="field wide"><span class="field-label" id="hoard-cr-label">Leader’s CR</span><select id="roll-cr"><option>1/2</option><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option></select></label>
+                  <div class="rule-guidance"><b id="hoard-basis-title">Use the leader’s CR</b><span id="hoard-basis-copy">Do not add or average the CRs of every creature in the group.</span><span class="table-band" id="hoard-band">CR 3 uses the Challenge 0–4 Treasure Hoard table.</span></div>
+                </div>
+              </article>
+
+              </div>
+
+              <div class="roster-receipt"><div class="section-label">This bundle will roll</div><h3 id="roll-derivation-title">4 creatures at CR 1/2 plus one hoard for a CR 3 leader</h3><p id="roll-derivation-copy">The leader selects the Challenge 0–4 Hoard table. Individual results and the separate cache become one encounter-loot bundle.</p></div>
             </div>
 
             <div id="rules-2024" style="margin-top:16px" hidden>
               <div class="field-grid">
-                <label class="field wide"><span class="field-label">Treasure-hoard CR</span><select id="roll-cr-2024"><option>1/2</option><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option></select></label>
+                <label class="field"><span class="field-label">Reward challenge rating</span><select id="roll-cr-2024"><option>1/2</option><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option></select></label>
+                <label class="field"><span class="field-label">Character level</span><select id="adventure-level"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option></select></label>
               </div>
-              <div class="roster-receipt"><div class="section-label">2024 roll</div><h3 id="roll-2024-title">One random treasure hoard at CR 3</h3><p>The 2024 profile does not borrow the 2014 Individual Treasure choice or creature-count field.</p></div>
+              <div class="rule-guidance"><b>Two different jobs</b><span>Challenge rating determines the monetary reward and number of magic items. Character level helps determine appropriate magic-item rarity.</span><span class="table-band" id="hoard-band-2024">CR 3 uses the Challenge 0–4 reward row for level 3 characters.</span></div>
+              <div class="roster-receipt"><div class="section-label">2024 preparation</div><h3 id="roll-2024-title">CR 3 adventure reward for level 3 characters</h3><p>The result will become one editable private bundle.</p></div>
+            </div>
+
+            <div id="rules-party" style="margin-top:16px" hidden>
+              <div class="field-grid">
+                <label class="field"><span class="field-label">Party’s current level</span><select id="party-level"><option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option></select></label>
+                <label class="field"><span class="field-label">Progress view</span><select id="party-scope"><option value="cumulative" selected>Cumulative through this level</option><option value="tier">This tier only</option></select></label>
+              </div>
+              <div class="rule-guidance"><b>This is not encounter treasure</b><span>Xanathar’s party-loot guidance checks the party’s overall magic-item allotment across play. It does not use enemy CR.</span><span class="table-band" id="party-guidance">Review the cumulative allowance through level 5.</span></div>
+            </div>
+
+            <div id="rules-dragon" style="margin-top:16px" hidden>
+              <div class="field-grid">
+                <label class="field"><span class="field-label">Dragon age</span><select id="dragon-age"><option value="wyrmling">Wyrmling</option><option value="young">Young</option><option value="adult" selected>Adult</option><option value="ancient">Ancient</option></select></label>
+                <label class="field"><span class="field-label">Magic-item selection</span><select id="dragon-items"><option value="random" selected>Prefer random items</option><option value="review">Choose after rolling</option></select></label>
+              </div>
+              <div class="rule-guidance"><b>Fizban’s dragon-hoard method</b><span>The dragon’s age selects the hoard profile. Enemy count and party size are not inputs.</span><span class="table-band" id="dragon-guidance">Prepare an Adult Dragon hoard.</span></div>
+            </div>
+
+            <div id="rules-table" style="margin-top:16px" hidden>
+              <div class="field-grid">
+                <label class="field"><span class="field-label">Published table</span><select id="specific-table"><option value="a">Magic Item Table A</option><option value="b">Magic Item Table B</option><option value="c">Magic Item Table C</option><option value="d">Magic Item Table D</option><option value="e">Magic Item Table E</option><option value="f">Magic Item Table F</option><option value="g">Magic Item Table G</option><option value="h">Magic Item Table H</option><option value="i">Magic Item Table I</option></select></label>
+                <label class="field"><span class="field-label">Rolls</span><input id="table-rolls" type="number" min="1" max="20" value="1"></label>
+              </div>
+              <div class="rule-guidance"><b>Direct table roll</b><span>Use this when the adventure or another rule already tells you exactly which table to roll.</span><span class="table-band">The mock will retain the chosen table in its roll receipt.</span></div>
             </div>
 
             <div id="rules-custom" style="margin-top:16px" hidden>
@@ -486,8 +696,24 @@
               <div class="roster-receipt"><div class="section-label">Custom rules required</div><h3>Choose a configured Kirtas table</h3><p>This mock will not invent CR, creature-count, or hoard controls for a custom table that does not define them.</p></div>
             </div>
 
+            <div class="item-library" id="item-library-block" hidden>
+              <div class="section-label">Separate question</div>
+              <h5>Which item library may the result use?</h5>
+              <p>This filters possible magic items. It does not change how the reward amount is calculated.</p>
+              <label class="field wide"><span class="field-label">Allowed item sources</span><select id="item-library"><option value="campaign" selected>Campaign library · all approved books</option><option value="core">Core rules only</option><option value="choose">Choose individual books</option></select></label>
+              <div class="source-checks" id="item-source-choices" hidden>
+                <label class="source-check"><input type="checkbox" checked>2014 core items</label>
+                <label class="source-check"><input type="checkbox" checked>2024 core items</label>
+                <label class="source-check"><input type="checkbox" checked>Xanathar’s items</label>
+                <label class="source-check"><input type="checkbox" checked>Tasha’s items and tattoos</label>
+                <label class="source-check"><input type="checkbox" checked>Fizban’s items</label>
+                <label class="source-check"><input type="checkbox" checked>Kirtas homebrew</label>
+              </div>
+            </div>
+
             <div class="roll-simple-actions" style="margin-top:16px">
-              <button class="primary-btn" id="roll-submit" type="button" data-action="confirm-roll">⚄ Roll one hoard and create bundle</button>
+              <button class="primary-btn" id="roll-submit" type="button" data-action="confirm-roll">⚄ Roll encounter loot and create bundle</button>
+            </div>
             </div>
           </div>
           <div class="choice-grid">
@@ -586,12 +812,22 @@
   (function () {
     'use strict';
 
+    var PREFERENCE_KEY = 'tok-loot-workshop-mock-preferences-v1';
+    var savedPreferences = loadMockPreferences();
     var state = {
+      setupComplete: Boolean(savedPreferences),
+      preferences: savedPreferences || { rules: 'both', books: 'all', party: 'current', sources: ['2014-core','2024-core','xanathar','tasha','fizban','kirtas'] },
       stage: 'planned',
       selectedId: 'roll-setup',
       recipient: 'Party Stash',
       rollCount: 0,
-      rollType: 'hoard',
+      lootIntent: 'encounter',
+      encounterMode: 'roster',
+      encounterRoster: [
+        { id: 'goblin', name: 'Goblin', cr: '1/4', count: 3 },
+        { id: 'orc', name: 'Orc', cr: '1/2', count: 2 },
+        { id: 'orc-war-chief', name: 'Orc War Chief', cr: '4', count: 1, leader: true }
+      ],
       workStep: 1,
       bundles: [
         {
@@ -641,10 +877,86 @@
     var $ = function (sel, root) { return (root || document).querySelector(sel); };
     var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
     var toastTimer = 0;
+    var MONSTER_CATALOGUE = [
+      { id: 'goblin', name: 'Goblin', cr: '1/4', family: 'goblinoid' },
+      { id: 'bugbear', name: 'Bugbear', cr: '1', family: 'goblinoid' },
+      { id: 'bugbear-chief', name: 'Bugbear Chief', cr: '3', family: 'goblinoid', leader: true },
+      { id: 'orc', name: 'Orc', cr: '1/2', family: 'orc' },
+      { id: 'orc-war-chief', name: 'Orc War Chief', cr: '4', family: 'orc', leader: true },
+      { id: 'ogre', name: 'Ogre', cr: '2', family: 'orc', leader: true },
+      { id: 'worg', name: 'Worg', cr: '1/2', family: 'goblinoid' },
+      { id: 'skeleton', name: 'Skeleton', cr: '1/4', family: 'undead' }
+    ];
+    var ENCOUNTER_LEVEL_THRESHOLDS = [
+      null,
+      [25,50,75,100],[50,100,150,200],[75,150,225,400],[125,250,375,500],
+      [250,500,750,1100],[300,600,900,1400],[350,750,1100,1700],[450,900,1400,2100],
+      [550,1100,1600,2400],[600,1200,1900,2800],[800,1600,2400,3600],
+      [1000,2000,3000,4500],[1100,2200,3400,5100],[1250,2500,3800,5700],
+      [1400,2800,4300,6400],[1600,3200,4800,7200],[2000,3900,5900,8800],
+      [2100,4200,6300,9500],[2400,4900,7300,10900],[2800,5700,8500,12700]
+    ];
+    var ENCOUNTER_XP_BY_CR = { '1/4': 50, '1/2': 100, '1': 200, '2': 450, '3': 700, '4': 1100 };
 
     function current() { return state.bundles.find(function (bundle) { return bundle.id === state.selectedId; }) || state.bundles[0]; }
     function escapeHtml(value) { return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
     function stageKicker(status) { return status === 'ready' ? 'Reviewed preparation' : status === 'introduced' ? 'Introduced campaign truth' : 'Private draft'; }
+
+    function loadMockPreferences() {
+      try { return JSON.parse(localStorage.getItem(PREFERENCE_KEY) || 'null'); }
+      catch (error) { return null; }
+    }
+
+    function preferenceLabel() {
+      var rules = state.preferences.rules === 'both' ? '2014 + 2024' : state.preferences.rules;
+      var books = state.preferences.books === 'all' ? 'All approved books' : state.preferences.sources.length + ' selected sources';
+      var party = state.preferences.party === 'current' ? 'Current party' : 'Ask each time';
+      return 'Rules: ' + rules + ' · ' + books + ' · ' + party;
+    }
+
+    function syncPurposeAvailability() {
+      var rules = state.preferences.rules;
+      $$('#loot-purpose option').forEach(function (option) {
+        var edition = option.dataset.edition;
+        option.hidden = edition !== 'both' && rules !== 'both' && edition !== rules;
+        option.disabled = option.hidden;
+      });
+      var selected = $('#loot-purpose').options[$('#loot-purpose').selectedIndex];
+      if (selected && selected.disabled) {
+        var first = $$('#loot-purpose option').find(function (option) { return !option.disabled; });
+        if (first) $('#loot-purpose').value = first.value;
+      }
+      state.lootIntent = $('#loot-purpose').value;
+    }
+
+    function renderPreferences() {
+      $('#rules-preference').value = state.preferences.rules;
+      $('#books-preference').value = state.preferences.books;
+      $('#party-preference').value = state.preferences.party;
+      $('#setup-book-choices').hidden = state.preferences.books !== 'specific';
+      $$('#setup-book-choices input').forEach(function (input) { input.checked = state.preferences.sources.indexOf(input.value) >= 0; });
+      $('#preference-summary').textContent = preferenceLabel();
+      $('#dm-setup').hidden = state.setupComplete;
+      $('#lifecycle-bar').hidden = !state.setupComplete;
+      $('#guided-workshop').hidden = !state.setupComplete;
+      syncPurposeAvailability();
+      if (state.setupComplete) updateRollDerivation();
+    }
+
+    function savePreferences() {
+      var sources = $$('#setup-book-choices input:checked').map(function (input) { return input.value; });
+      state.preferences = {
+        rules: $('#rules-preference').value,
+        books: $('#books-preference').value,
+        party: $('#party-preference').value,
+        sources: $('#books-preference').value === 'all' ? ['2014-core','2024-core','xanathar','tasha','fizban','kirtas'] : sources
+      };
+      try { localStorage.setItem(PREFERENCE_KEY, JSON.stringify(state.preferences)); }
+      catch (error) { /* The mock remains usable when local preference storage is unavailable. */ }
+      state.setupComplete = true;
+      renderPreferences();
+      say('Workshop preferences saved in this browser. You can change them at any time.');
+    }
 
     function say(message) {
       var el = $('#toast');
@@ -684,6 +996,13 @@
       }).join('');
     }
 
+    function setItemIdentification(item, identification) {
+      if (!item.unidentifiedName) item.unidentifiedName = item.name;
+      item.identification = identification;
+      item.name = identification === 'identified' ? (item.trueName || item.name) : item.unidentifiedName;
+      return item;
+    }
+
     function renderItems() {
       var bundle = current();
       var receipt = bundle.rollReceipt ? '<details class="dice-receipt"><summary>See roll details</summary><div class="dice-receipt-head"><div class="section-label">Roll receipt</div><h3>' + escapeHtml(bundle.rollReceipt.title) + '</h3></div>' + bundle.rollReceipt.rows.map(function (row) { return '<div class="dice-row"><b>' + escapeHtml(row.label) + '</b><span>' + escapeHtml(row.value) + '</span></div>'; }).join('') + '<div class="mock-value-warning">Illustrative mock values · production must resolve every result against the approved rules data</div></details>' : '';
@@ -713,6 +1032,7 @@
     function renderEditor() {
       var bundle = current();
       if (!bundle) return;
+      $('.guide-head').classList.toggle('preferences-only', bundle.id === 'roll-setup' && state.workStep === 1);
       $('#bundle-kicker').textContent = stageKicker(bundle.status);
       $('#bundle-title').textContent = bundle.name;
       $('#bundle-summary').textContent = bundle.note || 'No staff note yet.';
@@ -789,44 +1109,273 @@
       updateRollDerivation();
     }
 
-    function updateRollDerivation() {
-      var profile = $('#roll-profile').value;
-      var individual = state.rollType === 'individual';
-      $('#rules-2014').hidden = profile !== '2014';
-      $('#rules-2024').hidden = profile !== '2024';
-      $('#rules-custom').hidden = profile !== 'custom';
-      $('#roll-submit').disabled = profile === 'custom';
+    function encounterThresholds(partyCount, level) {
+      var row = ENCOUNTER_LEVEL_THRESHOLDS[Math.max(1, Math.min(20, Number(level) || 1))];
+      var count = Math.max(1, Math.min(10, Number(partyCount) || 1));
+      return { easy: row[0] * count, medium: row[1] * count, hard: row[2] * count, deadly: row[3] * count };
+    }
 
-      if (profile === 'custom') {
-        $('#roll-simple-title').textContent = 'Kirtas custom table';
+    function encounterMultiplier(monsterCount, partyCount) {
+      var index = monsterCount <= 1 ? 0 : monsterCount === 2 ? 1 : monsterCount <= 6 ? 2 : monsterCount <= 10 ? 3 : monsterCount <= 14 ? 4 : 5;
+      if (partyCount < 3) index = Math.min(5, index + 1);
+      else if (partyCount > 5) index = Math.max(0, index - 1);
+      return [1, 1.5, 2, 2.5, 3, 4][index];
+    }
+
+    function encounterReadFor(roster, partyCount, level) {
+      var thresholds = encounterThresholds(partyCount, level);
+      var monsterCount = roster.reduce(function (sum, row) { return sum + row.count; }, 0);
+      var baseXp = roster.reduce(function (sum, row) { return sum + ((ENCOUNTER_XP_BY_CR[row.cr] || 0) * row.count); }, 0);
+      var multiplier = encounterMultiplier(monsterCount, partyCount);
+      var adjustedXp = Math.round(baseXp * multiplier);
+      var difficulty = adjustedXp >= thresholds.deadly ? 'Deadly' : adjustedXp >= thresholds.hard ? 'Hard' : adjustedXp >= thresholds.medium ? 'Medium' : adjustedXp >= thresholds.easy ? 'Easy' : 'Below easy';
+      return { count: monsterCount, baseXp: baseXp, multiplier: multiplier, adjustedXp: adjustedXp, difficulty: difficulty, thresholds: thresholds };
+    }
+
+    function encounterTargetBand(thresholds, target) {
+      var order = ['easy', 'medium', 'hard', 'deadly'];
+      var key = String(target || 'medium').toLowerCase();
+      var index = Math.max(0, order.indexOf(key));
+      var next = order[index + 1];
+      return { min: thresholds[key], max: next ? thresholds[next] - 1 : null };
+    }
+
+    function encounterGroupsFromRoster() {
+      var groups = {};
+      state.encounterRoster.forEach(function (row) { groups[row.cr] = (groups[row.cr] || 0) + row.count; });
+      return Object.keys(groups).map(function (cr) { return { cr: cr, count: groups[cr] }; });
+    }
+
+    function encounterLeader() {
+      return state.encounterRoster.find(function (row) { return row.leader; }) || state.encounterRoster.slice().sort(function (a, b) { return (ENCOUNTER_XP_BY_CR[b.cr] || 0) - (ENCOUNTER_XP_BY_CR[a.cr] || 0); })[0] || null;
+    }
+
+    function renderMonsterResults() {
+      var query = $('#monster-search').value.trim().toLowerCase();
+      var rows = MONSTER_CATALOGUE.filter(function (row) { return !query || row.name.toLowerCase().indexOf(query) >= 0; }).slice(0, 5);
+      $('#monster-results').innerHTML = rows.length ? rows.map(function (row) {
+        return '<div class="monster-result"><div><b>' + escapeHtml(row.name) + '</b><span>CR ' + escapeHtml(row.cr) + ' · ' + escapeHtml(row.family) + '</span></div><button type="button" data-monster-add="' + escapeHtml(row.id) + '">＋</button></div>';
+      }).join('') : '<div class="mini-status">No mock result. Production search would query the full Compendium bestiary.</div>';
+    }
+
+    function renderEncounterRoster() {
+      $('#encounter-roster').innerHTML = state.encounterRoster.length ? state.encounterRoster.map(function (row) {
+        return '<div class="roster-row"><div><b>' + escapeHtml(row.name) + '</b><span>CR ' + escapeHtml(row.cr) + '</span></div><div class="roster-count"><button type="button" data-roster-delta="-1" data-roster-id="' + escapeHtml(row.id) + '">−</button><output>' + row.count + '</output><button type="button" data-roster-delta="1" data-roster-id="' + escapeHtml(row.id) + '">＋</button></div><label class="leader-choice"><input type="radio" name="encounter-leader" data-roster-leader="' + escapeHtml(row.id) + '"' + (row.leader ? ' checked' : '') + '> Leader</label></div>';
+      }).join('') : '<div class="mini-status">Add at least one monster to prepare a fight.</div>';
+    }
+
+    function renderEncounterRead() {
+      var partyCount = Math.max(1, Math.min(10, Number($('#enc-party-count').value) || 4));
+      var level = Number($('#enc-party-level').value) || 1;
+      var target = $('#enc-target').value;
+      var read = encounterReadFor(state.encounterRoster, partyCount, level);
+      var leader = encounterLeader();
+      $('#encounter-read').innerHTML = '<b>' + escapeHtml(read.difficulty) + ' encounter · ' + read.adjustedXp.toLocaleString() + ' adjusted XP</b><span>' + read.count + (read.count === 1 ? ' creature' : ' creatures') + ' for ' + partyCount + ' level-' + level + ' characters. The goal is ' + escapeHtml(target) + '. ' + (leader ? escapeHtml(leader.name) + ' is marked as the cache leader (CR ' + escapeHtml(leader.cr) + ').' : 'Mark a leader if this fight includes a separate cache.') + '</span>';
+    }
+
+    function renderRewardSuggestion() {
+      var partyCount = Math.max(1, Math.min(10, Number($('#reward-party-count').value) || 4));
+      var level = Number($('#reward-party-level').value) || 1;
+      var target = $('#reward-target').value;
+      var thresholds = encounterThresholds(partyCount, level);
+      var band = encounterTargetBand(thresholds, target);
+      var families = [
+        [{ id: 'bugbear-chief', name: 'Bugbear Chief', cr: '3', count: 1, leader: true }, { id: 'goblin', name: 'Goblin', cr: '1/4', count: 1 }],
+        [{ id: 'orc-war-chief', name: 'Orc War Chief', cr: '4', count: 1, leader: true }, { id: 'orc', name: 'Orc', cr: '1/2', count: 1 }],
+        [{ id: 'ogre', name: 'Ogre', cr: '2', count: 1, leader: true }, { id: 'orc', name: 'Orc', cr: '1/2', count: 1 }]
+      ];
+      var candidates = [];
+      families.forEach(function (family) {
+        for (var support = 0; support <= 5; support += 1) {
+          var roster = [Object.assign({}, family[0])];
+          if (support) roster.push(Object.assign({}, family[1], { count: support }));
+          var read = encounterReadFor(roster, partyCount, level);
+          var center = band.max == null ? band.min * 1.15 : (band.min + band.max) / 2;
+          var inside = read.adjustedXp >= band.min && (band.max == null || read.adjustedXp <= band.max);
+          candidates.push({ roster: roster, read: read, score: (inside ? 0 : 100000) + Math.abs(read.adjustedXp - center) });
+        }
+      });
+      candidates.sort(function (a, b) { return a.score - b.score; });
+      state.rewardSuggestion = candidates[0];
+      var composition = state.rewardSuggestion.roster.map(function (row) { return row.count + ' × ' + row.name; }).join(' + ');
+      var item = $('#desired-reward').value.trim() || $('#desired-rarity').value + ' magic item';
+      $('#reward-suggestion-title').textContent = composition;
+      $('#reward-suggestion-copy').textContent = state.rewardSuggestion.read.difficulty + ' encounter · ' + state.rewardSuggestion.read.adjustedXp.toLocaleString() + ' adjusted XP for ' + partyCount + ' level-' + level + ' characters. This gives the DM a ' + target.toLowerCase() + ' fight concept for earning ' + item + '; it does not claim the item has an official CR.';
+    }
+
+    function setEncounterMode(mode) {
+      state.encounterMode = mode;
+      $('#encounter-method').value = mode;
+      $('#encounter-roster-panel').hidden = mode !== 'roster';
+      $('#encounter-reward-panel').hidden = mode !== 'reward';
+      $('#encounter-manual-panel').hidden = mode !== 'manual';
+      updateRollDerivation();
+    }
+
+    function updateEncounterPlanner() {
+      renderMonsterResults();
+      renderEncounterRoster();
+      renderEncounterRead();
+      renderRewardSuggestion();
+    }
+
+    function readIndividualGroups() {
+      if (state.encounterMode === 'roster') return encounterGroupsFromRoster();
+      if (state.encounterMode === 'reward') return [];
+      if (!$('#include-individual').checked) return [];
+      return $$('[data-individual-group]').map(function (group) {
+        return {
+          cr: $('[data-group-cr]', group).value,
+          count: Math.max(1, Math.min(20, Number($('[data-group-count]', group).value) || 1))
+        };
+      });
+    }
+
+    function hoardBandForCr(cr) {
+      var value = cr === '1/2' ? .5 : Number(cr) || 0;
+      return value <= 4 ? 'Challenge 0–4' : value <= 10 ? 'Challenge 5–10' : value <= 16 ? 'Challenge 11–16' : 'Challenge 17+';
+    }
+
+    function hoardBasisDetails(basis) {
+      if (basis === 'owner') return { label: 'Owner monster’s CR', title: 'Use that monster’s CR', copy: 'A single powerful creature’s hoard uses the table matching that creature’s CR.', phrase: 'owner' };
+      if (basis === 'lair') return { label: 'Presiding monster’s CR', title: 'Use the presiding monster’s CR', copy: 'For an otherwise unowned dungeon or lair cache, use the CR of the monster that presides over that place.', phrase: 'presiding monster' };
+      if (basis === 'benefactor') return { label: 'Party’s average level', title: 'Use the party’s average level', copy: 'For a benefactor’s quest reward, the 2014 rule uses the party’s average level as the hoard CR.', phrase: 'party average level' };
+      return { label: 'Leader’s CR', title: 'Use the leader’s CR', copy: 'Do not add or average the CRs of every creature in the group.', phrase: 'leader' };
+    }
+
+    function describe2014Plan(groups, includeHoard, hoardCr, hoardBasis) {
+      var parts = groups.map(function (group) {
+        return group.count + (group.count === 1 ? ' creature' : ' creatures') + ' at CR ' + group.cr;
+      });
+      if (includeHoard) parts.push('one hoard for a CR ' + hoardCr + ' ' + hoardBasisDetails(hoardBasis).phrase);
+      return parts.join(' plus ');
+    }
+
+    function addIndividualGroup() {
+      var options = ['1/2','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20'].map(function (cr) {
+        return '<option>' + cr + '</option>';
+      }).join('');
+      $('#individual-groups').insertAdjacentHTML('beforeend', '<div class="creature-group" data-individual-group><label class="field"><span class="field-label">Creature CR</span><select data-group-cr>' + options + '</select></label><label class="field"><span class="field-label">Creatures at this CR</span><input data-group-count type="number" min="1" max="20" value="1"></label><button class="remove-group" type="button" data-remove-group aria-label="Remove creature group">×</button></div>');
+      updateRollDerivation();
+    }
+
+    function selectLootIntent(intent) {
+      state.lootIntent = intent;
+      $('#loot-purpose').value = intent;
+      updateRollDerivation();
+    }
+
+    function encounterRollSettings() {
+      if (state.encounterMode === 'roster') {
+        var leader = encounterLeader();
+        return { includeHoard: $('#roster-include-hoard').checked && Boolean(leader), hoardBasis: 'leader', hoardCr: leader ? leader.cr : '1' };
+      }
+      return { includeHoard: $('#include-hoard').checked, hoardBasis: $('#hoard-basis').value, hoardCr: $('#roll-cr').value };
+    }
+
+    function updateRollDerivation() {
+      var intent = state.lootIntent;
+      $('#rules-2014').hidden = intent !== 'encounter';
+      $('#rules-2024').hidden = intent !== 'adventure';
+      $('#rules-party').hidden = intent !== 'party';
+      $('#rules-dragon').hidden = intent !== 'dragon';
+      $('#rules-table').hidden = intent !== 'table';
+      $('#rules-custom').hidden = intent !== 'custom';
+      $('#item-library-block').hidden = true;
+      $('#roll-submit').disabled = intent === 'custom';
+
+      if (intent === 'custom') {
+        $('#intent-source').textContent = 'Kirtas campaign rules';
+        $('#roll-simple-title').textContent = 'Kirtas custom bundle';
         $('#roll-simple-copy').textContent = 'No custom table is configured, so the mock exposes no invented rules controls.';
         $('#roll-submit').textContent = 'Configure a custom table first';
         return;
       }
 
-      if (profile === '2024') {
-        var cr2024 = $('#roll-cr-2024').value;
-        $('#roll-simple-title').textContent = '2024 Random Treasure Hoard · CR ' + cr2024;
-        $('#roll-simple-copy').textContent = 'The 2024 source provides its treasure-hoard CR control without the 2014 Individual Treasure choice.';
-        $('#roll-2024-title').textContent = 'One random treasure hoard at CR ' + cr2024;
-        $('#roll-submit').textContent = '⚄ Roll 2024 hoard and create bundle';
+      if (intent === 'table') {
+        var tableName = $('#specific-table').options[$('#specific-table').selectedIndex].text;
+        var tableRolls = Math.max(1, Math.min(20, Number($('#table-rolls').value) || 1));
+        $('#intent-source').textContent = 'Published table selected by the DM';
+        $('#roll-simple-title').textContent = 'Specific loot table';
+        $('#roll-simple-copy').textContent = 'Use this only when another rule or adventure has already named the table.';
+        $('#roll-submit').disabled = false;
+        $('#roll-submit').textContent = '⚄ Roll ' + tableRolls + (tableRolls === 1 ? ' time on ' : ' times on ') + tableName;
         return;
       }
 
-      var cr = $('#roll-cr').value;
-      var quantity = Math.max(1, Number($('#roll-quantity').value) || 1);
-      var partySize = $('#party-size').value;
-      $('#individual-count-field').hidden = !individual;
-      $('#roll-cr-label').textContent = individual ? 'Creature CR' : 'Hoard CR';
-      $('#roll-simple-title').textContent = '2014 Random Treasure · CR ' + cr;
-      $('#roll-simple-copy').textContent = individual
-        ? 'Roll once for each creature at this CR that logically carries treasure.'
-        : 'Roll one complete treasure hoard using this CR.';
-      $('#roll-derivation-title').textContent = individual
-        ? quantity + (quantity === 1 ? ' creature' : ' creatures') + ' at CR ' + cr
-        : 'One treasure hoard at CR ' + cr;
-      $('#roll-derivation-copy').textContent = 'Party size: ' + partySize + '. It is recorded for staff reference and does not silently change the official table result.';
-      $('#roll-submit').textContent = individual ? '⚄ Roll individual treasure and create bundle' : '⚄ Roll one hoard and create bundle';
+      if (intent === 'dragon') {
+        var dragonAge = $('#dragon-age').options[$('#dragon-age').selectedIndex].text;
+        $('#intent-source').textContent = 'Fizban’s Treasury of Dragons';
+        $('#roll-simple-title').textContent = 'Dragon hoard';
+        $('#roll-simple-copy').textContent = 'The dragon’s age selects the hoard profile; no encounter math is required.';
+        $('#dragon-guidance').textContent = 'Prepare a ' + dragonAge + ' Dragon hoard.';
+        $('#roll-submit').disabled = false;
+        $('#roll-submit').textContent = '⚄ Roll ' + dragonAge.toLowerCase() + ' dragon hoard';
+        return;
+      }
+
+      if (intent === 'party') {
+        var partyLevel = $('#party-level').value;
+        var partyScope = $('#party-scope').value;
+        $('#intent-source').textContent = 'Xanathar’s Guide to Everything';
+        $('#roll-simple-title').textContent = 'Party magic-item allowance';
+        $('#roll-simple-copy').textContent = 'Review the party’s overall magic-item progression without inventing an enemy or encounter.';
+        $('#party-guidance').textContent = (partyScope === 'cumulative' ? 'Review the cumulative allowance through level ' : 'Review only the tier containing level ') + partyLevel + '.';
+        $('#roll-submit').disabled = false;
+        $('#roll-submit').textContent = '⚄ Generate party-loot proposal';
+        return;
+      }
+
+      if (intent === 'adventure') {
+        var cr2024 = $('#roll-cr-2024').value;
+        var adventureLevel = $('#adventure-level').value;
+        $('#intent-source').textContent = '2024 Dungeon Master’s Guide';
+        $('#roll-simple-title').textContent = 'Adventure or quest reward';
+        $('#roll-simple-copy').textContent = 'Challenge rating sets the reward scale; character level guides magic-item rarity.';
+        $('#roll-2024-title').textContent = 'CR ' + cr2024 + ' adventure reward for level ' + adventureLevel + ' characters';
+        $('#hoard-band-2024').textContent = 'CR ' + cr2024 + ' uses the ' + hoardBandForCr(cr2024) + ' reward row for level ' + adventureLevel + ' characters.';
+        $('#roll-submit').disabled = false;
+        $('#roll-submit').textContent = '⚄ Generate adventure reward';
+        return;
+      }
+
+      if (state.encounterMode === 'reward') {
+        renderRewardSuggestion();
+        $('#intent-source').textContent = '2014 encounter guidance + Forge Encounter Read';
+        $('#roll-simple-title').textContent = 'Build around a reward';
+        $('#roll-simple-copy').textContent = 'Choose a proposed fight first. Loot rolling begins after you accept and review its roster.';
+        $('#roll-derivation-title').textContent = 'Choose the suggested roster or return to monster search';
+        $('#roll-derivation-copy').textContent = 'The desired item guides the story plan, while party level and difficulty guide the encounter math.';
+        $('#roll-submit').disabled = true;
+        $('#roll-submit').textContent = 'Choose an encounter roster first';
+        return;
+      }
+
+      if (state.encounterMode === 'roster') updateEncounterPlanner();
+      var groups = readIndividualGroups();
+      var settings = encounterRollSettings();
+      var includeHoard = settings.includeHoard;
+      var hoardBasis = settings.hoardBasis;
+      if (hoardBasis === 'benefactor' && $('#roll-cr').value === '1/2') $('#roll-cr').value = '1';
+      var hoardCr = settings.hoardCr;
+      var basisDetails = hoardBasisDetails(hoardBasis);
+      var hoardBand = hoardBandForCr(hoardCr);
+      var plan = describe2014Plan(groups, includeHoard, hoardCr, hoardBasis);
+      $('#individual-controls').hidden = state.encounterMode !== 'manual' || !$('#include-individual').checked;
+      $('#hoard-controls').hidden = state.encounterMode !== 'manual' || !includeHoard;
+      $('#hoard-cr-label').textContent = basisDetails.label;
+      $('#hoard-basis-title').textContent = basisDetails.title;
+      $('#hoard-basis-copy').textContent = basisDetails.copy;
+      $('#hoard-band').textContent = 'CR ' + hoardCr + ' uses the ' + hoardBand + ' Treasure Hoard table.';
+      $('#intent-source').textContent = state.encounterMode === 'roster' ? '2014 Dungeon Master’s Guide + Forge Encounter Read' : '2014 Dungeon Master’s Guide';
+      $('#roll-simple-title').textContent = state.encounterMode === 'roster' ? 'Encounter and its loot' : 'Encounter loot';
+      $('#roll-simple-copy').textContent = state.encounterMode === 'roster' ? 'The roster supplies each creature’s CR, calculates encounter difficulty, and can become a future Forge fight draft.' : 'Include the creatures’ carried treasure, a separate major cache, or both.';
+      $('#roll-derivation-title').textContent = plan || 'Choose what this encounter contains';
+      $('#roll-derivation-copy').textContent = plan
+        ? (includeHoard ? 'Each creature group rolls Individual Treasure. The cache uses the ' + hoardBand + ' Hoard table. Everything becomes one loot bundle.' : 'Each creature group rolls Individual Treasure. No Treasure Hoard roll is included.')
+        : 'Include at least one creature group or one treasure hoard before rolling.';
+      $('#roll-submit').disabled = !plan;
+      $('#roll-submit').textContent = plan ? '⚄ Roll encounter loot and create bundle' : 'Choose encounter loot first';
     }
 
     function sampleIndividualForCr(cr, quantity) {
@@ -900,39 +1449,120 @@
       };
     }
 
+    function sampleDragonHoard(age) {
+      if (age === 'wyrmling') return { dice: 'Illustrative wyrmling profile', outcome: 'A small cache of coins and one curious draconic object', items: [{ icon: '◉', name: 'Small draconic coin cache', meta: 'Currency · ordinary stack', type: 'ordinary' }, { icon: '✦', name: 'Warm crystal scale', trueName: 'Ruby of the War Mage', meta: 'Draconic item · Common', type: 'notable', identification: 'unidentified', description: 'The translucent scale remains warm long after leaving the lair.' }] };
+      if (age === 'young') return { dice: 'Illustrative young-dragon profile', outcome: 'Coins, valuables, and one Uncommon draconic item', items: [{ icon: '◉', name: 'Young dragon coin cache', meta: 'Currency · ordinary stack', type: 'ordinary' }, { icon: '◆', name: 'Three fire-opal brooches', meta: 'Valuables · ordinary stack', type: 'ordinary' }, { icon: '✦', name: 'Smoke-darkened horn', trueName: 'Dragon Vessel', meta: 'Draconic item · Uncommon', type: 'notable', identification: 'unidentified', description: 'A heartbeat trembles through the horn when it nears open flame.' }] };
+      if (age === 'ancient') return { dice: 'Illustrative ancient-dragon profile', outcome: 'A legendary treasury with multiple notable objects', items: [{ icon: '◉', name: 'Ancient dragon treasury', meta: 'Currency · ordinary stack', type: 'ordinary' }, { icon: '◆', name: 'Crown jewels of a fallen kingdom', meta: 'Art objects · ordinary stack', type: 'ordinary' }, { icon: '✦', name: 'Star-forged blade', trueName: 'Ascendant Dragon’s Wrath Weapon', meta: 'Draconic weapon · Legendary', type: 'notable', identification: 'unidentified', description: 'Constellations move beneath the dark metal as though seen through deep water.' }] };
+      return { dice: 'Illustrative adult-dragon profile', outcome: 'A major treasury with art objects and one Rare draconic item', items: [{ icon: '◉', name: 'Adult dragon treasury', meta: 'Currency · ordinary stack', type: 'ordinary' }, { icon: '◆', name: 'Gilded astrolabe', meta: 'Art object · ordinary stack', type: 'ordinary' }, { icon: '✦', name: 'Scaled war horn', trueName: 'Dragon’s Wrath Weapon', meta: 'Draconic weapon · Rare', type: 'notable', identification: 'unidentified', description: 'Fine scales overlap across the grip and tighten around any hand that lifts it.' }] };
+    }
+
     function rollTreasure() {
       state.rollCount += 1;
-      var profile = $('#roll-profile').value;
-      if (profile === 'custom') {
+      var intent = state.lootIntent;
+      if (intent === 'custom') {
         say('Choose a configured Kirtas table before rolling.');
         return;
       }
-      var cr = profile === '2024' ? $('#roll-cr-2024').value : $('#roll-cr').value;
-      var individual = profile === '2014' && state.rollType === 'individual';
-      var quantity = individual ? Math.max(1, Number($('#roll-quantity').value) || 1) : 1;
-      var partySize = profile === '2014' ? $('#party-size').value : null;
-      var sourceName = profile === '2024' ? '2024 Random Treasure Hoard' : '2014 Random Treasure';
-      var sample = individual ? sampleIndividualForCr(cr, quantity) : sampleHoardForCr(cr);
+      var sourceNames = { encounter: '2014 DMG Encounter Treasure', adventure: '2024 DMG Adventure Reward', party: 'Xanathar Party Loot', dragon: 'Fizban Dragon Hoard', table: 'Published Loot Table' };
+      var sourceName = sourceNames[intent];
+      var bundleName = 'Loot Bundle';
+      var bundleNote = '';
+      var bundleItems = [];
+      var receiptRows = [{ label: 'Rules source', value: sourceName }];
+      var resultParts = [];
+      var libraryName = $('#item-library').options[$('#item-library').selectedIndex].text;
+      if (intent !== 'table') receiptRows.push({ label: 'Item library', value: libraryName });
+
+      if (intent === 'adventure') {
+        var cr2024 = $('#roll-cr-2024').value;
+        var adventureLevel = $('#adventure-level').value;
+        var sample2024 = sampleHoardForCr(cr2024);
+        bundleName = '2024 Adventure Reward';
+        bundleNote = 'Generated from ' + sourceName + ' at CR ' + cr2024 + ' for level ' + adventureLevel + ' characters.';
+        bundleItems = sample2024.items;
+        receiptRows.push({ label: 'Reward scale', value: 'CR ' + cr2024 + ' · ' + hoardBandForCr(cr2024) });
+        receiptRows.push({ label: 'Magic-item rarity guide', value: 'Character level ' + adventureLevel });
+        receiptRows.push({ label: 'Reward dice', value: sample2024.dice });
+        resultParts.push(sample2024.outcome);
+      } else if (intent === 'party') {
+        var partyLevel = Number($('#party-level').value);
+        var partyScope = $('#party-scope').value;
+        var partyRarity = partyLevel <= 4 ? 'Common' : partyLevel <= 10 ? 'Uncommon' : partyLevel <= 16 ? 'Rare' : 'Very Rare';
+        bundleName = 'Level ' + partyLevel + ' Party Loot Proposal';
+        bundleNote = 'An illustrative ' + (partyScope === 'cumulative' ? 'cumulative' : 'tier-only') + ' proposal from ' + sourceName + '.';
+        bundleItems = [{ icon: '✦', name: 'Unselected ' + partyRarity + ' party item', meta: 'Magic item candidate · ' + partyRarity, type: 'notable', identification: 'identified', trueName: 'Unselected ' + partyRarity + ' party item', description: 'Choose a fitting item from the allowed campaign library during review.' }];
+        receiptRows.push({ label: 'Party level', value: String(partyLevel) });
+        receiptRows.push({ label: 'Progress view', value: partyScope === 'cumulative' ? 'Cumulative through this level' : 'This tier only' });
+        resultParts.push('One illustrative ' + partyRarity + ' candidate for staff review');
+      } else if (intent === 'dragon') {
+        var dragonAge = $('#dragon-age').value;
+        var dragonSample = sampleDragonHoard(dragonAge);
+        bundleName = dragonAge.charAt(0).toUpperCase() + dragonAge.slice(1) + ' Dragon Hoard';
+        bundleNote = 'Generated from the illustrative ' + sourceName + ' profile for a ' + dragonAge + ' dragon.';
+        bundleItems = dragonSample.items;
+        receiptRows.push({ label: 'Dragon age', value: dragonAge.charAt(0).toUpperCase() + dragonAge.slice(1) });
+        receiptRows.push({ label: 'Magic-item selection', value: $('#dragon-items').options[$('#dragon-items').selectedIndex].text });
+        receiptRows.push({ label: 'Hoard dice', value: dragonSample.dice });
+        resultParts.push(dragonSample.outcome);
+      } else if (intent === 'table') {
+        var tableName = $('#specific-table').options[$('#specific-table').selectedIndex].text;
+        var tableRolls = Math.max(1, Math.min(20, Number($('#table-rolls').value) || 1));
+        bundleName = tableName + ' Results';
+        bundleNote = tableRolls + (tableRolls === 1 ? ' illustrative roll' : ' illustrative rolls') + ' on ' + tableName + '.';
+        for (var rollIndex = 0; rollIndex < tableRolls; rollIndex += 1) {
+          bundleItems.push({ icon: '✦', name: 'Unresolved ' + tableName + ' result ' + (rollIndex + 1), meta: 'Published-table result · review required', type: 'notable', identification: 'identified', trueName: 'Unresolved ' + tableName + ' result ' + (rollIndex + 1), description: 'Production must resolve this result against an approved rules dataset.' });
+        }
+        receiptRows.push({ label: 'Published table', value: tableName });
+        receiptRows.push({ label: 'Roll count', value: String(tableRolls) });
+        resultParts.push(tableRolls + (tableRolls === 1 ? ' unresolved table result' : ' unresolved table results'));
+      } else {
+        var groups = readIndividualGroups();
+        var settings = encounterRollSettings();
+        var includeHoard = settings.includeHoard;
+        var hoardBasis = settings.hoardBasis;
+        var hoardCr = settings.hoardCr;
+        var basisDetails = hoardBasisDetails(hoardBasis);
+        var plan = describe2014Plan(groups, includeHoard, hoardCr, hoardBasis);
+        if (!plan) {
+          say('Include at least one creature group or one treasure hoard before rolling.');
+          return;
+        }
+        bundleName = groups.length && includeHoard ? '2014 Encounter Loot' : groups.length ? '2014 Individual Treasure' : 'CR ' + hoardCr + ' Treasure Hoard';
+        bundleNote = 'Generated from ' + sourceName + ': ' + plan + '.';
+        receiptRows.push({ label: 'Encounter plan', value: plan });
+        groups.forEach(function (group) {
+          var individualSample = sampleIndividualForCr(group.cr, group.count);
+          individualSample.items.forEach(function (item) {
+            bundleItems.push(Object.assign({}, item, { meta: 'Individual · CR ' + group.cr + ' · ' + item.meta }));
+          });
+          receiptRows.push({ label: 'Individual CR ' + group.cr + ' × ' + group.count, value: individualSample.dice });
+          resultParts.push(individualSample.outcome + ' carried by CR ' + group.cr + ' creatures');
+        });
+        if (includeHoard) {
+          var hoardSample = sampleHoardForCr(hoardCr);
+          hoardSample.items.forEach(function (item) {
+            bundleItems.push(Object.assign({}, item, { meta: 'Hoard · CR ' + hoardCr + ' · ' + item.meta }));
+          });
+          receiptRows.push({ label: 'Hoard basis', value: basisDetails.title + ' · CR ' + hoardCr });
+          receiptRows.push({ label: 'Hoard table', value: hoardBandForCr(hoardCr) });
+          receiptRows.push({ label: 'Separate hoard dice', value: hoardSample.dice });
+          resultParts.push(hoardSample.outcome + ' in the separate cache');
+        }
+      }
+      receiptRows.push({ label: 'Illustrative result', value: resultParts.join(' · ') });
       var bundle = {
         id: 'roll-' + Date.now(),
         status: 'planned',
-        name: sample.band + ' ' + (individual ? 'Individual Treasure × ' + quantity : 'Treasure Hoard'),
-        kind: 'Unplaced preparation',
-        note: 'Generated from ' + sourceName + ' at CR ' + cr + (partySize ? ' for a party of ' + partySize : '') + '.',
+        name: bundleName,
+        kind: intent === 'encounter' ? 'Encounter treasure' : intent === 'adventure' ? 'Adventure reward' : intent === 'party' ? 'Party loot plan' : intent === 'dragon' ? 'Dragon hoard' : 'Table result',
+        note: bundleNote,
         fight: 'No fight linked',
         area: 'No area linked',
         trigger: 'No trigger chosen',
-        items: sample.items,
+        items: bundleItems,
         rollReceipt: {
-        title: (individual ? 'Individual treasure' : 'Treasure hoard') + ' · ' + sample.band + ' · ' + sourceName,
-        rows: [
-          { label: 'Rules source', value: sourceName },
-          { label: 'Encounter CR', value: cr },
-          { label: 'Roll size', value: individual ? quantity + (quantity === 1 ? ' creature' : ' creatures') : 'One treasure hoard' },
-          { label: 'Party size', value: partySize ? partySize + ' PCs · recorded, not silently scaled' : 'Not used by this profile' },
-          { label: 'Dice transcript', value: sample.dice },
-          { label: 'Illustrative result', value: sample.outcome }
-        ]
+          title: bundleName + ' · ' + sourceName,
+          rows: receiptRows
         }
       };
       state.bundles.unshift(bundle);
@@ -941,7 +1571,7 @@
       $$('.life-tab').forEach(function (button) { button.setAttribute('aria-selected', button.dataset.stage === 'planned' ? 'true' : 'false'); });
       renderEditor();
       goStep(2);
-      say(sample.band + ' sample rolled. Its private loot bundle was created automatically.');
+      say(bundleName + ' generated. Its private loot bundle was created automatically.');
     }
 
     function moveTo(status) {
@@ -1011,8 +1641,7 @@
       var identityButton = event.target.closest('[data-identify]');
       if (identityButton) {
         var item = current().items[Number(identityButton.dataset.itemIndex)];
-        item.identification = identityButton.dataset.identify;
-        if (item.identification === 'identified') item.name = item.trueName || item.name;
+        setItemIdentification(item, identityButton.dataset.identify);
         renderItems();
         say(item.identification === 'identified' ? 'This item will enter play identified.' : 'This item will enter play with its staff truth hidden.');
         return;
@@ -1024,15 +1653,61 @@
         updateAwardPreview();
         return;
       }
-      var rollType = event.target.closest('[data-roll-type]');
-      if (rollType) {
-        state.rollType = rollType.dataset.rollType;
-        $$('[data-roll-type]').forEach(function (button) { button.setAttribute('aria-pressed', button === rollType ? 'true' : 'false'); });
+      var lootIntent = event.target.closest('[data-loot-intent]');
+      if (lootIntent) {
+        selectLootIntent(lootIntent.dataset.lootIntent);
+        return;
+      }
+      var encounterMode = event.target.closest('[data-encounter-mode]');
+      if (encounterMode) {
+        setEncounterMode(encounterMode.dataset.encounterMode);
+        return;
+      }
+      var monsterAdd = event.target.closest('[data-monster-add]');
+      if (monsterAdd) {
+        var catalogueRow = MONSTER_CATALOGUE.find(function (row) { return row.id === monsterAdd.dataset.monsterAdd; });
+        var existingRow = state.encounterRoster.find(function (row) { return row.id === monsterAdd.dataset.monsterAdd; });
+        if (existingRow) existingRow.count += 1;
+        else if (catalogueRow) state.encounterRoster.push({ id: catalogueRow.id, name: catalogueRow.name, cr: catalogueRow.cr, count: 1, leader: !state.encounterRoster.length });
+        updateRollDerivation();
+        return;
+      }
+      var rosterDelta = event.target.closest('[data-roster-delta]');
+      if (rosterDelta) {
+        var rosterRow = state.encounterRoster.find(function (row) { return row.id === rosterDelta.dataset.rosterId; });
+        if (rosterRow) rosterRow.count += Number(rosterDelta.dataset.rosterDelta);
+        state.encounterRoster = state.encounterRoster.filter(function (row) { return row.count > 0; });
+        if (state.encounterRoster.length && !state.encounterRoster.some(function (row) { return row.leader; })) state.encounterRoster[0].leader = true;
+        updateRollDerivation();
+        return;
+      }
+      var rosterLeader = event.target.closest('[data-roster-leader]');
+      if (rosterLeader) {
+        state.encounterRoster.forEach(function (row) { row.leader = row.id === rosterLeader.dataset.rosterLeader; });
+        updateRollDerivation();
+        return;
+      }
+      var removeGroup = event.target.closest('[data-remove-group]');
+      if (removeGroup) {
+        removeGroup.closest('[data-individual-group]').remove();
         updateRollDerivation();
         return;
       }
       var action = event.target.closest('[data-action]');
       if (!action) return;
+      if (action.dataset.action === 'save-preferences') savePreferences();
+      if (action.dataset.action === 'change-preferences') { state.setupComplete = false; renderPreferences(); }
+      if (action.dataset.action === 'add-group') addIndividualGroup();
+      if (action.dataset.action === 'save-roster') say('Roster saved in this mock preview only. No campaign fight was created.');
+      if (action.dataset.action === 'prepare-forge') say('Forge handoff preview: production would open the existing Forge Workshop with this roster, party, and difficulty read.');
+      if (action.dataset.action === 'use-suggested-roster' && state.rewardSuggestion) {
+        state.encounterRoster = state.rewardSuggestion.roster.map(function (row) { return Object.assign({}, row); });
+        $('#enc-party-count').value = $('#reward-party-count').value;
+        $('#enc-party-level').value = $('#reward-party-level').value;
+        $('#enc-target').value = $('#reward-target').value;
+        setEncounterMode('roster');
+        say('Suggested roster moved into the encounter plan for review.');
+      }
       if (action.dataset.action === 'create') createDraft('create');
       if (action.dataset.action === 'import') createDraft('import');
       if (action.dataset.action === 'continue-current') goStep(2);
@@ -1052,11 +1727,33 @@
       $('#' + id).addEventListener('change', syncFromFields);
     });
     $('#bundle-kind').addEventListener('change', syncFromFields);
+    $('#loot-purpose').addEventListener('change', function () { selectLootIntent($('#loot-purpose').value); });
+    $('#encounter-method').addEventListener('change', function () { setEncounterMode($('#encounter-method').value); });
+    $('#books-preference').addEventListener('change', function () { $('#setup-book-choices').hidden = $('#books-preference').value !== 'specific'; });
+    $('#monster-search').addEventListener('input', renderMonsterResults);
+    ['enc-party-count', 'enc-party-level', 'enc-target', 'reward-party-count', 'reward-party-level', 'reward-target', 'desired-reward', 'desired-rarity'].forEach(function (id) {
+      $('#' + id).addEventListener('input', updateRollDerivation);
+      $('#' + id).addEventListener('change', updateRollDerivation);
+    });
+    $('#roster-include-hoard').addEventListener('change', updateRollDerivation);
     $('#roll-cr').addEventListener('change', updateRollDerivation);
     $('#roll-cr-2024').addEventListener('change', updateRollDerivation);
-    $('#roll-profile').addEventListener('change', updateRollDerivation);
-    $('#party-size').addEventListener('change', updateRollDerivation);
-    $('#roll-quantity').addEventListener('input', updateRollDerivation);
+    $('#adventure-level').addEventListener('change', updateRollDerivation);
+    $('#party-level').addEventListener('change', updateRollDerivation);
+    $('#party-scope').addEventListener('change', updateRollDerivation);
+    $('#dragon-age').addEventListener('change', updateRollDerivation);
+    $('#dragon-items').addEventListener('change', updateRollDerivation);
+    $('#specific-table').addEventListener('change', updateRollDerivation);
+    $('#table-rolls').addEventListener('input', updateRollDerivation);
+    $('#hoard-basis').addEventListener('change', updateRollDerivation);
+    $('#include-individual').addEventListener('change', updateRollDerivation);
+    $('#include-hoard').addEventListener('change', updateRollDerivation);
+    $('#individual-groups').addEventListener('input', updateRollDerivation);
+    $('#individual-groups').addEventListener('change', updateRollDerivation);
+    $('#item-library').addEventListener('change', function () {
+      $('#item-source-choices').hidden = $('#item-library').value !== 'choose';
+      updateRollDerivation();
+    });
     $('#award-modal').addEventListener('click', function (event) { if (event.target === $('#award-modal')) closeAward(); });
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && !$('#award-modal').hidden) closeAward();
@@ -1065,12 +1762,14 @@
     window.__lootWorkshopMock = {
       state: state,
       rollTreasure: rollTreasure,
+      selectLootIntent: selectLootIntent,
       selectStage: selectStage,
       current: current,
       introduceAtPlace: introduceAtPlace
     };
     renderEditor();
     goStep(1);
+    renderPreferences();
   })();
   </script>
 </body>

@@ -4,9 +4,10 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **August 14, 2026 (durable notable-item identity, staff adoption,
-atomic custody transfer, and the first field-proven full-sheet item-history
-bridge; production Forge Blueprint → Build → Combat,
+Updated: **August 18, 2026 (durable notable-item identity, staff adoption,
+atomic custody transfer, the field-proven full-sheet item-history bridge, the
+approved Gear/import presentation mock, and the current standalone Loot
+Workshop mock; production Forge Blueprint → Build → Combat,
 implemented local map-import workflow, field-approved portal-owned stair architecture,
 Living Codex discovery/curation and NPC/World projection, approved
 reaction/cover integration, disposable Test Fight production candidate,
@@ -32,7 +33,7 @@ Cache-stamp every module include (`?v=`) — non-negotiable on iOS.
 
 ---
 
-## 🟢 Durable items + first real Gear adoption workflow — August 14
+## 🟢 Durable items + full-sheet history; Loot Workshop approval mock — August 18
 
 Notable campaign items now have permanent identity independent of their bearer,
 inventory position, or current display name. The applied Supabase contract uses
@@ -48,9 +49,9 @@ existing quantity-one inventory row into a campaign object. It locks and
 rechecks the character row, separates public/secret fields, stamps the permanent
 identity into the inventory, and appends origin plus initial-possession events
 atomically. It never auto-promotes every imported or generic sword. The
-deployed full Gear sheet loads the production candidate behind
+full Gear sheet first loaded the production candidate behind
 `?itemHistory=1`; M field-proved that path by turning Cosmere's longsword into
-**The Hexblade**. The approved August 16 local promotion loads
+**The Hexblade**. The August 16 promotion loads
 `item-adoption.js?v=ia3` and `item-history.js?v=ih9` on the normal full sheet,
 retains `?itemHistory=0` as a rollback switch, and leaves mounted/rail Gear
 untouched.
@@ -72,7 +73,7 @@ appends a linked transfer event. The production reader now includes the
 narrated transfer control, pending a signed-in field pass between two safe test
 bearers.
 
-Current focused evidence is **245/245** across item schema, adoption,
+Focused durable-item evidence remains **245/245** across item schema, adoption,
 provenance/replay, transfer, the approved management mock, the production
 reader, atomic attunement, and identification/rename SQL. Desktop and 390×844
 mobile browser passes completed the promoted no-flag reader with the plain
@@ -80,12 +81,48 @@ mobile browser passes completed the promoted no-flag reader with the plain
 Exact ownership, applied-state notes, field truth, and the ordered roadmap live in
 `docs/handoffs/items/CONTEXT_Items-update-2026-08-14.md`.
 
+An August 17 imported Skyblinder Staff pass proved that staff can import an
+ordinary item, begin its permanent history, and move it through unidentified
+and identified states. It also exposed the next Gear presentation gaps: import
+cannot begin unidentified, ordinary Gear detail omits the description, the
+closed row does not carry rarity color, and no closed-row marker announces an
+available history. The approved standalone
+`_edits/mock-item-import-history-gear.html` resolves those presentation
+questions; none of them is production Gear yet.
+
+The next concept is a staff-only **Loot Workshop**. Its current authority is the
+standalone, no-dependency `_edits/mock-loot-workshop.html`, not a production
+page. A first-visit **Greetings, DM** setup remembers edition, source-book, and
+party preferences in mock-only browser storage. The everyday flow then asks
+what the loot is for, reveals only the relevant encounter/reward questions,
+rolls a private editable bundle, and optionally attaches it to a later fight,
+place, or trigger before introduction or award. Encounter planning can look up
+a small mock monster/CR catalogue, begin with a desired reward, or accept known
+CRs. It borrows the calculation shape of Forge Encounter Read but creates no
+Forge fight.
+
+Ordinary currency and valuables remain ordinary. A notable magic item may be
+introduced identified or unidentified and is the only result intended to enter
+the permanent-item system. M field-confirmed the corrected reversible reveal:
+**Smoky glass vial → Potion of Climbing → Smoky glass vial**. The current mock
+passes **140/140** known answers; the reused Encounter Read authority passes
+**41/41**. Desktop and mobile browser passes covered onboarding, saved mock
+preferences, edition filtering, progressive disclosure, encounter/reward
+paths, and the reveal round trip.
+
+The Loot Workshop production boundary is closed. Before any real wiring, M must
+approve the final language and interaction, the project must choose the
+authoritative licensed treasure-table data and exact 2014/2024 coverage, and a
+durable bundle/roster contract must be designed. Do not wire the mock directly
+to Forge, Compendium, Gear, World, Chronicle, quests, or evolving-item
+automation.
+
 The approved sequence is:
 
-1. deploy and field-test the default-on full-sheet item promotion, with the
-   rollback switch available;
-2. complete tracked-item presentation, smoky unidentified treatment, history
-   viewing, identification, renaming, transfer, and deliberate import adoption;
+1. keep the field-proven default-on full-sheet item path stable, with the
+   rollback switch available, and finish the live management gates;
+2. complete the approved Gear/import presentation and refine the standalone
+   Loot Workshop before any production integration;
 3. establish the shared item/session/Chronicle/NPC/encounter/battle-map/location
    link layer;
 4. build the desktop mouse/keyboard and mobile touch **Party's Path** on World;
@@ -94,9 +131,10 @@ The approved sequence is:
 6. let completed deeds plus attached campaign evidence awaken or transform an
    item while preserving identity and appending the change to its history.
 
-The immediate next subsystem slice remains **items**. Start with the tracked-
-item detail/history and management experience; do not cross into Chronicle or
-World until that item workflow is field-approved.
+The immediate next subsystem slice remains **items**. Begin by refining and
+approving the Loot Workshop boundary and the already-approved Gear/import
+presentation; do not cross into production Forge, Chronicle, or World wiring
+until those item workflows receive separate approval.
 
 ---
 
@@ -1247,12 +1285,13 @@ Supabase tables: `profiles`, `encounters`, `combatants`, `characters`, `journal_
 - **Durable notable items** (`item-provenance.js`, `item-adoption.js`,
   `schema_delta_item_*.sql`) — stable item identity, staff-only secrets,
   append-only linked history, atomic staff adoption, and atomic member transfer.
-  The adoption UI and reader are field-visible on the full sheet behind
-  `?itemHistory=1`; an approved, validated local candidate promotes them to the
-  normal full-sheet URL with `?itemHistory=0` rollback. Atomic
+  The adoption UI and reader are field-visible on the normal full-sheet URL
+  with `?itemHistory=0` rollback. Atomic
   identify/rename/attunement/transfer management exists, while live SQL-state
   confirmation, complete signed-in management proof, and mounted-sheet rollout
-  remain open. Read the item handoff before touching this seam.
+  remain open. The Gear/import and Loot Workshop experiences remain approved
+  standalone mocks, not production integrations. Read the item handoff before
+  touching this seam.
 - **Soul Shards charactermancer** (`shards.html`, `soul-shards-*.js`) — full builder off the
   5etools 2014 JSON mirror; multiclass spellcasting, provenance-colored spell
   picker, existing-character Level Up, and pre-level mechanical Facet capture.

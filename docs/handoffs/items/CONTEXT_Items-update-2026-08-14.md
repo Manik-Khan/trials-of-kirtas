@@ -1,19 +1,23 @@
-# Durable item system handoff — current through 2026-08-16
+# Durable item system handoff — current through 2026-08-18
 
 Status: **identity/schema, staff adoption, and server-side transfer are applied;
-the first real full-sheet adoption flow and tracked-item reader are deployed and
-field-visible behind a flag. A validated local promotion now enables both on the
-normal full sheet by default, with `?itemHistory=0` retained as the rollback
-switch. The mounted/rail sheet remains untouched.**
+the real full-sheet adoption flow and tracked-item reader are field-visible on
+the normal sheet, with `?itemHistory=0` retained as the rollback switch. The
+mounted/rail sheet remains untouched. The next Gear/import presentation and
+Loot Workshop work remain standalone, no-dependency mocks; no production Loot
+Workshop, Forge, World, or Chronicle wiring is approved.**
 
 This document is the current item-system authority. Read it with `AGENTS.md`
 and `CONTEXT.md` before touching Gear, inventory imports, item SQL, Chronicle
 links, or World-map item projection.
 
-Current working baseline: clean `main` at `438fcc5` (`item history updates`),
-matching `origin/main`, before the uncommitted August 16 promotion slice. The
-original handoff checkpoint was `cc388e1` (`items and ownership`). M deploys
-manually. Codex never pushes and commits only when M explicitly asks.
+Current working baseline: local `main` at `bab024a` (`loot workskop`), with
+`origin/main` at `cf9c3b1` and four intentional uncommitted files: `CONTEXT.md`,
+this handoff, `_edits/mock-loot-workshop.html`, and
+`tests/smoke/smoke-loot-workshop-mock.mjs`. The original handoff checkpoint was
+`cc388e1` (`items and ownership`). The inherited documentation and item changes
+between those commits are intentional. M deploys manually. Codex never pushes
+and commits only when M explicitly asks.
 
 ## 1. Executive verdict
 
@@ -38,6 +42,15 @@ The notable-item architecture is now real rather than a standalone concept.
 M applied the three SQL deltas successfully, deployed the flagged UI, and
 field-proved adoption by turning Cosmere Runestar's longsword into **The
 Hexblade**. The acquisition-language correction was then deployed at `cc388e1`.
+
+The August 17 field pass then proved the normal full-sheet path with an imported
+Skyblinder Staff: staff could begin its permanent history, move it through
+unidentified and identified states, and open its record. That pass also exposed
+the next honest Gear gaps: imports cannot begin unidentified, the ordinary Gear
+detail does not surface the description, the closed row does not carry rarity
+color or a history marker, and the mounted sheet still has no item-history
+bridge. `_edits/mock-item-import-history-gear.html` is the approved presentation
+mock for those gaps; it is not production Gear.
 
 ## 2. Durable contract
 
@@ -265,6 +278,55 @@ Re-run all nine item smokes plus `node --check` on every touched JS/MJS file. A
 green smoke does not replace real desktop/mobile browser verification for Gear
 UI.
 
+### August 17–18 Loot Workshop mock checkpoint
+
+M approved a staff-facing **Loot Workshop** direction, but only as the
+standalone `_edits/mock-loot-workshop.html`. It has no dependencies, database
+writes, production imports, or live Forge/World/Chronicle/Gear connections.
+
+The current interaction begins with a one-time **Greetings, DM** setup for
+rules edition, approved source books, and default party behavior. Those mock
+preferences live only in browser `localStorage` and can be changed later. The
+ordinary workflow then asks one question at a time:
+
+1. what the loot is for;
+2. how much the party deserves, revealing only the controls relevant to that
+   choice;
+3. what the private editable bundle contains;
+4. whether to attach that bundle to a later fight, location, or trigger; and
+5. whether to keep it planned, mark it ready, introduce it in the world, or
+   award it.
+
+Encounter loot can look up a deliberately small mock monster catalogue, build
+a roster, adjust quantities and a leader, and read party-relative difficulty.
+It may instead begin with a desired reward or accept known CRs manually. The
+current calculations reuse the shape of the real Forge Encounter Read helpers,
+but the mock does not create a Forge fight. Reward-first language explicitly
+states that 5e does not prescribe one mandatory encounter CR for a particular
+magic item.
+
+Rolling creates a private editable bundle automatically. Ordinary currency and
+valuables remain ordinary inventory. A notable magic item may be introduced
+identified or unidentified and is the only kind of result intended to enter the
+durable-item path. The latest correction preserves both names across repeated
+state changes: **Smoky glass vial → Potion of Climbing → Smoky glass vial**.
+M field-confirmed that round trip.
+
+Current evidence:
+
+```text
+smoke-loot-workshop-mock: 140 passed, 0 failed
+smoke-encounter-read:       41 passed, 0 failed
+```
+
+Desktop and mobile browser passes covered onboarding, saved mock preferences,
+edition filtering, encounter/reward paths, progressive disclosure, and the
+identification round trip. The real production boundary remains closed. Before
+production, M must approve the final language and interaction, the project must
+choose the authoritative licensed treasure-table data and exact 2014/2024 book
+coverage, and a separate durable roster/bundle contract must be designed for
+any future Forge or World attachment.
+
 ## 6. File ownership map
 
 - `item-provenance.js` — pure durable identity/event/replay contract; no page
@@ -291,19 +353,29 @@ UI.
 - `tests/fixtures/item-history-harness.html` — in-memory production-reader
   browser harness for audience, state, chronology, desktop, and touch proof.
 - `tests/smoke/smoke-item-*.mjs` — item schema/client/transition gates.
+- `_edits/mock-item-import-history-gear.html` — approved standalone Gear/import
+  presentation; no production wiring.
+- `_edits/mock-loot-workshop.html` — current standalone Loot Workshop approval
+  surface; no production wiring.
+- `tests/smoke/smoke-loot-workshop-mock.mjs` — structural and interaction
+  known-answer gate for the Loot Workshop mock.
 - `netlify/functions/items2.js` — existing importer endpoint; it does not create
   durable item instances automatically.
 
 ## 7. What is not built or not yet field-proven
 
-- The local default-on promotion is not yet deployed. The adoption and reader
-  bridges still do not mount into the rail/mounted sheet.
+- The adoption and reader bridges still do not mount into the rail/mounted
+  sheet.
 - Smoky unidentified styling exists in the reader and tracked-detail opener,
   but is not applied to the closed Gear list/grid tile.
 - Identification, rename, required-attunement, and transfer management are not
   yet signed-in field-proven as one complete live workflow.
-- Import can populate ordinary inventory, but it has no deliberate adopt-this-
-  import action.
+- Import can populate ordinary inventory and an existing row can be adopted
+  afterward, but import itself cannot begin unidentified and the approved Gear
+  presentation improvements remain mock-only.
+- Loot Workshop setup, rolling, bundle editing, attachments, and release are
+  mock-only. No authoritative treasure-table dataset or production persistence
+  contract has been approved.
 - Item events are not yet projected into Chronicle, World, NPCs, encounters, or
   battle-map UI.
 - Quests and objective evidence do not exist.
@@ -311,23 +383,28 @@ UI.
   a contract capability today.
 
 Do not describe any of these as absent without grepping again; this list records
-the state at the August 16 promotion candidate, not an eternal claim.
+the state at the August 18 checkpoint, not an eternal claim.
 
 ## 8. Approved build order
 
 ### A. Finish the item workflow
 
-Deploy and field-test the approved default-on full-sheet promotion with
-`?itemHistory=0` available for rollback. Separately port it to the mounted/rail
-sheet only after the full-sheet behavior remains stable. Preserve staff
-authority and deliberate one-item adoption.
+Keep the field-proven full-sheet path stable with `?itemHistory=0` available for
+rollback. Separately port it to the mounted/rail sheet only after the remaining
+full-sheet management gates pass. Preserve staff authority and deliberate
+one-item adoption.
 
 ### B. Complete item management
 
-Add tracked-item presentation, rarity color, smoky unidentified treatment,
-history viewing, identification, renaming, and the real transfer control.
-Connect imports so an imported row can be deliberately adopted without making
-every imported sword a campaign object.
+Complete the approved Gear/import presentation: visible description, rarity
+color, closed-row history marker, and an explicit unidentified import path.
+Keep history viewing, identification, renaming, attunement, and real transfer
+controls safe and append-only. Never make every imported sword a campaign
+object.
+
+Only after M separately approves the Loot Workshop for production, settle its
+licensed rules-data authority and durable bundle/roster contract. Do not treat
+the current mock catalogue or illustrative rolls as game authority.
 
 ### C. Connect campaign entities
 
@@ -365,13 +442,14 @@ automation yet.
    working tree, and changes since `cc388e1`.
 2. Grep the real full-sheet and mounted-sheet Gear callers before claiming a
    seam is missing.
-3. ~~Mock the tracked-item detail/history experience first.~~ M approved the
-   standalone mock.
-4. ~~Build and field-display the smallest flagged production reader for
-   `item_instances`, `item_events`, and staff-visible `item_secrets`.~~ Complete.
-5. ~~Promote the reader and deliberate staff adoption bridge to the normal full
-   sheet while preserving a rollback switch and leaving mounted Gear alone.~~
-   Validated local candidate complete; deploy and field-test it.
+3. Preserve the user-approved Loot Workshop interaction and its 140/140 smoke;
+   begin with M's language/refinement review rather than production wiring.
+4. If M approves production exploration, first identify the licensed treasure-
+   table source and write the bundle/roster persistence boundary. Do not wire
+   Forge, Compendium, Gear, World, or Chronicle directly from the mock.
+5. Complete the approved Gear/import presentation mock's production plan:
+   unidentified-at-import choice, description, rarity color, and closed-row
+   history marker. Re-grep both full and mounted Gear seams before editing.
 6. Confirm the live state of `schema_delta_item_attunement.sql`, then exercise
    Attune/Release against a separate required item in staff and player sessions
    on desktop and mobile.
@@ -382,8 +460,9 @@ automation yet.
    confirmation flow.~~ Local candidate complete; verify both bearer sheets
    after a field transfer.
 9. Field-test the complete tracked-item workflow before crossing into entity
-   links or World.
+   links or World. Mounted-sheet rollout remains a separate approval boundary.
 
-The immediate product question is no longer whether permanent item identity is
-plausible. It is how the real Gear detail makes that identity and history feel
-special, clear, and safe to manage.
+The immediate product question is how the Loot Workshop stays welcoming and
+rules-honest while producing a private bundle that can later enter the already-
+durable item system. The next session should refine and approve that boundary;
+it should not infer approval for production integration.
