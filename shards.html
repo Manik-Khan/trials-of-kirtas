@@ -3403,6 +3403,7 @@ var FeatsUI = (function () {
   function esc(x){ return String(x).replace(/[&<>]/g, function(c){ return c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'; }); }
   var ABBR = { str:'STR', dex:'DEX', con:'CON', int:'INT', wis:'WIS', cha:'CHA' };
   var ABO = ['str','dex','con','int','wis','cha'];
+  var FEAT_SCHOOL = { A:'Abjuration', C:'Conjuration', D:'Divination', E:'Enchantment', V:'Evocation', I:'Illusion', N:'Necromancy', T:'Transmutation', P:'Psionic' };
 
   function adv(){ return draft.advancement || (draft.advancement = {}); }
   function slot(k){ return adv()[k] || null; }
@@ -3542,7 +3543,7 @@ var FeatsUI = (function () {
         var save = (sp.savingThrow || []).map(function(a){ return String(a).slice(0,3).toUpperCase(); }).join('/');
         var gist = levelEntryText(sp.entries || []); if (gist.length > 180) gist = gist.slice(0,177) + '\u2026';
         return '<button type="button" class="ft-spell' + (picked === sp.name ? ' on' : '') + '" data-fspell="' + esc(sp.name) + '" data-k="' + k + '" data-gi="' + gi + '"><b>' + esc(sp.name) + '</b><span>' +
-          (save ? save + ' save' + (dc != null ? ' \u00b7 ' + (ability || '').toUpperCase() + ' DC ' + dc : '') : 'No saving throw') + ' \u00b7 ' + esc(SCHOOL[sp.school] || sp.school || '') + '</span>' +
+          (save ? save + ' save' + (dc != null ? ' \u00b7 ' + (ability || '').toUpperCase() + ' DC ' + dc : '') : 'No saving throw') + ' \u00b7 ' + esc(FEAT_SCHOOL[sp.school] || sp.school || '') + '</span>' +
           (gist ? '<span>' + esc(gist) + '</span>' : '') + '</button>';
       }).join('');
       return '<div class="ft-hint">Choose one spell' + (ability ? ' \u00b7 casts with ' + ability.toUpperCase() + (dc != null ? ' (save DC ' + dc + ')' : '') : ' \u00b7 choose the feat ability first') + '</div><div class="ft-spell-list">' + rows + '</div>';

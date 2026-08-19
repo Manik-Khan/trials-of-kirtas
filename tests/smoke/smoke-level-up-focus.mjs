@@ -64,7 +64,7 @@ const html = readFileSync(new URL('../../shards.html', import.meta.url), 'utf8')
 const staging = readFileSync(new URL('../../staging/level-up-liadan.html', import.meta.url), 'utf8');
 ok('same-site staging doorway exists for Liadan', /Líadan · Level Up Staging/.test(staging));
 ok('staging doorway opens the guarded focused flow', /shards\.html\?mode=level-up(?:&amp;|&)character=liadan(?:&amp;|&)class=Bard(?:&amp;|&)levelFlow=1/.test(staging));
-ok('staging doorway cache-stamps the step-validation correction', /staging=lu3/.test(staging));
+ok('staging doorway cache-stamps the Fey Touched control correction', /staging=lu4/.test(staging));
 ok('staging doorway is not indexed', /name="robots" content="noindex,nofollow"/.test(staging));
 ok('staging doorway does not replace the regular Level Up route', /regular Level Up route remains unchanged/.test(staging));
 ok('focused Level Up is guarded by levelFlow=1', /LEVEL_UP_FOCUS = SHARDS_PARAMS\.get\('levelFlow'\) === '1'/.test(html));
@@ -112,6 +112,28 @@ ok('feat omissions highlight the feat ability and granted-spell areas', /mark\('
 ok('spell details narrate target save and source DC', /vs ' \+ esc\(_ent\.cls\) \+ ' DC/.test(html));
 ok('feat spells block completion until their nested choice is resolved', /Choose the 1st-level Divination or Enchantment spell granted by Fey Touched/.test(html) && /FeatsUI\.incomplete/.test(html));
 ok('feat spell completion derives from the feat schema before detail hydration finishes', /var spellSpec = featSpellSpec\(f\)/.test(html) && /!e\.featSpells \|\| !e\.featSpells\[i\]/.test(html));
+ok('feat spell rendering owns its school labels inside FeatsUI', /var FEAT_SCHOOL = \{ A:'Abjuration'/.test(html) && /FEAT_SCHOOL\[sp\.school\]/.test(html));
+const featSpellSub = new Function(
+  '_featSpellData', 'slot', 'totalLevel', 'effectiveAbilities', '_race', 'levelEntryText', 'esc', 'FEAT_SCHOOL',
+  extractFunction(html, 'featSpellSub') + '; return featSpellSub;'
+)(
+  { L4:{ fixed:[], choices:[{ options:[{ name:'Charm Person', school:'E', savingThrow:['wisdom'], entries:['A humanoid makes a saving throw.'] }] }] } },
+  () => ({ kind:'feat', name:'Fey Touched', abils:{ cha:1 }, featSpells:{} }),
+  () => 5,
+  () => ({ cha:18 }),
+  null,
+  entries => entries.join(' '),
+  x => String(x),
+  { E:'Enchantment' },
+);
+const featSpellMarkup = featSpellSub('L4');
+ok('real feat spell renderer survives hydrated data and shows the chosen-ability DC', /WIS save · CHA DC 15 · Enchantment/.test(featSpellMarkup));
+const halfFeatSub = new Function('slot', 'ABBR', extractFunction(html, 'halfFeatSub') + '; return halfFeatSub;')(
+  () => ({ kind:'feat', name:'Fey Touched', abils:{ cha:1 }, featSpells:{} }),
+  { str:'STR', dex:'DEX', con:'CON', int:'INT', wis:'WIS', cha:'CHA' },
+);
+const halfFeatMarkup = halfFeatSub('L4', { ability:{ choose:{ from:['int','wis','cha'], amount:1 } } });
+ok('real half-feat renderer redraws the selected ability button', /class="ft-ab on" data-k="L4" data-half="cha"/.test(halfFeatMarkup));
 const levelGapText = new Function(extractFunction(html, 'levelGapText') + '; return levelGapText;')();
 ok('new Bard cantrip omission is narrated exactly', levelGapText('new Bard cantrip (1 missing)') === 'Choose one new Bard cantrip.');
 ok('new Bard spell omission is narrated exactly', levelGapText('new Bard spell known (1 missing)') === 'Choose one new Bard spell.');
