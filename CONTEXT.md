@@ -4,7 +4,8 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **August 18, 2026 (durable notable-item identity, staff adoption,
+Updated: **August 19, 2026 (the approved guarded focused Level Up staging flow;
+durable notable-item identity, staff adoption,
 atomic custody transfer, the field-proven full-sheet item-history bridge, the
 approved Gear/import presentation mock, and the current standalone Loot
 Workshop mock; production Forge Blueprint → Build → Combat,
@@ -635,6 +636,66 @@ Shadar-Kai/Eladrin/Sea Elf get two weapon-or-tool picks, AAG Astral Elf gets one
 skill plus one weapon-or-tool pick, and PHB Elf gets no temporary-proficiency
 prompt. Live long-rest wiring remains intentionally unported until M approves
 the mock.
+
+---
+
+## 🟢 Guarded focused Level Up staging — August 19
+
+The regular sheet **Level Up** action still opens the full Shard Reforger. A
+guarded candidate now offers the narrower player flow at
+`staging/level-up-liadan.html`, which redirects to
+`shards.html?mode=level-up&character=liadan&class=Bard&levelFlow=1&staging=lu6`.
+Without `levelFlow=1`, the Reforger remains unchanged and is the rollback path.
+
+The candidate is fixed to the useful real case M selected: Líadan advances
+from character level 4 to 5 by taking Bard 3 → 4 while Cleric remains 1. The
+rail is reduced to Class, Choices when owed, Ability or feat, Spells, and
+Review. Identity, classes, species, background, proficiencies, equipment, and
+personality are carried forward instead of becoming editable creation steps.
+The Class step shows only gains from the advancing level and requires the
+player to choose average Bard HP or roll the d8; earlier hit-point gains remain
+untouched.
+
+The Level Up spell and feat choices now use the real rules-data windows rather
+than illustrative cards. Bard level 4 requires its new cantrip and spell,
+preserves earlier selections, offers the normal one-spell replacement, and
+exposes Bardic Versatility as a separate optional cantrip replacement. Spell
+levels remain tabbed. Saving-throw rows show the current source-specific DC;
+multiclass Bard and Cleric profiles stay separate, while Fey Touched uses the
+ability selected for that feat.
+
+Fey Touched now includes its description, the INT/WIS/CHA increase, Misty Step,
+and the complete 1st-level Divination/Enchantment choice resolved across the
+official spell files. This is why **Gift of Alacrity** is present even though it
+is not in a base class-list index. Known Bard/Cleric spells remain selectable as
+a separate feat source and are labeled so the player can see overlap rather
+than accidentally losing the feat's independent free cast.
+
+Incomplete choices narrate exactly what is missing and block forward movement:
+HP method, ability/feat decisions, Fey Touched ability and spell, new Bard
+cantrip/spell, and any enabled-but-incomplete Bardic Versatility replacement.
+The affected panel is highlighted and focused at the top. Spell information now
+opens as a full-width row immediately beneath the spell that owns it across
+ordinary class spells, Fey Touched, automatically granted feat spells, racial
+spells, and subclass grants; filtering keeps the description paired with its
+row.
+
+M field-tested the staging interaction through these corrections and approved
+the presentation as a good stopping point. **Do not use Complete Level Up merely
+to test the UI:** the final Review button still reaches the existing real
+derive/write path and would update Líadan. The unresolved production boundary is
+not more visual work. It is an explicit audit/proof of the Review payload and
+character write, followed by a separate M decision on whether the focused route
+should replace the normal sheet Level Up entry while keeping Advanced Reforge
+available.
+
+Final local validation at checkpoint `6a427c1` was **205/205** across focused
+Level Up 56/56, Shards Level Up 12/12, multiclass slots 13/13, Shards Forge
+18/18, shared spell detail 45/45, and the standalone Líadan mock 61/61. The
+inline `shards.html` script parsed and `git diff --check` was clean. No SQL or
+schema change is involved. Exact files, commit sequence, field truth, and next
+gates live in
+`docs/handoffs/sheet/CONTEXT_Level-Up-update-2026-08-19.md`.
 
 ---
 
@@ -1295,6 +1356,9 @@ Supabase tables: `profiles`, `encounters`, `combatants`, `characters`, `journal_
 - **Soul Shards charactermancer** (`shards.html`, `soul-shards-*.js`) — full builder off the
   5etools 2014 JSON mirror; multiclass spellcasting, provenance-colored spell
   picker, existing-character Level Up, and pre-level mechanical Facet capture.
+  The approved focused Level Up candidate remains guarded by `?levelFlow=1`;
+  the unflagged sheet action still opens the regular Reforger until M separately
+  approves the route switch and live-write proof.
 - **Chronicle book + TipTap journal** (walled `journal/` Vite+React) — see the top section.
   `tokMention`/`pageLink` nodes, backlinks, `/` menu, image-by-URL. Gotcha: `nav.js` publishes
   `characterKey` (camel) vs DB `character_key` (snake) — grep `profile.character_key` when
