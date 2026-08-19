@@ -170,14 +170,56 @@
     return meta;
   }
 
+  // Every casting source keeps its own ability/DC/attack profile. The legacy top-level
+  // fields below remain for older sheet/Forge consumers; new surfaces bind a spell to
+  // `castingProfileId` so a Bard/Cleric (or feat/racial spell) never inherits whichever
+  // caster happened to be first in the class list.
+  function castingProfiles(classes, totalLevel, abilities, spells, racialAbil) {
+    var pb = profBonus(totalLevel), out = [], seen = {};
+    function add(id, label, origin, source, ability, prepared) {
+      if (!ability || seen[id]) return;
+      seen[id] = 1;
+      var mod = abilityMod(abilities[ability]);
+      out.push({ id:id, label:label, origin:origin, source:source, ability:ability,
+        saveDC:8 + pb + mod, attackBonus:pb + mod, prepared:!!prepared });
+    }
+    (classes || []).forEach(function(c) {
+      if (c.ability) add('class:' + c.name, c.name, 'class', c.name, c.ability, c.prepared);
+    });
+    if (racialAbil) add('race:innate', 'Species', 'race', 'Species', racialAbil, false);
+    (spells || []).forEach(function(sp) {
+      if (sp.origin !== 'feat' || !sp.ability) return;
+      var src = sp.source || 'Feat';
+      add('feat:' + src + ':' + sp.ability, src, 'feat', src, sp.ability, false);
+    });
+    return out;
+  }
+
+  function profileForSpell(sp, profiles) {
+    var candidates = (profiles || []).filter(function(p) { return !sp.ability || p.ability === sp.ability; });
+    var exact = candidates.filter(function(p) { return p.source === sp.source || p.label === sp.source; })[0];
+    if (exact) return exact.id;
+    if (sp.origin === 'race') {
+      var race = candidates.filter(function(p) { return p.origin === 'race'; })[0];
+      if (race) return race.id;
+    }
+    if (sp.origin === 'feat') {
+      var feat = candidates.filter(function(p) { return p.origin === 'feat'; })[0];
+      if (feat) return feat.id;
+    }
+    return candidates.length === 1 ? candidates[0].id : null;
+  }
+
   // ── spell groups (provenance bucketing of the picker's flat list) ───────────
   var LEVEL_ORDER = ['cantrip', 1, 2, 3, 4, 5, 6, 7, 8, 9];
-  function bucketSpells(spells) {
+  function bucketSpells(spells, profiles) {
     var byLevel = {};
     (spells || []).forEach(function (sp) {
       var k = sp.level == null ? 'cantrip' : sp.level;
       (byLevel[k] || (byLevel[k] = [])).push({
         name: sp.name, origin: sp.origin || 'class', source: sp.source, time: sp.time, ability: sp.ability || null,
+        savingThrow: sp.savingThrow || null, spellAttack: sp.spellAttack || null,
+        castingProfileId: sp.castingProfileId || profileForSpell(sp, profiles),
         level: (k === 'cantrip' ? 0 : k)   // the cast handler reads this; without it leveled spells logged as cantrip
       });
     });
@@ -203,7 +245,8 @@
     var racialAbil = null;
     (input.spells || []).some(function (sp) { if (sp.origin === 'race' && sp.ability) { racialAbil = sp.ability; return true; } return false; });
     var meta = castMeta(classes, input.totalLevel, input.abilities || {}, racialAbil);
-    var groups = bucketSpells(input.spells);
+    var profiles = castingProfiles(classes, input.totalLevel, input.abilities || {}, input.spells || [], racialAbil);
+    var groups = bucketSpells(input.spells, profiles);
     var detail = input.detail || null;
     if (!detail) {
       (input.spells || []).some(function (sp) { if (sp.detail) { detail = sp.detail; return true; } return false; });
@@ -213,6 +256,7 @@
       ability: meta.ability,
       saveDC: meta.saveDC,
       attackBonus: meta.attackBonus,
+      profiles: profiles,
       pools: mergeSlotPools(classes).concat(input.extraPools || []),
       featNote: featNote(groups),
       groups: groups,
@@ -239,7 +283,7 @@
   var API = {
     deriveSpellcasting, deriveClasses,
     // exposed for tests / P7:
-    mergeSlotPools, castMeta, bucketSpells, pactMagic, casterContribution, profBonus, MULTICLASS_SLOTS
+    mergeSlotPools, castMeta, castingProfiles, profileForSpell, bucketSpells, pactMagic, casterContribution, profBonus, MULTICLASS_SLOTS
   };
   if (typeof window !== 'undefined') window.SoulShardsSpellcasting = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;

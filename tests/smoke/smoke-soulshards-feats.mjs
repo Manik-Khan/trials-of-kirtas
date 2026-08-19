@@ -47,6 +47,13 @@ const ok = (n, c) => { c ? pass++ : fail++; console.log((c ? '  ok   ' : '  FAIL
   const listCaster = Data.featsForChar(feats, Object.assign({}, ctx, { caster: true }));
   ok('  …War Caster flips eligible for caster', listCaster.find(f => f.name === 'War Caster').eligible === true);
 
+  // ── nested feat-spell choice (Fey Touched) ──
+  const fey = listCaster.find(f => f.name === 'Fey Touched');
+  ok('Fey Touched keeps its additional-spell schema', !!(fey && fey.additionalSpells));
+  const feyChoices = await Data.loadSpellsByFilter('level=1|school=E;D', { detail: true });
+  ok('Fey Touched filter resolves real 1st-level enchantment/divination spells', feyChoices.length > 5 && feyChoices.every(s => s.level === 1 && ['E','D'].includes(s.school)));
+  ok('  …choice spells carry descriptions + saving-throw metadata', feyChoices.some(s => s.entries && s.entries.length) && feyChoices.every(s => 'savingThrow' in s));
+
   // ── derive folds feats under a feat: stamp (→ purple) ──
   const fighter = await Data.loadClass('Fighter');
   const res = Derive.deriveStructural({

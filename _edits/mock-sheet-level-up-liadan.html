@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>ToK · Líadan Level Up Mock</title>
+  <style>
+    :root{
+      --ground:#182826;--deep:#091210;--panel:#12211e;--panel2:#172a26;
+      --cream:#ece2cd;--hi:#fff8e9;--dim:#b9b09a;--faint:#8d8675;
+      --gold:#c79a4a;--gold2:#e7c279;--teal:#55c4c0;--purple:#ab92dd;
+      --red:#e0584a;--frame:rgba(199,154,74,.36);--hair:rgba(236,226,205,.14)
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--ground);color:var(--cream)}
+    body{font-family:Georgia,"Times New Roman",serif;background:radial-gradient(circle at 78% 8%,rgba(85,196,192,.13),transparent 30%),radial-gradient(circle at 12% 78%,rgba(199,154,74,.08),transparent 34%),linear-gradient(155deg,#1b302c,#0b1513 72%)}
+    button,select{font:inherit}
+    button{cursor:pointer}
+    button:focus-visible,select:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
+    .nav{height:52px;display:flex;align-items:center;padding:0 22px;border-bottom:1px solid var(--frame);background:rgba(9,18,16,.96)}
+    .brand{color:var(--gold2);font-size:19px;letter-spacing:.18em}
+    .nav-note{margin-left:auto;color:var(--faint);font:700 9px Arial,sans-serif;letter-spacing:.15em;text-transform:uppercase}
+    .shell{width:min(1120px,calc(100% - 32px));margin:30px auto 56px;border:1px solid var(--frame);background:rgba(9,18,16,.78);box-shadow:0 34px 90px -44px #000;position:relative}
+    .shell::before{content:"";position:absolute;inset:7px;border:1px solid rgba(199,154,74,.08);pointer-events:none}
+    .mast{display:flex;align-items:center;gap:22px;padding:28px 30px 24px;border-bottom:1px solid var(--hair)}
+    .portrait{width:82px;height:82px;flex:none;border:2px solid var(--gold);border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 40% 35%,#46675d,#142622 66%);box-shadow:0 0 0 7px rgba(199,154,74,.07);color:var(--gold2);font-size:32px}
+    .identity{min-width:0;flex:1}
+    .kicker{color:var(--gold);font:700 9px Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase}
+    h1{margin:5px 0 4px;color:var(--hi);font-size:clamp(34px,5vw,58px);line-height:1}
+    .subline{display:flex;flex-wrap:wrap;gap:7px 11px;color:var(--dim);font-size:14px}
+    .subline b{color:var(--cream)}
+    .level-mark{min-width:154px;padding:13px 15px;border:1px solid var(--frame);background:rgba(231,194,121,.06);text-align:center}
+    .level-mark span{display:block;color:var(--gold);font:700 8px Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase}
+    .level-mark b{display:block;margin-top:7px;color:var(--hi);font-size:21px;font-weight:400}
+    .guard{margin:18px 30px 0;padding:11px 13px;border:1px solid rgba(85,196,192,.28);background:rgba(85,196,192,.055);color:var(--dim);font-size:13px;line-height:1.45}
+    .guard b{color:var(--teal)}
+    .progress{display:grid;grid-template-columns:repeat(3,1fr);margin:18px 30px 0;border:1px solid var(--hair)}
+    .progress button{min-height:58px;padding:9px 12px;border:0;border-right:1px solid var(--hair);background:transparent;color:var(--faint);text-align:left}
+    .progress button:last-child{border-right:0}
+    .progress button.current{background:rgba(231,194,121,.08);color:var(--gold2)}
+    .progress button.complete{color:var(--teal)}
+    .progress b{display:block;font:700 9px Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase}
+    .progress small{display:block;margin-top:4px;color:inherit;font-size:11px}
+    .workspace{display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px;padding:26px 30px 32px}
+    .locked{align-self:start;padding:16px;border:1px solid var(--hair);background:rgba(18,34,30,.48)}
+    .locked h2,.stage h2{margin:0;color:var(--hi);font-weight:400}
+    .locked h2{font-size:18px}
+    .locked-copy{margin:6px 0 14px;color:var(--faint);font-size:12px;line-height:1.45}
+    .fact{padding:10px 0;border-top:1px solid var(--hair)}
+    .fact span{display:block;color:var(--gold);font:700 8px Arial,sans-serif;letter-spacing:.13em;text-transform:uppercase}
+    .fact b{display:block;margin-top:4px;color:var(--cream);font-size:13px;font-weight:400;line-height:1.35}
+    .advanced{width:100%;min-height:46px;margin-top:14px;border:1px solid var(--hair);background:transparent;color:var(--dim);font:700 8px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase}
+    .stage{min-width:0}
+    .stage-head{margin-bottom:18px}
+    .stage-head h2{font-size:30px}
+    .stage-head p{max-width:66ch;margin:6px 0 0;color:var(--dim);font-size:14px;line-height:1.5}
+    .eyebrow{color:var(--gold);font:700 8px Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase}
+    .panel{display:none}
+    .panel.current{display:block}
+    .gain-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .gain{min-height:142px;padding:15px;border:1px solid var(--hair);background:rgba(18,34,30,.42)}
+    .gain .tag{color:var(--teal);font:700 8px Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase}
+    .gain strong{display:block;margin-top:7px;color:var(--hi);font-size:18px;font-weight:400;line-height:1.25}
+    .gain p{margin:7px 0 0;color:var(--faint);font-size:12px;line-height:1.45}
+    .gain .change{color:var(--gold2)}
+    .notice{margin-top:12px;padding:12px 13px;border-left:3px solid var(--purple);background:rgba(171,146,221,.06);color:var(--dim);font-size:13px;line-height:1.45}
+    .notice b{color:var(--purple)}
+    .actions{display:flex;justify-content:flex-end;gap:9px;margin-top:22px}
+    .actions button{min-height:48px;padding:0 16px;border:1px solid var(--hair);background:transparent;color:var(--dim);font:700 9px Arial,sans-serif;letter-spacing:.13em;text-transform:uppercase}
+    .actions .primary{min-width:190px;border-color:var(--gold);background:rgba(231,194,121,.1);color:var(--gold2)}
+    .actions .primary:disabled{cursor:not-allowed;border-color:var(--hair);background:transparent;color:#676359}
+    .choice-section{margin-bottom:14px;padding:16px;border:1px solid var(--hair);background:rgba(18,34,30,.42)}
+    .choice-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:13px}
+    .choice-num{width:27px;height:27px;flex:none;border:1px solid var(--gold);display:grid;place-items:center;color:var(--gold2);font:700 10px Arial,sans-serif;transform:rotate(45deg)}
+    .choice-num span{transform:rotate(-45deg)}
+    .choice-head h3{margin:0;color:var(--hi);font-size:18px;font-weight:400}
+    .choice-head p{margin:4px 0 0;color:var(--faint);font-size:12px;line-height:1.4}
+    .seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--hair)}
+    .seg button{min-height:46px;border:0;border-right:1px solid var(--hair);background:transparent;color:var(--dim);font:700 9px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase}
+    .seg button:last-child{border-right:0}
+    .seg button.on{background:rgba(231,194,121,.1);color:var(--gold2)}
+    .choice-body{margin-top:12px}
+    .distribution{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+    .distribution button{min-height:44px;padding:0 12px;border:1px solid var(--hair);background:transparent;color:var(--dim);font-size:12px}
+    .distribution button.on{border-color:var(--teal);color:var(--teal);background:rgba(85,196,192,.06)}
+    .ability-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}
+    .ability{min-height:74px;border:1px solid var(--hair);background:rgba(7,14,13,.4);color:var(--dim)}
+    .ability.on{border-color:var(--gold);background:rgba(231,194,121,.08);color:var(--gold2)}
+    .ability b,.ability small{display:block}
+    .ability b{font:700 9px Arial,sans-serif;letter-spacing:.12em}
+    .ability small{margin-top:6px;color:inherit;font-size:15px}
+    .select-row{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    label.field{display:block}
+    label.field span{display:block;margin-bottom:6px;color:var(--gold);font:700 8px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase}
+    select{width:100%;min-height:48px;padding:0 38px 0 11px;border:1px solid var(--hair);border-radius:0;background:#0d1b18;color:var(--cream)}
+    .existing{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+    .chip{padding:5px 7px;border:1px solid var(--hair);color:var(--faint);font:700 8px Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase}
+    .source-note{margin:9px 0 0;color:var(--faint);font-size:11px;line-height:1.4}
+    .hp-choice{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .hp-option{min-height:74px;padding:12px;border:1px solid var(--hair);background:rgba(7,14,13,.4);color:var(--dim);text-align:left}
+    .hp-option.on{border-color:var(--gold);background:rgba(231,194,121,.08);color:var(--gold2)}
+    .hp-option b,.hp-option small{display:block}.hp-option b{color:var(--hi);font-size:15px;font-weight:400}.hp-option small{margin-top:5px;color:inherit;font-size:11px;line-height:1.4}
+    .roll-result{display:flex;align-items:center;gap:9px;margin-top:9px;padding:10px 11px;border:1px solid var(--hair);color:var(--dim);font-size:12px}
+    .roll-result[hidden]{display:none}.roll-result b{color:var(--teal);font-size:17px;font-weight:400}.roll-result button{min-height:44px;margin-left:auto;padding:0 11px;border:1px solid var(--hair);background:transparent;color:var(--dim);font:700 8px Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase}
+    .option-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .option-card{border:1px solid var(--hair);background:rgba(7,14,13,.35)}
+    .option-card.selected{border-color:var(--gold);background:rgba(231,194,121,.06)}
+    .option-pick{width:100%;min-height:64px;padding:11px 12px;border:0;background:transparent;color:var(--cream);text-align:left}
+    .option-pick b{display:block;color:var(--hi);font-size:14px;font-weight:400}.option-pick small{display:block;margin-top:4px;color:var(--faint);font-size:11px;line-height:1.35}.option-card.selected .option-pick small{color:var(--gold2)}
+    .option-card details{border-top:1px solid var(--hair)}
+    .option-card summary{min-height:44px;padding:12px;color:var(--teal);font:700 8px Arial,sans-serif;letter-spacing:.11em;text-transform:uppercase;cursor:pointer}
+    .option-card details p{margin:0;padding:0 12px 13px;color:var(--dim);font-size:12px;line-height:1.48}
+    .dependent{margin-top:10px;padding:12px;border:1px solid rgba(171,146,221,.3);background:rgba(171,146,221,.045)}
+    .dependent[hidden]{display:none}.dependent h4{margin:0 0 9px;color:var(--purple);font-size:14px;font-weight:400}.dependent .select-row{margin-top:8px}
+    .selection-detail{margin-top:9px;padding:11px 12px;border-left:3px solid var(--teal);background:rgba(85,196,192,.045);color:var(--dim);font-size:12px;line-height:1.45}
+    .selection-detail[hidden]{display:none}.selection-detail b{display:block;margin-bottom:4px;color:var(--hi);font-size:14px;font-weight:400}.selection-detail span{display:block;margin-bottom:5px;color:var(--gold);font:700 8px Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase}
+    .spell-level-tabs{display:flex;gap:7px;margin:10px 0}
+    .spell-level-tab{min-width:112px;min-height:44px;padding:0 13px;border:1px solid var(--hair);background:transparent;color:var(--dim);font:700 9px Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase}
+    .spell-level-tab.on{border-color:var(--gold);background:rgba(231,194,121,.08);color:var(--gold2)}
+    .spell-level-tab.has-pick::after{content:' · selected';color:var(--teal);font-size:7px}
+    .dc-context{display:flex;align-items:stretch;justify-content:space-between;gap:12px;padding:12px;border:1px solid rgba(85,196,192,.28);background:rgba(85,196,192,.04)}
+    .dc-copy{min-width:0}.dc-copy>span{display:block;color:var(--teal);font:700 8px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase}.dc-copy>b{display:block;margin-top:5px;color:var(--hi);font-size:15px;font-weight:400}.dc-copy>small{display:block;margin-top:4px;color:var(--faint);font-size:11px;line-height:1.4}
+    .dc-lens{display:flex;flex:none;align-self:center;border:1px solid var(--hair)}
+    .dc-lens button{min-height:44px;padding:0 12px;border:0;border-right:1px solid var(--hair);background:transparent;color:var(--dim);font:700 8px Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase}.dc-lens button:last-child{border-right:0}.dc-lens button.on{background:rgba(85,196,192,.08);color:var(--teal)}
+    .save-preview{display:block;margin-top:7px;padding-top:7px;border-top:1px solid var(--hair);color:var(--teal);font:700 9px Arial,sans-serif;letter-spacing:.04em}.option-card.selected .save-preview{color:var(--gold2)}
+    .slot-only-note{margin:9px 0 0;color:var(--faint);font-size:11px;line-height:1.4}.slot-only-note b{color:var(--purple);font-weight:400}
+    details.optional{margin-top:14px;border:1px solid rgba(171,146,221,.28);background:rgba(171,146,221,.035)}
+    details.optional summary{min-height:48px;padding:14px;color:var(--purple);font:700 9px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
+    .optional-body{padding:0 14px 14px}
+    .optional-row{padding:12px 0;border-top:1px solid var(--hair)}
+    .toggle{display:flex;gap:9px;align-items:flex-start;color:var(--cream);font-size:13px;line-height:1.4}
+    .toggle input{width:18px;height:18px;flex:none;accent-color:var(--gold)}
+    .optional-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
+    .optional-controls[hidden]{display:none}
+    .status{min-height:42px;margin-top:12px;padding:11px 12px;border:1px solid var(--hair);color:var(--faint);font-size:12px;line-height:1.45}
+    .status.ready{border-color:rgba(85,196,192,.32);color:var(--teal)}
+    .review-list{display:grid;gap:9px}
+    .review-card{padding:14px;border:1px solid var(--hair);background:rgba(18,34,30,.42)}
+    .review-card span{color:var(--gold);font:700 8px Arial,sans-serif;letter-spacing:.13em;text-transform:uppercase}
+    .review-card b{display:block;margin-top:6px;color:var(--hi);font-size:16px;font-weight:400}
+    .review-card p{margin:5px 0 0;color:var(--faint);font-size:12px;line-height:1.45}
+    .complete{display:none;padding:28px;border:1px solid rgba(85,196,192,.34);background:rgba(85,196,192,.05);text-align:center}
+    .complete.show{display:block}
+    .complete strong{display:block;color:var(--teal);font-size:24px;font-weight:400}
+    .complete p{max-width:48ch;margin:9px auto 0;color:var(--dim);line-height:1.5}
+    .toast{position:fixed;z-index:20;left:50%;bottom:18px;padding:10px 14px;border:1px solid rgba(85,196,192,.45);background:#0b1714;color:var(--teal);font:700 9px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;opacity:0;transform:translate(-50%,8px);transition:.2s;pointer-events:none}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    @media(max-width:760px){
+      .nav{padding:0 14px}.nav-note{display:none}.shell{width:100%;margin:0;border-left:0;border-right:0}.mast{align-items:flex-start;padding:20px 16px;gap:14px}.portrait{width:62px;height:62px;font-size:25px}.level-mark{display:none}.guard,.progress{margin-left:16px;margin-right:16px}.progress button{min-height:64px;padding:8px}.progress small{font-size:9px}.workspace{grid-template-columns:1fr;padding:20px 16px 28px}.locked{order:2}.stage{order:1}.gain-grid,.select-row,.optional-controls,.option-grid,.hp-choice{grid-template-columns:1fr}.ability-grid{grid-template-columns:repeat(3,1fr)}.dc-context{display:block}.dc-lens{margin-top:10px}.dc-lens button{flex:1}.spell-level-tabs{display:grid;grid-template-columns:1fr 1fr}.spell-level-tab{min-width:0}.actions{position:sticky;bottom:0;margin-left:-16px;margin-right:-16px;padding:10px 16px;background:rgba(9,18,16,.96);border-top:1px solid var(--hair)}.actions button{flex:1}.actions .primary{min-width:0}
+    }
+    @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <nav class="nav"><div class="brand">KIRTAS</div><div class="nav-note">Standalone player Level Up mock · no character writes</div></nav>
+  <main class="shell">
+    <header class="mast">
+      <div class="portrait" aria-hidden="true">L</div>
+      <div class="identity">
+        <div class="kicker">Soul Shard · Player Level Up</div>
+        <h1>Líadan Luchóg</h1>
+        <div class="subline"><span><b>Mouseling</b></span><span>✦</span><span><b>Bard 3</b> · College of Creation</span><span>✦</span><span><b>Cleric 1</b> · Life Domain</span></div>
+      </div>
+      <div class="level-mark"><span>Advancing</span><b>Level 4 → 5</b></div>
+    </header>
+
+    <div class="guard"><b>This is a Level Up, not a Reforge.</b> Líadan’s existing character stays locked. This flow asks only for the decisions earned by taking Bard from 3 to 4.</div>
+
+    <nav class="progress" aria-label="Level Up progress">
+      <button class="current" type="button" data-step-button="1"><b>1 · New gains</b><small>See what changes</small></button>
+      <button type="button" data-step-button="2"><b>2 · Your choices</b><small>Only four required</small></button>
+      <button type="button" data-step-button="3"><b>3 · Review</b><small>Confirm the new facet</small></button>
+    </nav>
+
+    <div class="workspace">
+      <aside class="locked" aria-label="Locked character facts">
+        <h2>Already decided</h2>
+        <p class="locked-copy">These facts are carried forward. Level Up does not offer controls to change them.</p>
+        <div class="fact"><span>Species</span><b>Mouseling</b></div>
+        <div class="fact"><span>Classes</span><b>Bard 3 → 4<br>Cleric 1 unchanged</b></div>
+        <div class="fact"><span>Subclasses</span><b>College of Creation<br>Life Domain</b></div>
+        <div class="fact"><span>Background</span><b>Entertainer (Singer)</b></div>
+        <div class="fact"><span>Carried forward</span><b>Equipment, proficiencies, personality, biography, and existing spells</b></div>
+        <button class="advanced" type="button" id="advanced-reforge">Open full Reforger · advanced</button>
+      </aside>
+
+      <section class="stage">
+        <div class="panel current" data-step-panel="1">
+          <header class="stage-head"><div class="eyebrow">Automatic changes</div><h2>Here is what Level 5 gives Líadan</h2><p>No decisions are hidden in this summary. Automatic gains will be applied when the level is recorded.</p></header>
+          <div class="gain-grid">
+            <article class="gain"><div class="tag">Character level</div><strong><span class="change">Proficiency +2 → +3</span></strong><p>Proficient saves and skills, Expertise, Jack of All Trades, spell attacks, and save DCs recalculate from the new bonus.</p></article>
+            <article class="gain"><div class="tag">Hit points · player choice</div><strong><span class="change">Gain one Bard d8</span></strong><p>Choose the fixed value of 5 or roll 1d8, then add Líadan’s Constitution modifier of 2. The choice appears on the next step.</p></article>
+            <article class="gain"><div class="tag">Multiclass spell slots</div><strong><span class="change">Two 3rd-level slots</span></strong><p>Bard 4 + Cleric 1 makes a 5th-level multiclass spellcaster. These slots can upcast known or prepared spells; they do not grant 3rd-level Bard or Cleric spells yet.</p></article>
+            <article class="gain"><div class="tag">Bard 4</div><strong>ASI or feat · Bardic Versatility</strong><p>The ASI or feat is required. Bardic Versatility offers narrow optional replacements without reopening the whole character.</p></article>
+          </div>
+          <div class="notice"><b>Spell growth:</b> Líadan’s Bard allowance becomes 3 cantrips and 7 known spells. Her current 2 Bard cantrips and 6 known Bard spells remain selected, so she chooses only one new cantrip and one new spell.</div>
+          <div class="actions"><button class="primary" type="button" data-next="2">Make Líadan’s choices</button></div>
+        </div>
+
+        <div class="panel" data-step-panel="2">
+          <header class="stage-head"><div class="eyebrow">Four required decisions</div><h2>Choose only what Bard 4 adds</h2><p>Existing choices remain intact. Each option explains what it does before you commit to it. Optional rules changes are separated below so they cannot look required.</p></header>
+
+          <section class="choice-section" id="hp-section">
+            <div class="choice-head"><div class="choice-num"><span>1</span></div><div><h3>Choose the new hit points</h3><p>Bard uses a d8 Hit Die. Add Constitution +2 after choosing the fixed value or rolling.</p></div></div>
+            <div class="hp-choice"><button class="hp-option" type="button" data-hp-mode="average"><b>Take the average</b><small>5 + CON 2 = 7 HP · maximum HP becomes 38</small></button><button class="hp-option" type="button" data-hp-mode="roll"><b>Roll 1d8</b><small>Roll the Bard Hit Die, then add CON 2</small></button></div>
+            <div class="roll-result" id="roll-result" hidden><span>Result</span><b id="roll-result-text"></b><button type="button" id="reroll-hp">Reroll d8</button></div>
+          </section>
+
+          <section class="choice-section" id="asi-section">
+            <div class="choice-head"><div class="choice-num"><span>2</span></div><div><h3>Ability Score Improvement or feat</h3><p>Bard 4 grants one improvement. Choose one path, then read the result before continuing.</p></div></div>
+            <div class="seg"><button type="button" data-asi-path="scores">Ability scores</button><button type="button" data-asi-path="feat">Feat</button></div>
+            <div class="choice-body" id="score-body" hidden>
+              <div class="distribution"><button type="button" class="on" data-distribution="plus2">+2 to one score</button><button type="button" data-distribution="split">+1 to two scores</button></div>
+              <div class="ability-grid" id="ability-grid"></div>
+            </div>
+            <div class="choice-body" id="feat-body" hidden>
+              <div class="option-grid" id="feat-options"></div>
+              <div class="dependent" id="fey-touched-choices" hidden><h4>Fey Touched adds two more decisions</h4><div class="select-row"><label class="field"><span>Increase by 1</span><select id="fey-ability"><option value="">Choose INT, WIS, or CHA…</option><option value="int">Intelligence 12 → 13</option><option value="wis">Wisdom 13 → 14</option><option value="cha">Charisma 15 → 16</option></select></label><label class="field"><span>1st-level divination or enchantment spell</span><select id="fey-spell"><option value="">Choose the Fey Touched spell…</option><option>Bless</option><option>Command</option><option>Dissonant Whispers</option><option>Gift of Alacrity</option><option>Hex</option><option>Hunter's Mark</option><option>Identify</option><option>Sleep</option><option>Tasha's Hideous Laughter</option></select></label></div><div class="selection-detail" id="fey-spell-detail" hidden></div></div>
+              <p class="source-note">This is an illustrative mock shortlist. Production would load the complete campaign-approved feat library and enforce prerequisites.</p>
+            </div>
+          </section>
+
+          <section class="choice-section">
+            <div class="choice-head"><div class="choice-num"><span>3</span></div><div><h3>Choose one new Bard cantrip</h3><p>Allowance 2 → 3. Prestidigitation and Vicious Mockery stay selected. Open any option for its casting details.</p></div></div>
+            <div class="option-grid" id="cantrip-options"></div>
+            <div class="existing"><span class="chip">Kept · Prestidigitation</span><span class="chip">Kept · Vicious Mockery</span></div>
+          </section>
+
+          <section class="choice-section">
+            <div class="choice-head"><div class="choice-num"><span>4</span></div><div><h3>Choose one new Bard spell</h3><p>Known spells 6 → 7. Bard 4 may learn a Bard spell of 1st or 2nd level. Open any option for the rule that will reach the sheet.</p></div></div>
+            <div class="dc-context"><div class="dc-copy"><span>Spell save preview</span><b id="dc-readout"></b><small id="dc-note"></small></div><div class="dc-lens" aria-label="Compare Líadan’s spellcasting DCs"><button class="on" type="button" data-dc-lens="bard">Bard · CHA</button><button type="button" data-dc-lens="cleric">Cleric · WIS</button></div></div>
+            <div class="spell-level-tabs" aria-label="Bard spell level"><button class="spell-level-tab on" type="button" data-spell-level="1">1st level</button><button class="spell-level-tab" type="button" data-spell-level="2">2nd level</button></div>
+            <div class="option-grid" id="spell-options"></div>
+            <p class="slot-only-note"><b>Why there is no 3rd-level spell tab:</b> Líadan gains 3rd-level multiclass slots for upcasting, but Bard 4 and Cleric 1 do not yet grant 3rd-level spells.</p>
+            <div class="existing"><span class="chip">Charm Person</span><span class="chip">Cure Wounds</span><span class="chip">Feather Fall</span><span class="chip">Healing Word</span><span class="chip">Silvery Barbs</span><span class="chip">Aid</span></div>
+          </section>
+
+          <details class="optional">
+            <summary>Optional changes allowed at this level</summary>
+            <div class="optional-body">
+              <div class="optional-row"><label class="toggle"><input type="checkbox" id="replace-spell-toggle"><span><b>Replace one known Bard spell</b><br>Leveling Bard permits one known Bard spell to be exchanged for another legal Bard spell.</span></label><div class="optional-controls" id="replace-spell-controls" hidden><select id="replace-spell-from" aria-label="Known Bard spell to replace"><option value="">Replace…</option><option>Charm Person</option><option>Cure Wounds</option><option>Feather Fall</option><option>Healing Word</option><option>Silvery Barbs</option><option>Aid</option></select><select id="replace-spell-to" aria-label="Replacement Bard spell"><option value="">With…</option><option>Dissonant Whispers</option><option>Faerie Fire</option><option>Heroism</option><option>Invisibility</option><option>Lesser Restoration</option><option>Shatter</option><option>Suggestion</option></select></div><div class="selection-detail" id="replace-spell-detail" hidden></div></div>
+              <div class="optional-row"><label class="toggle"><input type="checkbox" id="swap-cantrip-toggle"><span><b>Bardic Versatility · replace one Bard cantrip</b><br>Swap Prestidigitation or Vicious Mockery for another Bard cantrip.</span></label><div class="optional-controls" id="swap-cantrip-controls" hidden><select id="swap-cantrip-from" aria-label="Bard cantrip to replace"><option value="">Replace…</option><option>Prestidigitation</option><option>Vicious Mockery</option></select><select id="swap-cantrip-to" aria-label="Replacement Bard cantrip"><option value="">With…</option><option>Light</option><option>Mage Hand</option><option>Mending</option><option>Message</option><option>Minor Illusion</option></select></div><div class="selection-detail" id="swap-cantrip-detail" hidden></div></div>
+              <div class="optional-row"><label class="toggle"><input type="checkbox" id="move-expertise-toggle"><span><b>Bardic Versatility · move one Expertise choice</b><br>Move Expertise from Medicine or Performance to another proficient skill.</span></label><div class="optional-controls" id="move-expertise-controls" hidden><select id="move-expertise-from" aria-label="Expertise skill to replace"><option value="">Move Expertise from…</option><option>Medicine</option><option>Performance</option></select><select id="move-expertise-to" aria-label="New Expertise skill"><option value="">Move Expertise to…</option><option>Acrobatics</option><option>Perception</option></select></div></div>
+            </div>
+          </details>
+
+          <div class="status" id="choice-status" role="status">Choose HP, an ASI or feat, one new Bard cantrip, and one new Bard spell.</div>
+          <div class="actions"><button type="button" data-next="1">Back</button><button class="primary" id="review-button" type="button" data-next="3" disabled>Review Level Up</button></div>
+        </div>
+
+        <div class="panel" data-step-panel="3">
+          <header class="stage-head"><div class="eyebrow">New Facet preview</div><h2>Líadan will become Level 5</h2><p>Review the automatic gains and only the choices made in this flow.</p></header>
+          <div class="review-list" id="review-list"></div>
+          <div class="notice"><b>Preserved:</b> the existing Level 4 form remains in Facets of the Shard. Species, background, classes, subclasses, equipment, personality, and all unchanged choices carry forward.</div>
+          <div class="actions"><button type="button" data-next="2">Back to choices</button><button class="primary" type="button" id="finish-mock">Finish mock Level Up</button></div>
+        </div>
+
+        <div class="complete" id="complete-panel"><strong>Level Up preview complete</strong><p>This standalone mock changed no character data. Líadan remains Bard 3 / Cleric 1 at Level 4 in the campaign.</p></div>
+      </section>
+    </div>
+  </main>
+  <div class="toast" id="toast" role="status">Mock only · no character data changed</div>
+
+  <script>
+    const ABILITIES={str:6,dex:12,con:14,int:12,wis:13,cha:15};
+    const FEATS={
+      'Actor':{meta:'+1 Charisma',detail:'Increase Charisma by 1. Gain advantage when pretending to be another person, and imitate speech or sounds after listening to them.'},
+      'Fey Touched':{meta:'+1 INT, WIS, or CHA · adds spells',detail:'Increase Intelligence, Wisdom, or Charisma by 1. Learn Misty Step and one 1st-level divination or enchantment spell. Each can be cast once per long rest without a spell slot, and with spell slots after that.'},
+      'Inspiring Leader':{meta:'Charisma 13 prerequisite',detail:'After a 10-minute speech, up to six friendly creatures gain temporary hit points equal to Líadan’s character level plus her Charisma modifier.'},
+      'War Caster':{meta:'Spellcasting prerequisite',detail:'Gain advantage on Constitution saves to maintain concentration, cast somatic components with occupied hands, and use a qualifying spell for an opportunity attack.'}
+    };
+    const CANTRIPS={
+      'Light':{meta:'Cantrip · 1 action · Touch · 1 hour',detail:'Make one touched object shed bright light for 20 feet and dim light for 20 more. Casting it again ends the earlier light.'},
+      'Mage Hand':{meta:'Cantrip · 1 action · 30 feet · 1 minute',detail:'Create a spectral hand that can manipulate an object, open an unlocked door or container, stow or retrieve an item, or pour out a vial.'},
+      'Mending':{meta:'Cantrip · 1 minute · Touch',detail:'Repair one break or tear no larger than one foot in any dimension. The spell restores the physical break but not lost magic.'},
+      'Message':{meta:'Cantrip · 1 action · 120 feet · 1 round',detail:'Whisper to one creature you point toward. The target hears the message and may whisper a reply that only you hear.'},
+      'Minor Illusion':{meta:'Cantrip · 1 action · 30 feet · 1 minute',detail:'Create a sound or a small image. Physical interaction reveals an image as an illusion; a creature can also investigate it.'}
+    };
+    const SPELLS={
+      'Dissonant Whispers':{level:1,save:'wis',meta:'1st level · 1 action · 60 feet',detail:'One creature takes psychic damage and must immediately use its reaction to move away on a failed save. A success halves the damage and prevents the movement.'},
+      'Faerie Fire':{level:1,save:'dex',meta:'1st level · 1 action · 60 feet · Concentration',detail:'Outline creatures and objects in a 20-foot cube. Affected creatures cannot benefit from invisibility, and attacks against them have advantage when the attacker can see them.'},
+      'Heroism':{level:1,meta:'1st level · 1 action · Touch · Concentration',detail:'One willing creature becomes immune to being frightened and gains temporary hit points at the start of each turn while the spell lasts.'},
+      'Invisibility':{level:2,meta:'2nd level · 1 action · Touch · Concentration',detail:'One touched creature and its carried gear become invisible until the spell ends, the target attacks, or the target casts a spell.'},
+      'Lesser Restoration':{level:2,meta:'2nd level · 1 action · Touch',detail:'End one disease or one condition affecting the target: blinded, deafened, paralyzed, or poisoned.'},
+      'Shatter':{level:2,save:'con',meta:'2nd level · 1 action · 60 feet',detail:'A loud burst deals thunder damage in a 10-foot-radius sphere. A successful save halves the damage; inorganic creatures have disadvantage on the save.'},
+      'Suggestion':{level:2,save:'wis',meta:'2nd level · 1 action · 30 feet · Concentration',detail:'Influence a creature that can hear and understand you to follow a reasonable course of activity on a failed Wisdom save.'}
+    };
+    const FEY_SPELLS={
+      'Bless':{meta:'1st-level enchantment · Concentration',detail:'Up to three creatures add 1d4 to attack rolls and saving throws while you maintain concentration.'},
+      'Command':{save:'wis',meta:'1st-level enchantment',detail:'Speak a one-word command. On a failed save, the target follows it on its next turn if the command is not directly harmful.'},
+      'Dissonant Whispers':SPELLS['Dissonant Whispers'],
+      'Gift of Alacrity':{meta:'1st-level divination · 8 hours',detail:'One touched creature adds 1d8 to its initiative rolls for the duration.'},
+      'Hex':{meta:'1st-level enchantment · Concentration',detail:'Curse one creature: your attacks deal extra necrotic damage to it, and it has disadvantage on checks using one chosen ability.'},
+      "Hunter's Mark":{meta:'1st-level divination · Concentration',detail:'Mark one creature. Your weapon attacks deal extra damage to it, and you gain an edge when tracking or finding it.'},
+      'Identify':{meta:'1st-level divination · 1 minute',detail:'Learn a touched magic item’s properties, how to use it, whether it requires attunement, and any spells affecting it.'},
+      'Sleep':{meta:'1st-level enchantment · 90 feet',detail:'Roll a pool of hit points and put nearby creatures to sleep, starting with the creature that has the lowest current hit points.'},
+      "Tasha's Hideous Laughter":{save:'wis',meta:'1st-level enchantment · Concentration',detail:'On a failed Wisdom save, one creature falls prone, becomes incapacitated, and laughs until it succeeds on a later save or the spell ends.'}
+    };
+    const state={step:1,hpMode:null,hpRoll:null,asiPath:null,distribution:'plus2',abilityPicks:[],feat:'',feyAbility:'',feySpell:'',cantrip:'',spell:'',spellLevel:1,dcLens:'bard',optional:{}};
+    const $=selector=>document.querySelector(selector);
+    const $$=selector=>[...document.querySelectorAll(selector)];
+    const esc=value=>String(value).replace(/[&<>\"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[char]));
+
+    function optionCard(name,data,kind,selected,casting){
+      const save=data.save&&casting?'<span class="save-preview">'+String(data.save).toUpperCase()+' save · '+esc(casting.label)+' DC '+casting.dc+'</span>':'';
+      return '<article class="option-card'+(selected===name?' selected':'')+'"><button class="option-pick" type="button" aria-pressed="'+(selected===name)+'" data-'+kind+'-option="'+esc(name)+'"><b>'+esc(name)+'</b><small>'+esc(data.meta)+'</small>'+save+'</button><details><summary>Read details</summary><p>'+esc(data.detail)+'</p></details></article>';
+    }
+
+    function renderCatalog(host,catalog,kind,selected,casting){
+      $(host).innerHTML=Object.entries(catalog).map(([name,data])=>optionCard(name,data,kind,selected,casting)).join('');
+    }
+
+    function renderHp(){
+      $$('[data-hp-mode]').forEach(button=>button.classList.toggle('on',button.dataset.hpMode===state.hpMode));
+      const result=$('#roll-result');
+      result.hidden=state.hpMode!=='roll'||!state.hpRoll;
+      if(!result.hidden) $('#roll-result-text').textContent=state.hpRoll+' + CON 2 = '+(state.hpRoll+2)+' HP · maximum HP 31 → '+(state.hpRoll+33);
+    }
+
+    function setHpMode(mode){
+      state.hpMode=mode;
+      if(mode==='average') state.hpRoll=null;
+      else if(!state.hpRoll) state.hpRoll=1+Math.floor(Math.random()*8);
+      renderHp();updateStatus();
+    }
+
+    function rollHp(){
+      state.hpMode='roll';state.hpRoll=1+Math.floor(Math.random()*8);
+      renderHp();updateStatus();
+    }
+
+    function hpSummary(){
+      if(state.hpMode==='average') return 'Hit points · average 5 + CON 2 = +7 · maximum HP 31 → 38';
+      if(state.hpMode==='roll'&&state.hpRoll) return 'Hit points · rolled '+state.hpRoll+' + CON 2 = +'+(state.hpRoll+2)+' · maximum HP 31 → '+(state.hpRoll+33);
+      return '';
+    }
+
+    function effectiveAbilities(){
+      const scores={...ABILITIES};
+      if(state.asiPath==='scores'){
+        state.abilityPicks.forEach(key=>{scores[key]+=(state.distribution==='plus2'?2:1)});
+      }else if(state.asiPath==='feat'){
+        if(state.feat==='Actor') scores.cha+=1;
+        if(state.feat==='Fey Touched'&&state.feyAbility) scores[state.feyAbility]+=1;
+      }
+      return scores;
+    }
+
+    function abilityMod(score){return Math.floor((score-10)/2)}
+    function signed(value){return value>=0?'+'+value:String(value)}
+
+    function castingProfile(kind){
+      const scores=effectiveAbilities(),ability=kind==='cleric'?'wis':'cha',score=scores[ability],mod=abilityMod(score);
+      return {key:kind,label:kind==='cleric'?'Cleric':'Bard',ability,score,mod,dc:8+3+mod,attack:3+mod};
+    }
+
+    function feyCastingProfile(){
+      if(!state.feyAbility) return null;
+      const scores=effectiveAbilities(),score=scores[state.feyAbility],mod=abilityMod(score);
+      return {label:'Fey Touched',ability:state.feyAbility,score,mod,dc:8+3+mod,attack:3+mod};
+    }
+
+    function renderSpellSystem(){
+      const comparison=castingProfile(state.dcLens),bard=castingProfile('bard');
+      $('#dc-readout').textContent=comparison.label+' · '+comparison.ability.toUpperCase()+' '+comparison.score+' ('+signed(comparison.mod)+') · PB +3 · Save DC '+comparison.dc+' · spell attack '+signed(comparison.attack);
+      $('#dc-note').textContent=state.dcLens==='bard'
+        ? 'This new spell is learned as a Bard. Saving-throw options below use this Bard DC.'
+        : 'Comparison only. A Bard spell still uses Bard Charisma unless the same spell is separately known or prepared through Cleric.';
+      $$('[data-dc-lens]').forEach(button=>{const on=button.dataset.dcLens===state.dcLens;button.classList.toggle('on',on);button.setAttribute('aria-pressed',on)});
+      $$('[data-spell-level]').forEach(button=>{
+        const level=Number(button.dataset.spellLevel);
+        button.classList.toggle('on',level===state.spellLevel);
+        button.setAttribute('aria-pressed',level===state.spellLevel);
+        button.classList.toggle('has-pick',Boolean(state.spell&&SPELLS[state.spell]&&SPELLS[state.spell].level===level));
+      });
+      const atLevel=Object.fromEntries(Object.entries(SPELLS).filter(([,data])=>data.level===state.spellLevel));
+      renderCatalog('#spell-options',atLevel,'spell',state.spell,bard);
+    }
+
+    function refreshFeySpellDetail(){
+      showSelectionDetail('#fey-spell-detail',$('#fey-spell').value,FEY_SPELLS,feyCastingProfile());
+    }
+
+    function renderCastingDependent(){
+      renderSpellSystem();
+      refreshFeySpellDetail();
+      showSelectionDetail('#replace-spell-detail',$('#replace-spell-to').value,SPELLS,castingProfile('bard'));
+    }
+
+    function spellSummary(){
+      if(!state.spell) return '';
+      const data=SPELLS[state.spell],bard=castingProfile('bard');
+      return 'New Bard spell · '+state.spell+(data.save?' · '+data.save.toUpperCase()+' save against Bard DC '+bard.dc:'');
+    }
+
+    function abilitySummary(){
+      if(state.asiPath==='feat'){
+        if(!state.feat) return '';
+        if(state.feat==='Fey Touched'){
+          if(!state.feyAbility||!state.feySpell) return '';
+          const from=ABILITIES[state.feyAbility];
+          return 'Feat · Fey Touched · '+state.feyAbility.toUpperCase()+' '+from+' → '+(from+1)+' · Misty Step + '+state.feySpell;
+        }
+        if(state.feat==='Actor') return 'Feat · Actor · CHA 15 → 16';
+        return 'Feat · '+state.feat;
+      }
+      if(state.asiPath!=='scores'||!state.abilityPicks.length) return '';
+      if(state.distribution==='plus2'){
+        const key=state.abilityPicks[0],from=ABILITIES[key];
+        return key.toUpperCase()+' '+from+' → '+(from+2);
+      }
+      if(state.abilityPicks.length<2) return '';
+      return state.abilityPicks.map(key=>key.toUpperCase()+' '+ABILITIES[key]+' → '+(ABILITIES[key]+1)).join(' · ');
+    }
+
+    function optionalComplete(toggle,from,to){
+      return !$(toggle).checked||($(from).value&&$(to).value);
+    }
+
+    function requiredComplete(){
+      return Boolean(hpSummary())&&Boolean(abilitySummary())&&Boolean(state.cantrip)&&Boolean(state.spell)
+        &&optionalComplete('#replace-spell-toggle','#replace-spell-from','#replace-spell-to')
+        &&optionalComplete('#swap-cantrip-toggle','#swap-cantrip-from','#swap-cantrip-to')
+        &&optionalComplete('#move-expertise-toggle','#move-expertise-from','#move-expertise-to');
+    }
+
+    function renderAbilities(){
+      $('#ability-grid').innerHTML=Object.entries(ABILITIES).map(([key,value])=>{
+        const on=state.abilityPicks.includes(key),gain=on?(state.distribution==='plus2'?2:1):0;
+        return '<button type="button" class="ability'+(on?' on':'')+'" data-ability="'+key+'"><b>'+key.toUpperCase()+'</b><small>'+value+(gain?' → '+(value+gain):'')+'</small></button>';
+      }).join('');
+    }
+
+    function chooseAbility(key){
+      if(state.distribution==='plus2') state.abilityPicks=[key];
+      else if(state.abilityPicks.includes(key)) state.abilityPicks=state.abilityPicks.filter(item=>item!==key);
+      else if(state.abilityPicks.length<2) state.abilityPicks.push(key);
+      else state.abilityPicks=[state.abilityPicks[1],key];
+      renderAbilities();renderCastingDependent();updateStatus();
+    }
+
+    function setStep(step){
+      if(step===3&&!requiredComplete()) return;
+      state.step=step;
+      $$('[data-step-panel]').forEach(panel=>panel.classList.toggle('current',Number(panel.dataset.stepPanel)===step));
+      $$('[data-step-button]').forEach(button=>{
+        const number=Number(button.dataset.stepButton);
+        button.classList.toggle('current',number===step);
+        button.classList.toggle('complete',number<step);
+      });
+      if(step===3) renderReview();
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+
+    function setAsiPath(path){
+      state.asiPath=path;state.abilityPicks=[];state.feat='';state.feyAbility='';state.feySpell='';
+      $$('[data-asi-path]').forEach(button=>button.classList.toggle('on',button.dataset.asiPath===path));
+      $('#score-body').hidden=path!=='scores';$('#feat-body').hidden=path!=='feat';
+      $('#fey-touched-choices').hidden=true;$('#fey-ability').value='';$('#fey-spell').value='';$('#fey-spell-detail').hidden=true;
+      renderAbilities();renderCatalog('#feat-options',FEATS,'feat',state.feat);renderCastingDependent();updateStatus();
+    }
+
+    function chooseFeat(name){
+      state.feat=name;
+      const fey=name==='Fey Touched';
+      $('#fey-touched-choices').hidden=!fey;
+      if(!fey){state.feyAbility='';state.feySpell='';$('#fey-ability').value='';$('#fey-spell').value='';$('#fey-spell-detail').hidden=true;}
+      renderCatalog('#feat-options',FEATS,'feat',state.feat);renderCastingDependent();updateStatus();
+    }
+
+    function chooseCatalog(kind,name){
+      state[kind]=name;
+      if(kind==='cantrip') renderCatalog('#cantrip-options',CANTRIPS,'cantrip',name);
+      else renderSpellSystem();
+      updateStatus();
+    }
+
+    function showSelectionDetail(host,name,catalog,casting){
+      const target=$(host),data=catalog[name];
+      target.hidden=!data;
+      const save=data&&data.save?(casting?' · '+String(data.save).toUpperCase()+' save · '+casting.label+' DC '+casting.dc:' · '+String(data.save).toUpperCase()+' save · choose the casting ability to calculate DC'):'';
+      target.innerHTML=data?'<span>'+esc(data.meta+save)+'</span><b>'+esc(name)+'</b>'+esc(data.detail):'';
+    }
+
+    function updateStatus(){
+      state.feyAbility=$('#fey-ability').value;state.feySpell=$('#fey-spell').value;
+      const missing=[];
+      if(!hpSummary()) missing.push('a hit-point method');
+      if(!state.asiPath||!state.feat&&state.asiPath==='feat'||state.asiPath==='scores'&&!abilitySummary()) missing.push('an ASI or feat');
+      else if(state.feat==='Fey Touched'){
+        if(!state.feyAbility) missing.push('Fey Touched’s ability increase');
+        if(!state.feySpell) missing.push('Fey Touched’s added spell');
+      }
+      if(!state.cantrip) missing.push('one new Bard cantrip');
+      if(!state.spell) missing.push('one new Bard spell');
+      if(!optionalComplete('#replace-spell-toggle','#replace-spell-from','#replace-spell-to')) missing.push('both spell-replacement fields');
+      if(!optionalComplete('#swap-cantrip-toggle','#swap-cantrip-from','#swap-cantrip-to')) missing.push('both cantrip-replacement fields');
+      if(!optionalComplete('#move-expertise-toggle','#move-expertise-from','#move-expertise-to')) missing.push('both Expertise fields');
+      const status=$('#choice-status'),ready=!missing.length;
+      status.textContent=ready?'All required decisions are ready. Review Líadan’s Level Up.':'Still needed: '+missing.join(', ')+'.';
+      status.classList.toggle('ready',ready);$('#review-button').disabled=!ready;
+    }
+
+    function optionalLines(){
+      const lines=[];
+      if($('#replace-spell-toggle').checked) lines.push('Replace '+$('#replace-spell-from').value+' with '+$('#replace-spell-to').value);
+      if($('#swap-cantrip-toggle').checked) lines.push('Replace '+$('#swap-cantrip-from').value+' with '+$('#swap-cantrip-to').value+' through Bardic Versatility');
+      if($('#move-expertise-toggle').checked) lines.push('Move Expertise from '+$('#move-expertise-from').value+' to '+$('#move-expertise-to').value);
+      return lines;
+    }
+
+    function reviewModel(){
+      return {
+        automatic:['Bard 3 → 4; Cleric 1 unchanged','Proficiency bonus +2 → +3','Gain two 3rd-level multiclass spell slots for upcasting'],
+        required:[hpSummary(),abilitySummary(),'New Bard cantrip · '+state.cantrip,spellSummary()],
+        optional:optionalLines()
+      };
+    }
+
+    function renderReview(){
+      const model=reviewModel();
+      $('#review-list').innerHTML='<article class="review-card"><span>Automatic gains</span><b>'+model.automatic.join(' · ')+'</b><p>Derived from Líadan’s current Bard 3 / Cleric 1 build.</p></article>'
+        +'<article class="review-card"><span>Required choices</span><b>'+model.required.join(' · ')+'</b><p>Only newly earned Bard 4 decisions are written.</p></article>'
+        +'<article class="review-card"><span>Optional replacements</span><b>'+(model.optional.length?model.optional.join(' · '):'None — carry every existing choice forward')+'</b></article>';
+    }
+
+    function toggleOptional(toggle,controls,detail){
+      $(controls).hidden=!$(toggle).checked;
+      if(!$(toggle).checked){$$(controls+' select').forEach(select=>select.value='');if(detail)$(detail).hidden=true;}
+      updateStatus();
+    }
+
+    $$('[data-next]').forEach(button=>button.addEventListener('click',()=>setStep(Number(button.dataset.next))));
+    $$('[data-step-button]').forEach(button=>button.addEventListener('click',()=>{const target=Number(button.dataset.stepButton);if(target<state.step||target===1||target===2||requiredComplete())setStep(target)}));
+    $$('[data-asi-path]').forEach(button=>button.addEventListener('click',()=>setAsiPath(button.dataset.asiPath)));
+    $$('[data-distribution]').forEach(button=>button.addEventListener('click',()=>{state.distribution=button.dataset.distribution;state.abilityPicks=[];$$('[data-distribution]').forEach(item=>item.classList.toggle('on',item===button));renderAbilities();renderCastingDependent();updateStatus()}));
+    $('#ability-grid').addEventListener('click',event=>{const button=event.target.closest('[data-ability]');if(button)chooseAbility(button.dataset.ability)});
+    $$('[data-hp-mode]').forEach(button=>button.addEventListener('click',()=>setHpMode(button.dataset.hpMode)));
+    $('#reroll-hp').addEventListener('click',rollHp);
+    $('#feat-options').addEventListener('click',event=>{const button=event.target.closest('[data-feat-option]');if(button)chooseFeat(button.dataset.featOption)});
+    $('#cantrip-options').addEventListener('click',event=>{const button=event.target.closest('[data-cantrip-option]');if(button)chooseCatalog('cantrip',button.dataset.cantripOption)});
+    $('#spell-options').addEventListener('click',event=>{const button=event.target.closest('[data-spell-option]');if(button)chooseCatalog('spell',button.dataset.spellOption)});
+    $$('[data-spell-level]').forEach(button=>button.addEventListener('click',()=>{state.spellLevel=Number(button.dataset.spellLevel);renderSpellSystem()}));
+    $$('[data-dc-lens]').forEach(button=>button.addEventListener('click',()=>{state.dcLens=button.dataset.dcLens;renderSpellSystem()}));
+    $('#fey-ability').addEventListener('change',()=>{state.feyAbility=$('#fey-ability').value;renderCastingDependent();updateStatus()});
+    $('#fey-spell').addEventListener('change',()=>{state.feySpell=$('#fey-spell').value;refreshFeySpellDetail();updateStatus()});
+    ['#replace-spell-from','#replace-spell-to','#swap-cantrip-from','#swap-cantrip-to','#move-expertise-from','#move-expertise-to'].forEach(selector=>$(selector).addEventListener('change',updateStatus));
+    $('#replace-spell-to').addEventListener('change',()=>showSelectionDetail('#replace-spell-detail',$('#replace-spell-to').value,SPELLS,castingProfile('bard')));
+    $('#swap-cantrip-to').addEventListener('change',()=>showSelectionDetail('#swap-cantrip-detail',$('#swap-cantrip-to').value,CANTRIPS));
+    $('#replace-spell-toggle').addEventListener('change',()=>toggleOptional('#replace-spell-toggle','#replace-spell-controls','#replace-spell-detail'));
+    $('#swap-cantrip-toggle').addEventListener('change',()=>toggleOptional('#swap-cantrip-toggle','#swap-cantrip-controls','#swap-cantrip-detail'));
+    $('#move-expertise-toggle').addEventListener('change',()=>toggleOptional('#move-expertise-toggle','#move-expertise-controls'));
+    $('#advanced-reforge').addEventListener('click',()=>{const toast=$('#toast');toast.textContent='Advanced Reforger remains a separate, intentional action';toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2200)});
+    $('#finish-mock').addEventListener('click',()=>{$$('[data-step-panel]').forEach(panel=>panel.classList.remove('current'));$('#complete-panel').classList.add('show');const toast=$('#toast');toast.textContent='Mock only · no character data changed';toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2200)});
+    renderAbilities();renderCatalog('#feat-options',FEATS,'feat',state.feat);renderCatalog('#cantrip-options',CANTRIPS,'cantrip',state.cantrip);renderCastingDependent();renderHp();updateStatus();
+    window.__liadanLevelUpMock={state,FEATS,CANTRIPS,SPELLS,FEY_SPELLS,effectiveAbilities,castingProfile,feyCastingProfile,hpSummary,abilitySummary,spellSummary,requiredComplete,reviewModel,setStep};
+  </script>
+</body>
+</html>

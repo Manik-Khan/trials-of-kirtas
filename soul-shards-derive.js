@@ -163,7 +163,7 @@
     // character's 1st level, so only it gets the maxed-die level-1 HP. Every added
     // class computes its 1st level as average/rolled (correct 2014 multiclass HP).
     var builds = classes.map(function (c, i) {
-      return engine.build({ classModel: c.model, level: c.level, abilities: abilities, subclassShortName: c.subclassShortName, hp: input.hp, firstClass: i === 0 });
+      return engine.build({ classModel: c.model, level: c.level, abilities: abilities, subclassShortName: c.subclassShortName, hp: input.hp, hpKey: c.model.name, firstClass: i === 0 });
     });
     var totalLevel = classes.reduce(function (n, c) { return n + (c.level || 0); }, 0);
     var pb = 2 + Math.floor((Math.max(1, totalLevel) - 1) / 4);
