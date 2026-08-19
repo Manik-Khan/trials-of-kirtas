@@ -313,6 +313,8 @@
   .ft-spell{display:block;text-align:left;padding:9px 11px;border:1px solid var(--rule-strong);background:var(--bg-card);color:var(--ink);cursor:pointer}
   .ft-spell.on{border-color:var(--blood);box-shadow:inset 3px 0 0 var(--blood)}
   .ft-spell b{font-family:var(--disp);font-size:15px}.ft-spell span{display:block;font-family:var(--ui);font-size:12px;color:var(--ink-faint);margin-top:2px}
+  .ft-status{padding:10px 13px;margin:0 0 14px;border:1px solid var(--rule-strong);border-left:3px solid var(--blood);background:var(--bg-sunk);font:13px var(--ui);color:var(--ink-soft);line-height:1.45}
+  .ft-status.done{border-left-color:#2f6f6b}.ft-status b{color:var(--blood);margin-right:8px}.ft-status.done b{color:#2f6f6b}
   /* ── Items step: equipment groups, A/B picker, gold ── */
   .it-mode{margin-bottom:14px}
   .it-grp{margin-bottom:14px}
@@ -414,6 +416,10 @@
   .fx-h{font-family:var(--ui); text-transform:uppercase; letter-spacing:.16em; font-size:12px; color:var(--blood); margin-bottom:4px}
   .fx-warn{font-family:var(--ui); font-size:13px; letter-spacing:.04em; color:var(--hp-warn); margin-bottom:12px}
   .fx-warn b{color:var(--hp-warn)}
+  .step-gate-notice{padding:13px 15px;margin:0 0 16px;border:1px solid rgba(151,31,31,.45);border-left:4px solid var(--blood);background:#fff4ef;color:var(--ink);font:14px var(--ui);line-height:1.5;box-shadow:0 7px 20px -18px rgba(62,19,12,.7)}
+  .step-gate-notice b{display:block;color:var(--blood);font-family:var(--disp);font-size:18px;margin-bottom:3px}
+  .choice-missing{outline:3px solid var(--blood)!important;outline-offset:3px;box-shadow:0 0 0 5px rgba(151,31,31,.12)!important}
+  .sp-stage .choice-missing{outline-color:var(--red-br)!important;box-shadow:0 0 0 5px rgba(231,85,74,.14)!important}
   .fx-pre{font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace; font-size:12.5px; line-height:1.55; color:var(--ink); background:var(--bg-sunk); border:1px solid var(--rule); border-radius:3px; padding:13px 15px; margin:0; max-height:380px; overflow:auto; white-space:pre; tab-size:2}
   .fx-empty{font-family:var(--ui); font-size:15px; color:var(--ink-faint); font-style:italic; margin-top:18px}
 
@@ -2505,6 +2511,7 @@ var SpellsUI = (function () {
   }
   function setCantripReplacement(next){
     var lu = draft._levelUp; if (!lu) return;
+    if (typeof clearStepGateNotice === 'function') clearStepGateNotice();
     var arr = pickedFor('cantrip'), original = originalLevelPicks('cantrip'), current = cantripReplacementState();
     if (current.from && current.to){
       var oldTo = arr.indexOf(current.to); if (oldTo !== -1) arr.splice(oldTo, 1);
@@ -3094,7 +3101,21 @@ var SpellsUI = (function () {
     var gaps = [];
     (_casters || []).forEach(function(ca){
       if (focusedLevelUp() && ca.key !== draft._levelUp.className) return;
-      var n = spellsLeft(ca); if (n > 0) gaps.push(ca.key + ' (' + n + ' remaining)');
+      var e = ca.ent, p = picksFor(ca.key), n;
+      n = e.cantrips ? Math.max(0, e.cantrips - p.cantrips.length) : 0;
+      if (n) gaps.push((focusedLevelUp() ? 'new ' : '') + ca.key + ' cantrip (' + n + ' missing)');
+      if (e.mode === 'known'){
+        n = Math.max(0, e.known - p.known.length);
+        if (n) gaps.push((focusedLevelUp() ? 'new ' : '') + ca.key + ' spell known (' + n + ' missing)');
+      } else if (e.mode === 'prepared'){
+        n = Math.max(0, e.preparedCount - p.prepared.length);
+        if (n) gaps.push(ca.key + ' prepared spell (' + n + ' missing)');
+      } else if (e.mode === 'spellbook'){
+        n = Math.max(0, e.spellbook - p.spellbook.length);
+        if (n) gaps.push(ca.key + ' spellbook spell (' + n + ' missing)');
+        n = Math.max(0, e.preparedCount - p.prepared.length);
+        if (n) gaps.push(ca.key + ' prepared spell (' + n + ' missing)');
+      }
     });
     var lu = draft._levelUp;
     var hasVersatility = focusedLevelUp() && lu && lu.className === 'Bard' && [4,8,12,16,19].indexOf(lu.toClassLevel) !== -1;
@@ -3194,6 +3215,7 @@ var SpellsUI = (function () {
         var attr = el.getAttribute('data-attr'), name = el.getAttribute('data-pick');
         if (!levelSpellToggleAllowed(attr, name)) return;
         if (attr === 'known' && pickedFor(attr).indexOf(name) === -1 && ekBlocked(name)) return;   // any-school budget spent
+        if (typeof clearStepGateNotice === 'function') clearStepGateNotice();
         toggle(pickedFor(attr), name, capFor(attr));
         if (attr === 'spellbook') picks().prepared = picks().prepared.filter(function(n){ return picks().spellbook.indexOf(n) !== -1; });
         saveDraft(); render();
@@ -3384,7 +3406,7 @@ var FeatsUI = (function () {
 
   function adv(){ return draft.advancement || (draft.advancement = {}); }
   function slot(k){ return adv()[k] || null; }
-  function setSlot(k, v){ if (v == null) delete adv()[k]; else adv()[k] = v; saveDraft(); render(); }
+  function setSlot(k, v){ if (typeof clearStepGateNotice === 'function') clearStepGateNotice(); if (v == null) delete adv()[k]; else adv()[k] = v; saveDraft(); render(); }
 
   function racialCount(){ return (_race && _race.feats ? _race.feats : []).reduce(function(n, f){ return n + (f && f.any ? f.any : 0); }, 0); }
 
@@ -3494,10 +3516,8 @@ var FeatsUI = (function () {
       if (e.kind !== 'feat' || !e.name){ gaps.push(label + ' feat'); return; }
       var f = (_feats || []).filter(function(x){ return x.name === e.name; })[0], ability = SoulShardsData.featAbilityChoice(f);
       if (ability && ability.choose && Object.keys(e.abils || {}).length !== ability.choose.amount) gaps.push(e.name + ' ability');
-    });
-    Object.keys(_featSpellData).forEach(function(k){
-      var e = slot(k), data = _featSpellData[k];
-      (data.choices || []).forEach(function(group, i){ if (!e || !e.featSpells || !e.featSpells[i]) gaps.push((e && e.name ? e.name : 'Feat') + ' spell'); });
+      var spellSpec = featSpellSpec(f);
+      (spellSpec.choices || []).forEach(function(group, i){ if (!e.featSpells || !e.featSpells[i]) gaps.push(e.name + ' spell'); });
     });
     return gaps;
   }
@@ -3573,18 +3593,21 @@ var FeatsUI = (function () {
     var host = q('#ft-out'); if (!host) return;
     var keys = slotKeys();
     if (!keys.length){ host.innerHTML = '<div class="locked-note">No feat or ability-score choices for this build at level ' + draft.level + ' — improvements arrive at 4th level (Fighter also at 6th), and a level-1 feat comes only from Variant Human or Custom Lineage.</div>'; return; }
-    host.innerHTML = keys.map(function(k){
+    var gaps = incomplete();
+    var status = '<div class="ft-status' + (gaps.length ? '' : ' done') + '"><b>' + (gaps.length ? 'Still to choose' : 'Resolved') + '</b>' +
+      (gaps.length ? gaps.map(levelGapText).join(' · ') : 'The earned ability or feat choice is complete.') + '</div>';
+    host.innerHTML = status + keys.map(function(k){
       var e = slot(k) || {};
       if (k.indexOf('race') === 0){
         var rh = '<div class="ch-head"><span class="ch-src race">Race</span> Bonus Feat' + (_race ? ' — ' + esc(_race.name) : '') + '</div>';
-        return '<div class="ft-slot">' + rh + featPicker(k) + '</div>';
+        return '<div class="ft-slot" data-ft-slot="' + k + '">' + rh + featPicker(k) + '</div>';
       }
       var L = k.slice(1), kind = e.kind || null;
       var head = '<div class="ch-head"><span class="ch-src asi">Level ' + L + '</span> Ability Score Improvement or Feat</div>';
       var seg = '<div class="ft-seg ft-mode"><button class="' + (kind==='asi'?'on':'') + '" data-k="' + k + '" data-kind="asi">Ability Scores</button>' +
         '<button class="' + (kind==='feat'?'on':'') + '" data-k="' + k + '" data-kind="feat">Feat</button></div>';
       var body = kind === 'asi' ? asiPicker(k) : (kind === 'feat' ? featPicker(k) : '<div class="ft-hint">Choose how to spend this improvement.</div>');
-      return '<div class="ft-slot">' + head + seg + body + '</div>';
+      return '<div class="ft-slot" data-ft-slot="' + k + '">' + head + seg + body + '</div>';
     }).join('');
     reapplyFilters(host); wire(host);
   }
@@ -4660,12 +4683,12 @@ function forgeCommit(){
     }
     var spellGaps = (typeof SpellsUI !== 'undefined' && SpellsUI.incomplete) ? SpellsUI.incomplete() : [];
     if (spellGaps.length){
-      fxStatus('err', 'Finish this level\u2019s spell picks before completing Level Up: ' + spellGaps.join(', ') + '.');
+      fxStatus('err', 'Finish this level\u2019s spell picks before completing Level Up: ' + spellGaps.map(levelGapText).join(' '));
       return;
     }
     var featGaps = (typeof FeatsUI !== 'undefined' && FeatsUI.incomplete) ? FeatsUI.incomplete() : [];
     if (featGaps.length){
-      fxStatus('err', 'Finish the spell choice granted by ' + featGaps.join(', ') + ' before completing this level. Open the Ability or feat step to choose it.');
+      fxStatus('err', 'Finish the Ability or feat step before completing Level Up: ' + featGaps.map(levelGapText).join(' '));
       return;
     }
     var assembled = buildStructuralPreview(res[0], res[1]);
@@ -4797,11 +4820,77 @@ function renderStep(){
   }
 }
 
+function levelGapText(gap){
+  gap = String(gap || '');
+  var m = gap.match(/^new (.+) cantrip \((\d+) missing\)$/);
+  if (m) return 'Choose ' + (m[2] === '1' ? 'one' : m[2]) + ' new ' + m[1] + ' cantrip' + (m[2] === '1' ? '' : 's') + '.';
+  m = gap.match(/^new (.+) spell known \((\d+) missing\)$/);
+  if (m) return 'Choose ' + (m[2] === '1' ? 'one' : m[2]) + ' new ' + m[1] + ' spell' + (m[2] === '1' ? '' : 's') + '.';
+  if (gap === 'Fey Touched ability') return 'Choose whether Fey Touched increases Intelligence, Wisdom, or Charisma.';
+  if (gap === 'Fey Touched spell') return 'Choose the 1st-level Divination or Enchantment spell granted by Fey Touched.';
+  if (gap === 'Bardic Versatility cantrip replacement') return 'Finish the Bardic Versatility cantrip replacement, or turn it off.';
+  if (/^level \d+ improvement$/.test(gap)) return 'Choose Ability Scores or a feat for the ' + gap + '.';
+  if (/^level \d+ improvement abilities$/.test(gap)) return 'Finish the ability increases for the ' + gap.replace(/ abilities$/, '') + '.';
+  if (/^level \d+ improvement feat$/.test(gap)) return 'Choose a feat for the ' + gap.replace(/ feat$/, '') + '.';
+  if (/\(\d+ missing\)$/.test(gap)) return 'Finish ' + gap.replace(/ \((\d+) missing\)$/, ' ($1 still missing)') + '.';
+  return gap.charAt(0).toUpperCase() + gap.slice(1) + (/[.!?]$/.test(gap) ? '' : '.');
+}
+function clearStepGateNotice(){
+  var old = q('#step-gate-notice'); if (old) old.remove();
+  Array.prototype.forEach.call(document.querySelectorAll('.choice-missing'), function(el){ el.classList.remove('choice-missing'); });
+}
+function showStepGateNotice(stepId, gaps){
+  clearStepGateNotice();
+  var body = q('#body'); if (!body) return;
+  var notice = document.createElement('div');
+  notice.id = 'step-gate-notice'; notice.className = 'step-gate-notice'; notice.setAttribute('role', 'alert'); notice.tabIndex = -1;
+  notice.innerHTML = '<b>Before continuing</b>' + gaps.map(function(g){ return escHtml(levelGapText(g)); }).join(' ');
+  body.insertBefore(notice, body.firstChild);
+  function mark(selector){ Array.prototype.forEach.call(body.querySelectorAll(selector), function(el){ el.classList.add('choice-missing'); }); }
+  if (stepId === 'spells'){
+    mark('.statusline');
+    gaps.forEach(function(g){
+      if (/cantrip/.test(g) && !/Bardic Versatility/.test(g)) mark('.lvltab.cantrip');
+      if (/spell known|prepared spell|spellbook spell/.test(g)) mark('.lvltab:not(.cantrip)');
+      if (/Bardic Versatility/.test(g)) mark('.sp-lu-replace');
+    });
+  }
+  if (stepId === 'feats'){
+    mark('.ft-status');
+    gaps.forEach(function(g){
+      if (/ spell$/.test(g)) mark('.ft-spells');
+      else if (/ ability$| abilities$/.test(g)) mark('.ft-half');
+      else mark('.ft-slot');
+    });
+  }
+  var panel = q('.panel-scroll'); if (panel) panel.scrollTop = 0;
+  try { notice.focus({ preventScroll:true }); } catch (_) { notice.focus(); }
+}
+function stepExitGaps(stepId){
+  if (!focusedLevelUp()) return [];
+  if (q('#body .eng-load')) return ['This step is still loading; wait a moment for the choices to appear'];
+  if (stepId === 'spells' && typeof SpellsUI !== 'undefined' && SpellsUI.incomplete) return SpellsUI.incomplete();
+  if (stepId === 'feats' && typeof FeatsUI !== 'undefined' && FeatsUI.incomplete) return FeatsUI.incomplete();
+  return [];
+}
+function validateStepExit(stepId){
+  var gaps = stepExitGaps(stepId);
+  if (gaps.length){ showStepGateNotice(stepId, gaps); return false; }
+  clearStepGateNotice(); return true;
+}
+
 // ── navigation ───────────────────────────────────────────────────────────────
 function go(id){
   if (id === 'spells' && !spellsActive()) return;
   if (id === 'choices' && !choicesActive()) return;
   if (id === 'feats' && !featsActive()) return;
+  if (focusedLevelUp()){
+    var act = activeSteps(), current = act.findIndex(function(s){ return s.id === draft.stepId; }), target = act.findIndex(function(s){ return s.id === id; });
+    if (target > current){
+      if (!validateStepExit(draft.stepId)) return;
+      if (target > current + 1) id = act[current + 1].id;
+    } else clearStepGateNotice();
+  }
   draft.stepId = id; saveDraft(); renderAll();
   var ps = q('.panel-scroll'); if (ps) ps.scrollTop = 0;
 }
