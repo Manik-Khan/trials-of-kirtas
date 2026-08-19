@@ -64,7 +64,7 @@ const html = readFileSync(new URL('../../shards.html', import.meta.url), 'utf8')
 const staging = readFileSync(new URL('../../staging/level-up-liadan.html', import.meta.url), 'utf8');
 ok('same-site staging doorway exists for Liadan', /Líadan · Level Up Staging/.test(staging));
 ok('staging doorway opens the guarded focused flow', /shards\.html\?mode=level-up(?:&amp;|&)character=liadan(?:&amp;|&)class=Bard(?:&amp;|&)levelFlow=1/.test(staging));
-ok('staging doorway cache-stamps the complete Fey Touched picker', /staging=lu5/.test(staging));
+ok('staging doorway cache-stamps inline spell descriptions', /staging=lu6/.test(staging));
 ok('staging doorway is not indexed', /name="robots" content="noindex,nofollow"/.test(staging));
 ok('staging doorway does not replace the regular Level Up route', /regular Level Up route remains unchanged/.test(staging));
 ok('focused Level Up is guarded by levelFlow=1', /LEVEL_UP_FOCUS = SHARDS_PARAMS\.get\('levelFlow'\) === '1'/.test(html));
@@ -113,7 +113,7 @@ ok('spell details narrate target save and source DC', /vs ' \+ esc\(profile\.cls
 ok('feat spells block completion until their nested choice is resolved', /Choose the 1st-level Divination or Enchantment spell granted by Fey Touched/.test(html) && /FeatsUI\.incomplete/.test(html));
 ok('feat spell completion derives from the feat schema before detail hydration finishes', /var spellSpec = featSpellSpec\(f\)/.test(html) && /!e\.featSpells \|\| !e\.featSpells\[i\]/.test(html));
 ok('feat spell rendering owns its school labels inside FeatsUI', /var FEAT_SCHOOL = \{ A:'Abjuration'/.test(html) && /FEAT_SCHOOL\[sp\.school\]/.test(html));
-ok('Fey Touched reuses the established spell-selection window', /class="sp-stage ft-spell-stage"/.test(html) && /class="sp-tbl"/.test(html) && /SpellsUI\.detailCard\(open, 'o-feat'/.test(html));
+ok('Fey Touched reuses the established spell-selection window', /class="sp-stage ft-spell-stage"/.test(html) && /class="sp-tbl"/.test(html) && /SpellsUI\.detailTableRow\(SpellsUI\.detailCard\(sp, 'o-feat'/.test(html));
 const featDraft = { spells:{ byClass:{ Bard:{ cantrips:[], known:['Charm Person'], prepared:[], spellbook:[] }, Cleric:{ cantrips:[], known:[], prepared:['Bless'], spellbook:[] } } } };
 const featSlot = { kind:'feat', name:'Fey Touched', abils:{ cha:1 }, featSpells:{} };
 const featSpellData = { L4:{
@@ -138,7 +138,10 @@ const featRenderer = new Function(
   x => String(x),
   { C:'Conjuration', D:'Divination', E:'Enchantment' },
   { k:'L4', gi:0, name:'Gift of Alacrity' },
-  { detailCard:(sp, origin, casting) => `<div class="detail ${origin}">${sp.name} · ${casting.cls} DC ${casting.saveDC}</div>` },
+  {
+    detailCard:(sp, origin, casting) => `<div class="detail ${origin}">${sp.name} · ${casting.cls} DC ${casting.saveDC}</div>`,
+    detailTableRow:markup => `<tr class="sp-detail-row"><td colspan="5">${markup}</td></tr>`,
+  },
   {},
 );
 const featSpellMarkup = featRenderer.featSpellSub('L4', { name:'Fey Touched' });
@@ -146,6 +149,27 @@ ok('real feat spell renderer shows Gift of Alacrity in the complete choice windo
 ok('real feat spell renderer shows the chosen-ability DC', /WIS save · CHA DC 15/.test(featSpellMarkup) && /Fey Touched DC 15/.test(featSpellMarkup));
 ok('real feat spell renderer distinguishes known, overlapping, and feat-only spells', /already known · Bard/.test(featSpellMarkup) && /also on Cleric list/.test(featSpellMarkup) && /Fey Touched only/.test(featSpellMarkup));
 ok('known class spells remain selectable as a separate Fey Touched source', /data-fspell="Charm Person"/.test(featSpellMarkup) && /separate source/.test(featSpellMarkup));
+ok('the open Fey Touched description sits directly beneath its spell row', /Gift of Alacrity[\s\S]*<\/tr><tr class="sp-detail-row"><td colspan="5"><div class="detail o-feat">Gift of Alacrity · Fey Touched DC 15/.test(featSpellMarkup));
+const detailTableRow = new Function(extractFunction(html, 'detailTableRow') + '; return detailTableRow;')();
+ok('shared spell descriptions render as full-width table rows', detailTableRow('<div class="detail">Spell information</div>') === '<tr class="sp-detail-row"><td colspan="5"><div class="detail">Spell information</div></td></tr>');
+const regularSpellRow = new Function(
+  '_detail', '_openDetail', 'esc', 'levelSpellToggleAllowed', 'cantripReplacementState', '_ent', 'tipFor', 'SCHOOL', 'flagsFor', 'detailTableRow', 'detailCard',
+  extractFunction(html, 'spellRow') + '; return spellRow;'
+)(
+  { 'Charm Person':{ name:'Charm Person', level:1, school:'E', savingThrow:['wisdom'] } },
+  { name:'Charm Person', attr:'known' },
+  x => String(x),
+  () => true,
+  () => null,
+  { cls:'Bard', saveDC:15 },
+  () => '',
+  { E:'Enchantment' },
+  () => '',
+  detailTableRow,
+  sp => `<div class="detail">${sp.name} information</div>`,
+);
+const regularSpellMarkup = regularSpellRow({ name:'Charm Person', level:1, school:'E', savingThrow:['wisdom'] }, { on:false, capped:false, have:false, haveTag:'', oclass:'o-class', attr:'known' });
+ok('the regular spell picker also keeps an open description with its row', /Charm Person[\s\S]*<\/tr><tr class="sp-detail-row"><td colspan="5"><div class="detail">Charm Person information/.test(regularSpellMarkup));
 const halfFeatSub = new Function('slot', 'ABBR', extractFunction(html, 'halfFeatSub') + '; return halfFeatSub;')(
   () => ({ kind:'feat', name:'Fey Touched', abils:{ cha:1 }, featSpells:{} }),
   { str:'STR', dex:'DEX', con:'CON', int:'INT', wis:'WIS', cha:'CHA' },

@@ -556,6 +556,8 @@
   .sp-stage .detail.o-sub{border-left-color:var(--o-subclass)}
   .sp-stage .detail.o-race{border-left-color:var(--o-race)}
   .sp-stage .detail.o-feat{border-left-color:var(--o-feat)}
+  .sp-stage .sp-detail-row td{padding:0; border-top:0; background:transparent}
+  .sp-stage .sp-detail-row .detail{margin:0 0 8px; max-width:none}
   .sp-stage .detail::after{content:""; position:absolute; inset:0; pointer-events:none; mix-blend-mode:multiply; opacity:.07;
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23p)'/></svg>")}
   .sp-stage .detail .d-h{display:flex; align-items:baseline; gap:10px; margin-bottom:7px; position:relative; z-index:1; flex-wrap:wrap}
@@ -2604,6 +2606,9 @@ var SpellsUI = (function () {
       '<div class="d-body">'+body+higher+'</div>' +
     '</div>';
   }
+  function detailTableRow(markup){
+    return markup ? '<tr class="sp-detail-row"><td colspan="5">' + markup + '</td></tr>' : '';
+  }
 
   // ── racial grants (origin: race) from race.additionalSpells (+ chosen subrace) ──
   function refName(ref){ return String(ref).split('#')[0].replace(/\b\w/g, function(m){ return m.toUpperCase(); }); }
@@ -3024,13 +3029,14 @@ var SpellsUI = (function () {
     if (replacement && replacement.to === s.name) mark += '<span class="gtag">Bardic Versatility</span>';
     var save = (s.savingThrow || []).map(function(a){ return String(a).slice(0,3).toUpperCase(); }).join('/');
     var saveChip = save && _ent ? '<span class="gtag">' + esc(save) + ' save \u00b7 ' + esc(_ent.cls) + ' DC ' + _ent.saveDC + '</span>' : '';
-    return '<tr class="' + cls + '"' + pa + '>' +
+    var row = '<tr class="' + cls + '"' + pa + '>' +
         '<td class="sp-tick"><span class="dot"></span></td>' +
         '<td class="sp-name">' + esc(s.name) + (o.have?'<span class="gtag">'+esc(o.haveTag)+'</span>':'') + saveChip + mark + (dd?tipFor(s):'') + '</td>' +
         '<td class="sp-school">' + esc(SCHOOL[s.school]||s.school||'') + '</td>' +
         '<td class="sp-flagcell">' + flagsFor(s) + '</td>' +
         '<td class="sp-icell">' + info + '</td>' +
       '</tr>';
+    return row + (d ? detailTableRow(detailCard(dd, oclass)) : '');
   }
   function spellTable(pool, attr, oclass, granted){
     var items = visible(pool);
@@ -3049,13 +3055,14 @@ var SpellsUI = (function () {
       var sp = _detail[g.name] || null;
       var d = (_openDetail && _openDetail.name === g.name && _openDetail.attr === 'grant');
       var info = sp ? '<button class="sp-info' + (d?' open':'') + '" data-detail="' + esc(g.name) + '" data-dattr="grant">i</button>' : '';
-      return '<tr class="sp-row o-subclass have">' +
+      var row = '<tr class="sp-row o-subclass have">' +
         '<td class="sp-tick"><span class="dot" style="background:var(--o-subclass);border-color:var(--o-subclass)"></span></td>' +
         '<td class="sp-name">' + esc(g.name) + '<span class="gtag">always prepared</span>' + (sp?tipFor(sp):'') + '</td>' +
         '<td class="sp-school">' + esc(sp ? (SCHOOL[sp.school]||sp.school||'') : '') + '</td>' +
         '<td class="sp-flagcell">' + flagsFor(sp) + '</td>' +
         '<td class="sp-icell">' + info + '</td>' +
       '</tr>';
+      return row + (d ? detailTableRow(detailCard(sp, 'o-sub')) : '');
     }).join('');
     return '<div class="subhead">Granted by ' + esc(ca.subName || (ca.ent && ca.ent.subclass) || 'your subclass') +
       ' <span class="sp-note">always prepared \u2014 doesn\u2019t count against your picks</span></div>' +
@@ -3068,17 +3075,17 @@ var SpellsUI = (function () {
       var tag = g.kind === 'cantrip' ? 'cantrip' : (g.how === 'innate' ? '1/day' : 'known');
       var d = (_openDetail && _openDetail.name === g.name && _openDetail.attr === 'grant');
       var info = sp ? '<button class="sp-info' + (d?' open':'') + '" data-detail="' + esc(g.name) + '" data-dattr="grant">i</button>' : '';
-      return '<tr class="sp-row o-race have">' +
+      var row = '<tr class="sp-row o-race have">' +
         '<td class="sp-tick"><span class="dot" style="background:var(--o-race);border-color:var(--o-race)"></span></td>' +
         '<td class="sp-name">' + esc(g.name) + '<span class="gtag">' + tag + '</span>' + (sp?tipFor(sp):'') + '</td>' +
         '<td class="sp-school">' + esc(sp ? (SCHOOL[sp.school]||sp.school||'') : '') + '</td>' +
         '<td class="sp-flagcell">' + flagsFor(sp) + '</td>' +
         '<td class="sp-icell">' + info + '</td>' +
       '</tr>';
+      return row + (d ? detailTableRow(detailCard(sp, 'o-race')) : '');
     }).join('');
-    var open = (_openDetail && _openDetail.attr === 'grant' && _detail[_openDetail.name]) ? detailCard(_detail[_openDetail.name], 'o-race') : '';
     return '<div class="subhead">Granted by ' + esc(raceName()) + ' <span class="sp-note">free \u2014 doesn\u2019t count against your picks</span></div>' +
-      '<table class="sp-tbl"><tbody>' + rows + '</tbody></table>' + open;
+      '<table class="sp-tbl"><tbody>' + rows + '</tbody></table>';
   }
   // Racial spell CHOICE groups ("one of the following of your choice"): the player picks
   // one option; the chosen spell is already folded into _grants (so it shows in the grant
@@ -3194,9 +3201,6 @@ var SpellsUI = (function () {
     }
     if (_bgSpells.some(function(s){ return s.level === _lvl; })) html += '<div class="sp-bgnote"><span class="k">' + esc((draft.bg && draft.bg.n) || 'Background') + '</span> expands your list \u2014 picked within your normal limit.</div>';
     if (_list.some(function(s){ return s._prov === 'subclass' && s.level === _lvl; })) html += '<div class="sp-bgnote"><span class="k" style="color:var(--o-subclass)">' + esc(ca.subName || 'Subclass') + '</span> expands your list \u2014 picked within your normal limit.</div>';
-    if (_openDetail && _openDetail.attr !== 'grant' && _detail[_openDetail.name] && _detail[_openDetail.name].level === _lvl){
-      html += detailCard(_detail[_openDetail.name], oc);
-    }
     html += domainSection();
     html += grantSection();
     html += choiceSection();
@@ -3284,7 +3288,7 @@ var SpellsUI = (function () {
     return { spells: out, spellbook: book };
   }
 
-  return { mount: mount, ensureLoaded: ensureLoaded, incomplete:incomplete, spellsForStructural: spellsForStructural, detailCard:detailCard };
+  return { mount: mount, ensureLoaded: ensureLoaded, incomplete:incomplete, spellsForStructural: spellsForStructural, detailCard:detailCard, detailTableRow:detailTableRow };
 })();
 
 // ── Choices step UI — the optional-feature picker (Fighting Style / Maneuvers /
@@ -3568,8 +3572,9 @@ var FeatsUI = (function () {
     if (lists.length) return { text:'also on ' + lists.join(' + ') + ' list' + (lists.length > 1 ? 's' : ''), cls:'' };
     return { text:'Fey Touched only', cls:' feat-only' };
   }
-  function featSpellRow(k, gi, sp, picked, dc, ability, selectable){
+  function featSpellRow(k, gi, sp, picked, dc, ability, selectable, source){
     var on = picked === sp.name, avail = featSpellAvailability(sp);
+    var open = _featSpellOpen && _featSpellOpen.k === k && _featSpellOpen.gi === gi && _featSpellOpen.name === sp.name;
     var save = (sp.savingThrow || []).map(function(a){ return String(a).slice(0,3).toUpperCase(); }).join('/');
     var saveChip = save ? '<span class="gtag">' + esc(save) + ' save' + (dc != null ? ' · ' + String(ability || '').toUpperCase() + ' DC ' + dc : '') + '</span>' : '';
     var flags = (sp.concentration ? '<span class="flag c" title="Concentration">C</span>' : '<span class="flag ph">C</span>') +
@@ -3580,37 +3585,31 @@ var FeatsUI = (function () {
       '<td class="sp-name">' + esc(sp.name) + '<span class="gtag' + avail.cls + '">' + esc(avail.text) + '</span>' + saveChip + '</td>' +
       '<td class="sp-school">' + esc(FEAT_SCHOOL[sp.school] || sp.school || '') + '</td>' +
       '<td class="sp-flagcell">' + flags + '</td>' +
-      '<td class="sp-icell"><button type="button" class="sp-info' + (_featSpellOpen && _featSpellOpen.k === k && _featSpellOpen.gi === gi && _featSpellOpen.name === sp.name ? ' open' : '') + '" data-fdetail="' + esc(sp.name) + '" data-k="' + k + '" data-gi="' + gi + '" aria-label="Read ' + esc(sp.name) + '">i</button></td>' +
-    '</tr>';
+      '<td class="sp-icell"><button type="button" class="sp-info' + (open ? ' open' : '') + '" data-fdetail="' + esc(sp.name) + '" data-k="' + k + '" data-gi="' + gi + '" aria-label="Read ' + esc(sp.name) + '">i</button></td>' +
+    '</tr>' + (open && SpellsUI.detailCard && SpellsUI.detailTableRow ? SpellsUI.detailTableRow(SpellsUI.detailCard(sp, 'o-feat', { cls:source, saveDC:dc })) : '');
   }
   function featSpellSub(k, fObj){
     var data = _featSpellData[k]; if (!data) return '';
     var e = slot(k) || {}, ability = Object.keys(e.abils || {})[0] || null;
     var pb = 2 + Math.floor((Math.max(1, totalLevel()) - 1) / 4), eff = effectiveAbilities(_race);
     var dc = ability ? 8 + pb + Math.floor(((eff[ability] || 10) - 10) / 2) : null;
-    var fixedRows = (data.fixed || []).map(function(sp){ return featSpellRow(k, -1, sp, null, dc, ability, false); }).join('');
-    var fixedOpen = _featSpellOpen && _featSpellOpen.k === k && _featSpellOpen.gi === -1
-      ? (data.fixed || []).filter(function(sp){ return sp.name === _featSpellOpen.name; })[0] : null;
-    var fixedDetail = fixedOpen && SpellsUI.detailCard ? SpellsUI.detailCard(fixedOpen, 'o-feat', { cls:e.name, saveDC:dc }) : '';
+    var fixedRows = (data.fixed || []).map(function(sp){ return featSpellRow(k, -1, sp, null, dc, ability, false, e.name); }).join('');
     var groups = (data.choices || []).map(function(group, gi){
       var picked = e.featSpells && e.featSpells[gi];
-      var rows = group.options.map(function(sp){ return featSpellRow(k, gi, sp, picked, dc, ability, true); }).join('');
-      var open = _featSpellOpen && _featSpellOpen.k === k && _featSpellOpen.gi === gi
-        ? group.options.filter(function(sp){ return sp.name === _featSpellOpen.name; })[0] : null;
-      var detail = open && SpellsUI.detailCard ? SpellsUI.detailCard(open, 'o-feat', { cls:e.name, saveDC:dc }) : '';
+      var rows = group.options.map(function(sp){ return featSpellRow(k, gi, sp, picked, dc, ability, true, e.name); }).join('');
       var qk = k + '|' + gi;
       return '<div class="ft-choice-group" data-ft-choice="' + qk + '">' +
         '<div class="lvlbar"><span class="lab">Level</span><span class="lvltab on">1st</span></div>' +
         '<div class="tblhead"><span class="t">Choose one spell</span><span class="c">' + (picked ? '1' : '0') + '/1</span><span class="s">Divination or Enchantment</span></div>' +
         '<input class="sp-srch" type="search" data-ft-spell-search="' + qk + '" placeholder="Find an eligible spell…" value="' + esc(_featSpellQuery[qk] || '') + '">' +
-        '<table class="sp-tbl"><tbody>' + rows + '</tbody></table>' + detail + '</div>';
+        '<table class="sp-tbl"><tbody>' + rows + '</tbody></table></div>';
     }).join('');
     var cast = ability ? ability.toUpperCase() + (dc != null ? ' · save DC ' + dc : '') : 'choose INT, WIS, or CHA above';
     return '<div class="ft-spells"><div class="sp-stage ft-spell-stage">' +
       '<div class="readout"><div class="ro-h"><span class="cls">' + esc(e.name || (fObj && fObj.name) || 'Feat') + '</span> · separate spell source</div>' +
         '<div class="cast-meta"><span>Casting ability <b>' + esc(cast) + '</b></span><span>Each spell <b>1 free cast / long rest</b></span></div>' +
         '<div class="legend"><span><i style="background:var(--o-feat)"></i>Feat spell</span><span><i class="l-class"></i>Class-list overlap is labeled</span></div></div>' +
-      (fixedRows ? '<div class="subhead">Granted automatically <span class="sp-note">doesn’t use your one choice</span></div><table class="sp-tbl"><tbody>' + fixedRows + '</tbody></table>' + fixedDetail : '') +
+      (fixedRows ? '<div class="subhead">Granted automatically <span class="sp-note">doesn’t use your one choice</span></div><table class="sp-tbl"><tbody>' + fixedRows + '</tbody></table>' : '') +
       groups + '<p class="ft-overlap">A spell already known through Bard or Cleric remains selectable here: Fey Touched is a separate source, uses the ability chosen above, and grants its own free cast.</p>' +
     '</div></div>';
   }
@@ -3686,7 +3685,12 @@ var FeatsUI = (function () {
   }
   function filterFeatSpells(inp){
     var query = (inp.value || '').toLowerCase(), group = inp.closest('.ft-choice-group'); if (!group) return;
-    Array.prototype.forEach.call(group.querySelectorAll('.sp-row[data-spell-name]'), function(row){ row.style.display = !query || row.getAttribute('data-spell-name').indexOf(query) !== -1 ? '' : 'none'; });
+    Array.prototype.forEach.call(group.querySelectorAll('.sp-row[data-spell-name]'), function(row){
+      var show = !query || row.getAttribute('data-spell-name').indexOf(query) !== -1;
+      row.style.display = show ? '' : 'none';
+      var detail = row.nextElementSibling;
+      if (detail && detail.classList.contains('sp-detail-row')) detail.style.display = show ? '' : 'none';
+    });
   }
   function reapplyFilters(host){
     Array.prototype.forEach.call(host.querySelectorAll('.ft-srch'), function(inp){ if (inp.value) filterList(inp); });
