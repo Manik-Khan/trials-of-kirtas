@@ -2459,7 +2459,15 @@ var SpellsUI = (function () {
       '.sp-stage .sp-eknote .ek-sch{color:var(--cream-hi);font-weight:600;text-transform:uppercase;letter-spacing:.06em}',
       '.sp-stage .sp-eknote .ek-bud{color:var(--gold-br);font-weight:600}',
       '.sp-stage .sp-eknote .ek-bud.full{color:var(--cream-fnt)}',
-      '.sp-stage .sp-eknote .ek-hint{color:var(--cream-fnt);font-style:italic;margin-left:auto}'
+      '.sp-stage .sp-eknote .ek-hint{color:var(--cream-fnt);font-style:italic;margin-left:auto}',
+      '.sp-stage .sp-lu-replace{margin:10px 0 12px;padding:12px 14px;border:1px solid rgba(85,196,192,.35);border-left:3px solid var(--teal);background:rgba(85,196,192,.07)}',
+      '.sp-stage .sp-lu-replace label{display:flex;align-items:flex-start;gap:9px;color:var(--cream-hi);font-family:var(--ui);font-size:13px;font-weight:600;letter-spacing:.03em;cursor:pointer}',
+      '.sp-stage .sp-lu-replace label input{margin-top:2px;accent-color:var(--teal)}',
+      '.sp-stage .sp-lu-replace p{margin:6px 0 0;color:var(--cream-fnt);font-size:13px;line-height:1.45}',
+      '.sp-stage .sp-lu-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}',
+      '.sp-stage .sp-lu-fields select{width:100%;padding:8px 9px;border:1px solid var(--frame);background:var(--panel-2);color:var(--cream);font:13px var(--ui)}',
+      '.sp-stage .sp-lu-state{margin-top:9px;color:var(--teal);font:600 12px var(--ui);letter-spacing:.03em}',
+      '@media(max-width:640px){.sp-stage .sp-lu-fields{grid-template-columns:1fr}}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -2491,10 +2499,32 @@ var SpellsUI = (function () {
     if (attr === 'cantrip' && lu.className === 'Bard' && [4,8,12,16,19].indexOf(lu.toClassLevel) !== -1) return 1;
     return 0;
   }
+  function cantripReplacementState(){
+    var lu = draft._levelUp || {}, state = lu.cantripReplacement || {};
+    return { enabled:!!state.enabled, from:state.from || '', to:state.to || '' };
+  }
+  function setCantripReplacement(next){
+    var lu = draft._levelUp; if (!lu) return;
+    var arr = pickedFor('cantrip'), original = originalLevelPicks('cantrip'), current = cantripReplacementState();
+    if (current.from && current.to){
+      var oldTo = arr.indexOf(current.to); if (oldTo !== -1) arr.splice(oldTo, 1);
+      if (original.indexOf(current.from) !== -1 && arr.indexOf(current.from) === -1) arr.push(current.from);
+    }
+    lu.cantripReplacement = { enabled:!!next.enabled, from:next.from || '', to:next.to || '' };
+    if (next.enabled && next.from && next.to){
+      var fromAt = arr.indexOf(next.from); if (fromAt !== -1) arr.splice(fromAt, 1);
+      if (arr.indexOf(next.to) === -1 && arr.length < capFor('cantrip')) arr.push(next.to);
+    }
+    saveDraft(); render();
+  }
   function levelSpellToggleAllowed(attr, name){
     if (!focusedLevelUp()) return true;
     var lu = draft._levelUp; if (!lu || _active !== lu.className) return false;
     var arr = pickedFor(attr), original = originalLevelPicks(attr);
+    if (attr === 'cantrip' && levelReplaceBudget(attr)){
+      var replacement = cantripReplacementState();
+      if (original.indexOf(name) !== -1 || replacement.to === name) return false;
+    }
     if (arr.indexOf(name) === -1 || original.indexOf(name) === -1) return true;
     var removed = original.filter(function(n){ return arr.indexOf(n) === -1; }).length;
     return removed < levelReplaceBudget(attr);
@@ -2505,6 +2535,22 @@ var SpellsUI = (function () {
     if (levelReplaceBudget('known')) notes.push('optionally replace one ' + _ent.cls + ' spell known');
     if (levelReplaceBudget('cantrip')) notes.push('Bardic Versatility may replace one cantrip');
     return '<div class="sp-eknote"><span class="ek-sch">Level Up guard</span><span class="ek-hint">' + esc(notes.join(' \u00b7 ')) + '</span></div>';
+  }
+  function cantripReplacementPanel(){
+    if (_lvl !== 0 || !levelReplaceBudget('cantrip')) return '';
+    var state = cantripReplacementState(), original = originalLevelPicks('cantrip'), picked = pickedFor('cantrip');
+    var from = '<option value="">Cantrip to replace\u2026</option>' + original.map(function(name){ return '<option' + (state.from === name ? ' selected' : '') + '>' + esc(name) + '</option>'; }).join('');
+    var available = _list.filter(function(sp){ return sp.level === 0 && original.indexOf(sp.name) === -1 && (picked.indexOf(sp.name) === -1 || state.to === sp.name); });
+    var to = '<option value="">Replacement cantrip\u2026</option>' + available.map(function(sp){ return '<option' + (state.to === sp.name ? ' selected' : '') + '>' + esc(sp.name) + '</option>'; }).join('');
+    var status = !state.enabled ? 'Both earlier Bard cantrips will be kept.'
+      : !state.from ? 'Choose which earlier Bard cantrip to replace.'
+      : !state.to ? 'Now choose its replacement from the Bard cantrip list.'
+      : 'Replacing ' + state.from + ' with ' + state.to + '.';
+    var detail = state.to && _detail[state.to] ? detailCard(_detail[state.to], 'o-class') : '';
+    return '<section class="sp-lu-replace"><label><input type="checkbox" data-cantrip-replace-toggle' + (state.enabled ? ' checked' : '') + '><span>Use Bardic Versatility to replace one Bard cantrip</span></label>' +
+      '<p>This is separate from the new cantrip gained at Bard level 4. Choose an existing cantrip and what will replace it.</p>' +
+      (state.enabled ? '<div class="sp-lu-fields"><select data-cantrip-replace-from>' + from + '</select><select data-cantrip-replace-to' + (state.from ? '' : ' disabled') + '>' + to + '</select></div>' : '') +
+      '<div class="sp-lu-state" role="status">' + esc(status) + '</div>' + detail + '</section>';
   }
 
   // ── {@tag} text + spell-detail formatters (tap-to-read) ──
@@ -2958,7 +3004,10 @@ var SpellsUI = (function () {
     var cls = 'sp-row ' + oclass + (o.on?' sel':'') + (o.have?' have dim':((o.capped || levelLocked)?' dim':''));
     var pa = (o.have || levelLocked) ? '' : ' data-pick="' + esc(s.name) + '" data-attr="' + o.attr + '"';
     var mark = ((s._prov === 'bg' || s._prov === 'subclass') && !o.have) ? '<span class="stag">' + esc(String(s._src || '').split(/\s+/)[0]) + '</span>' : '';
-    if (levelLocked && o.on) mark += '<span class="gtag">kept \u00b7 locked</span>';
+    var replacement = o.attr === 'cantrip' ? cantripReplacementState() : null;
+    if (levelLocked && o.on && (!replacement || replacement.to !== s.name)) mark += '<span class="gtag">kept \u00b7 locked</span>';
+    if (replacement && replacement.from === s.name) mark += '<span class="gtag">replaced via Bardic Versatility</span>';
+    if (replacement && replacement.to === s.name) mark += '<span class="gtag">Bardic Versatility</span>';
     var save = (s.savingThrow || []).map(function(a){ return String(a).slice(0,3).toUpperCase(); }).join('/');
     var saveChip = save && _ent ? '<span class="gtag">' + esc(save) + ' save \u00b7 ' + esc(_ent.cls) + ' DC ' + _ent.saveDC + '</span>' : '';
     return '<tr class="' + cls + '"' + pa + '>' +
@@ -3047,6 +3096,12 @@ var SpellsUI = (function () {
       if (focusedLevelUp() && ca.key !== draft._levelUp.className) return;
       var n = spellsLeft(ca); if (n > 0) gaps.push(ca.key + ' (' + n + ' remaining)');
     });
+    var lu = draft._levelUp;
+    var hasVersatility = focusedLevelUp() && lu && lu.className === 'Bard' && [4,8,12,16,19].indexOf(lu.toClassLevel) !== -1;
+    if (hasVersatility){
+      var replacement = cantripReplacementState();
+      if (replacement.enabled && (!replacement.from || !replacement.to)) gaps.push('Bardic Versatility cantrip replacement');
+    }
     return gaps;
   }
   // caster-class selector — only shown when the build has more than one caster
@@ -3090,6 +3145,7 @@ var SpellsUI = (function () {
     var html = readoutCard() + statusLine() + levelSpellNote() + ekNote() + levelBar();
     if (_lvl === 0){
       var cantrips = _list.filter(function(s){ return s.level === 0; });
+      html += cantripReplacementPanel();
       html += tblHead('Cantrips', 'cantrip', 'at will \u2014 don\u2019t use spell slots');
       html += spellTable(cantrips, 'cantrip', oc, granted);
     } else {
@@ -3126,6 +3182,12 @@ var SpellsUI = (function () {
     Array.prototype.forEach.call(document.querySelectorAll('#sp-out [data-lvl]'), function(el){
       el.addEventListener('click', function(){ _lvl = parseInt(el.getAttribute('data-lvl'),10); _lvlByClass[_active] = _lvl; _openDetail = null; render(); });
     });
+    var replaceToggle = document.querySelector('#sp-out [data-cantrip-replace-toggle]');
+    if (replaceToggle) replaceToggle.addEventListener('change', function(){ setCantripReplacement({ enabled:replaceToggle.checked, from:'', to:'' }); });
+    var replaceFrom = document.querySelector('#sp-out [data-cantrip-replace-from]');
+    if (replaceFrom) replaceFrom.addEventListener('change', function(){ setCantripReplacement({ enabled:true, from:replaceFrom.value, to:'' }); });
+    var replaceTo = document.querySelector('#sp-out [data-cantrip-replace-to]');
+    if (replaceTo) replaceTo.addEventListener('change', function(){ var state = cantripReplacementState(); setCantripReplacement({ enabled:true, from:state.from, to:replaceTo.value }); });
     Array.prototype.forEach.call(document.querySelectorAll('#sp-out .sp-row[data-pick]'), function(el){
       el.addEventListener('click', function(ev){
         if (ev.target.closest('.sp-info')) return;

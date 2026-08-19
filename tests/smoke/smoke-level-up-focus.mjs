@@ -8,6 +8,25 @@ const Data = require('../../soul-shards-data.js');
 
 let pass = 0, fail = 0;
 const ok = (label, condition) => { if (condition) pass++; else { fail++; console.error('FAIL:', label); } };
+function extractFunction(source, name) {
+  const start = source.indexOf('function ' + name + '(');
+  if (start < 0) throw new Error('Missing function ' + name);
+  const brace = source.indexOf('{', start);
+  let depth = 0, quote = '', escaped = false;
+  for (let i = brace; i < source.length; i++) {
+    const ch = source[i];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === quote) quote = '';
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === '`') { quote = ch; continue; }
+    if (ch === '{') depth++;
+    if (ch === '}' && --depth === 0) return source.slice(start, i + 1);
+  }
+  throw new Error('Unclosed function ' + name);
+}
 
 const model = {
   name:'Bard', source:'PHB', hd:8, savingThrows:['dex','cha'], subclassTitle:'Bard College',
@@ -45,6 +64,7 @@ const html = readFileSync(new URL('../../shards.html', import.meta.url), 'utf8')
 const staging = readFileSync(new URL('../../staging/level-up-liadan.html', import.meta.url), 'utf8');
 ok('same-site staging doorway exists for Liadan', /Líadan · Level Up Staging/.test(staging));
 ok('staging doorway opens the guarded focused flow', /shards\.html\?mode=level-up(?:&amp;|&)character=liadan(?:&amp;|&)class=Bard(?:&amp;|&)levelFlow=1/.test(staging));
+ok('staging doorway cache-stamps the Bardic Versatility correction', /staging=lu2/.test(staging));
 ok('staging doorway is not indexed', /name="robots" content="noindex,nofollow"/.test(staging));
 ok('staging doorway does not replace the regular Level Up route', /regular Level Up route remains unchanged/.test(staging));
 ok('focused Level Up is guarded by levelFlow=1', /LEVEL_UP_FOCUS = SHARDS_PARAMS\.get\('levelFlow'\) === '1'/.test(html));
@@ -57,6 +77,32 @@ ok('focused HP requires an explicit average-or-roll choice', /if \(focusedLevelU
 ok('pre-level spell picks are snapshotted before the class advances', /originalSpells: JSON\.parse\(JSON\.stringify\(draft\.spells/.test(html));
 ok('focused spell picker locks non-advancing classes', /_active !== lu\.className\) return false/.test(html));
 ok('Bard replacements are explicitly budgeted', /optionally replace one/.test(html) && /Bardic Versatility may replace one cantrip/.test(html));
+ok('Bardic Versatility has an explicit optional cantrip control', /data-cantrip-replace-toggle/.test(html) && /data-cantrip-replace-from/.test(html) && /data-cantrip-replace-to/.test(html));
+ok('Bardic Versatility is separate from the newly gained cantrip', /This is separate from the new cantrip gained at Bard level 4/.test(html));
+ok('an enabled partial Bardic Versatility choice gates completion', /Bardic Versatility cantrip replacement/.test(html) && /replacement\.enabled && \(!replacement\.from \|\| !replacement\.to\)/.test(html));
+ok('Bardic Versatility completion does not depend on the visible caster tab', /var hasVersatility = focusedLevelUp\(\) && lu && lu\.className === 'Bard'/.test(html));
+ok('the cantrip replacement is applied as an exact remove and add', /arr\.splice\(fromAt, 1\)/.test(html) && /arr\.push\(next\.to\)/.test(html));
+const replacementDraft = { _levelUp:{} };
+const replacementPicks = ['Prestidigitation', 'Vicious Mockery', 'Mage Hand'];
+const replacementOriginal = ['Prestidigitation', 'Vicious Mockery'];
+let replacementSaves = 0, replacementRenders = 0;
+const setCantripReplacement = new Function(
+  'draft', 'pickedFor', 'originalLevelPicks', 'cantripReplacementState', 'capFor', 'saveDraft', 'render',
+  extractFunction(html, 'setCantripReplacement') + '; return setCantripReplacement;'
+)(
+  replacementDraft,
+  () => replacementPicks,
+  () => replacementOriginal,
+  () => ({ enabled:!!replacementDraft._levelUp.cantripReplacement?.enabled, from:replacementDraft._levelUp.cantripReplacement?.from || '', to:replacementDraft._levelUp.cantripReplacement?.to || '' }),
+  () => 3,
+  () => { replacementSaves++; },
+  () => { replacementRenders++; },
+);
+setCantripReplacement({ enabled:true, from:'Prestidigitation', to:'Minor Illusion' });
+ok('real replacement function swaps exactly one cantrip', !replacementPicks.includes('Prestidigitation') && replacementPicks.includes('Minor Illusion') && replacementPicks.length === 3);
+setCantripReplacement({ enabled:false, from:'', to:'' });
+ok('real replacement function restores the original when cancelled', replacementPicks.includes('Prestidigitation') && !replacementPicks.includes('Minor Illusion') && replacementPicks.length === 3);
+ok('real replacement function persists and rerenders each change', replacementSaves === 2 && replacementRenders === 2);
 ok('spell and advancement decisions gate completion', /SpellsUI\.incomplete/.test(html) && /FeatsUI\.incomplete/.test(html));
 ok('spell details narrate target save and source DC', /vs ' \+ esc\(_ent\.cls\) \+ ' DC/.test(html));
 ok('feat spells block completion until their nested choice is resolved', /Finish the spell choice granted by/.test(html) && /FeatsUI\.incomplete/.test(html));
