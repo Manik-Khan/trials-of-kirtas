@@ -402,17 +402,28 @@
   }
 
   // Resolve a 5etools spell-choice filter such as `level=1|school=E;D` (used by
-  // Fey Touched and similar feats). Class-filtered choices use that class directly;
-  // otherwise union the real 2014 caster lists, then filter the hydrated spell data.
+  // Fey Touched and similar feats). Class-filtered choices use that class directly.
+  // A filter without `class=` means every published spell, including setting/subclass
+  // spells which sources.json does not place on a base class list (Gift of Alacrity).
   async function loadSpellsByFilter(filter, opts) {
     const parts = {};
     String(filter || '').split('|').forEach(bit => { const i = bit.indexOf('='); if (i > 0) parts[bit.slice(0, i).toLowerCase()] = bit.slice(i + 1); });
     const levels = parts.level ? new Set(parts.level.split(';').map(Number)) : null;
     const schools = parts.school ? new Set(parts.school.split(';')) : null;
-    const classes = parts.class ? [parts.class] : ['Artificer','Bard','Cleric','Druid','Paladin','Ranger','Sorcerer','Warlock','Wizard'];
-    const lists = await Promise.all(classes.map(c => loadClassSpellList(c, { detail: !!(opts && opts.detail) })));
+    let pool;
+    if (parts.class) {
+      pool = await loadClassSpellList(parts.class, { detail: !!(opts && opts.detail) });
+    } else {
+      const idx = await fetchJson('spells/index.json');
+      const files = Object.keys(idx).filter(s => !isUASource(s));
+      const loaded = await Promise.all(files.map(async s => {
+        try { return await fetchJson(`spells/${idx[s]}`); }
+        catch (e) { return { spell: [] }; }
+      }));
+      pool = loaded.flatMap(file => (file.spell || []).map(sp => spellToItem(sp, !!(opts && opts.detail))));
+    }
     const seen = new Set(), out = [];
-    lists.flat().forEach(sp => {
+    pool.forEach(sp => {
       const key = (sp.name + '|' + sp.source).toLowerCase();
       if (seen.has(key) || isUASource(sp.source)) return;
       if (levels && !levels.has(sp.level)) return;

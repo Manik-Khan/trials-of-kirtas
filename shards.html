@@ -313,6 +313,10 @@
   .ft-spell{display:block;text-align:left;padding:9px 11px;border:1px solid var(--rule-strong);background:var(--bg-card);color:var(--ink);cursor:pointer}
   .ft-spell.on{border-color:var(--blood);box-shadow:inset 3px 0 0 var(--blood)}
   .ft-spell b{font-family:var(--disp);font-size:15px}.ft-spell span{display:block;font-family:var(--ui);font-size:12px;color:var(--ink-faint);margin-top:2px}
+  .ft-spells{padding:0;border:0;background:transparent}.ft-spell-stage{margin-top:11px}
+  .ft-spell-stage .ft-overlap{margin:10px 2px 2px;color:var(--cream-dim);font:13px/1.45 var(--body)}
+  .ft-spell-stage .gtag.feat-only{color:var(--o-feat)}
+  .ft-spell-stage .sp-srch{width:100%;box-sizing:border-box;margin:4px 0 2px}
   .ft-status{padding:10px 13px;margin:0 0 14px;border:1px solid var(--rule-strong);border-left:3px solid var(--blood);background:var(--bg-sunk);font:13px var(--ui);color:var(--ink-soft);line-height:1.45}
   .ft-status.done{border-left-color:#2f6f6b}.ft-status b{color:var(--blood);margin-right:8px}.ft-status.done b{color:#2f6f6b}
   /* ── Items step: equipment groups, A/B picker, gold ── */
@@ -510,6 +514,7 @@
   .sp-stage .sp-row.o-class .sp-tick{border-left-color:var(--o-class)}
   .sp-stage .sp-row.o-sub .sp-tick{border-left-color:var(--o-subclass)}
   .sp-stage .sp-row.o-race .sp-tick{border-left-color:var(--o-race)}
+  .sp-stage .sp-row.o-feat .sp-tick{border-left-color:var(--o-feat)}
   .sp-stage .sp-row.o-bg .sp-tick{border-left-color:var(--o-bg)}
   .sp-stage .sp-tick .dot{display:inline-block; width:14px; height:14px; border-radius:50%; border:1.6px solid var(--cream-fnt); background:transparent; vertical-align:-2px; filter:url(#rough)}
   .sp-stage .sp-row:hover .sp-tick .dot{border-color:var(--gold-br)}
@@ -550,6 +555,7 @@
   .sp-stage .detail{position:relative; margin:8px 0 12px; padding:15px 17px; background:var(--parchment); color:var(--ink-parch); border-left:4px solid var(--o-class); box-shadow:0 16px 34px -22px #000; max-width:680px}
   .sp-stage .detail.o-sub{border-left-color:var(--o-subclass)}
   .sp-stage .detail.o-race{border-left-color:var(--o-race)}
+  .sp-stage .detail.o-feat{border-left-color:var(--o-feat)}
   .sp-stage .detail::after{content:""; position:absolute; inset:0; pointer-events:none; mix-blend-mode:multiply; opacity:.07;
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='90' height='90'><filter id='p'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23p)'/></svg>")}
   .sp-stage .detail .d-h{display:flex; align-items:baseline; gap:10px; margin-bottom:7px; position:relative; z-index:1; flex-wrap:wrap}
@@ -631,7 +637,7 @@
 </div>
 
 <!-- engine + data + write-path modules (deployed alongside this page) -->
-<script src="soul-shards-data.js?v=lu1"></script>
+<script src="soul-shards-data.js?v=lu2"></script>
 <script src="soul-shards-engine.js?v=lu1"></script>
 <script src="soul-shards-spellcasting.js?v=lu1"></script>
 <script src="armor-ac.js?v=um1"></script>
@@ -2576,7 +2582,7 @@ var SpellsUI = (function () {
   function fmtRange(r){ if(!r) return '\u2014'; if(r.type!=='point'){ var d=r.distance; return r.type.charAt(0).toUpperCase()+r.type.slice(1)+(d&&d.amount?' ('+d.amount+'-'+d.type+')':''); } var d2=r.distance; if(!d2) return 'Special'; if(d2.type==='self') return 'Self'; if(d2.type==='touch') return 'Touch'; if(d2.type==='sight') return 'Sight'; if(d2.type==='unlimited') return 'Unlimited'; return (d2.amount!=null?d2.amount+' ':'')+(d2.type||''); }
   function fmtComp(c){ if(!c) return '\u2014'; var p=[]; if(c.v)p.push('V'); if(c.s)p.push('S'); if(c.m)p.push('M'+(typeof c.m==='string'?' ('+c.m+')':(c.m&&c.m.text?' ('+c.m.text+')':''))); return p.join(', ')||'\u2014'; }
   function fmtDur(d){ if(!d||!d.length) return '\u2014'; var x=d[0]; if(x.type==='instant') return 'Instantaneous'; if(x.type==='permanent') return 'Until dispelled'; if(x.type==='special') return 'Special'; if(x.type==='timed'){ var t=x.duration; return (x.concentration?'Concentration, up to ':'')+t.amount+' '+t.type+(t.amount>1?'s':''); } return 'Special'; }
-  function detailCard(sp, originClass){
+  function detailCard(sp, originClass, casting){
     if (!sp) return '';
     var tags = []; if (sp.ritual) tags.push('Ritual'); if (sp.concentration) tags.push('Concentration');
     var sch = (sp.level===0 ? 'cantrip' : 'level '+sp.level) + ' \u00b7 ' + (SCHOOL[sp.school]||sp.school||'') + (tags.length ? ' \u00b7 '+tags.join(' \u00b7 ') : '');
@@ -2584,7 +2590,8 @@ var SpellsUI = (function () {
     var higher = sp.entriesHigherLevel ? '<p class="d-hl"><b>At higher levels</b>'+esc(entriesToText(sp.entriesHigherLevel[0].entries).join(' '))+'</p>' : '';
     var oc = originClass || 'o-class';
     var save = (sp.savingThrow || []).map(function(a){ return String(a).slice(0,3).toUpperCase(); }).join('/');
-    var saveLine = save && _ent ? '<span>Save <b>' + esc(save) + ' vs ' + esc(_ent.cls) + ' DC ' + _ent.saveDC + '</b></span>' : '';
+    var profile = arguments.length > 2 ? casting : (_ent ? { cls:_ent.cls, saveDC:_ent.saveDC } : null);
+    var saveLine = save && profile && profile.saveDC != null ? '<span>Save <b>' + esc(save) + ' vs ' + esc(profile.cls) + ' DC ' + profile.saveDC + '</b></span>' : '';
     return '<div class="detail '+oc+'">' +
       '<div class="d-h"><span class="d-n">'+esc(sp.name)+'</span><span class="d-sch">'+esc(sch)+'</span></div>' +
       '<div class="d-grid">' +
@@ -3277,7 +3284,7 @@ var SpellsUI = (function () {
     return { spells: out, spellbook: book };
   }
 
-  return { mount: mount, ensureLoaded: ensureLoaded, incomplete:incomplete, spellsForStructural: spellsForStructural };
+  return { mount: mount, ensureLoaded: ensureLoaded, incomplete:incomplete, spellsForStructural: spellsForStructural, detailCard:detailCard };
 })();
 
 // ── Choices step UI — the optional-feature picker (Fighting Style / Maneuvers /
@@ -3398,7 +3405,7 @@ var ChoicesUI = (function () {
 // ability bumps. Picks persist to draft.advancement; the ability bumps flow through
 // effectiveAbilities (so they reach the whole engine), feats fold via derive. ──
 var FeatsUI = (function () {
-  var _freq = 0, _feats = null, _race = null, _asiLevels = null, _q = {}, _featSpellData = {};
+  var _freq = 0, _feats = null, _race = null, _asiLevels = null, _q = {}, _featSpellData = {}, _featSpellOpen = null, _featSpellQuery = {};
 
   function esc(x){ return String(x).replace(/[&<>]/g, function(c){ return c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'; }); }
   var ABBR = { str:'STR', dex:'DEX', con:'CON', int:'INT', wis:'WIS', cha:'CHA' };
@@ -3425,19 +3432,35 @@ var FeatsUI = (function () {
   }
   function hydrateFeatSpells(){
     _featSpellData = {};
-    var jobs = [];
+    var pending = [];
     slotKeys().forEach(function(k){
       var e = slot(k); if (!e || e.kind !== 'feat' || !e.name) return;
       var f = (_feats || []).filter(function(x){ return x.name === e.name; })[0], spec = featSpellSpec(f);
       if (!spec.fixed.length && !spec.choices.length) return;
-      jobs.push(Promise.all([
-        SoulShardsData.loadSpellMeta(spec.fixed, { detail:true }),
-        Promise.all(spec.choices.map(function(filter){ return SoulShardsData.loadSpellsByFilter(filter, { detail:true }); }))
-      ]).then(function(res){
-        _featSpellData[k] = { fixed:res[0], choices:spec.choices.map(function(filter, i){ return { filter:filter, options:res[1][i] || [] }; }) };
+      pending.push({ key:k, spec:spec });
+    });
+    if (!pending.length) return Promise.resolve([]);
+    var classNames = casterClasses().map(function(c){ return c.n; });
+    var classLists = Promise.all(classNames.map(function(name){ return SoulShardsData.loadClassSpellList(name, { detail:false }); }));
+    return classLists.then(function(lists){
+      var sets = {};
+      classNames.forEach(function(name, i){ sets[name] = {}; (lists[i] || []).forEach(function(sp){ sets[name][sp.name.toLowerCase()] = 1; }); });
+      return Promise.all(pending.map(function(row){
+        return Promise.all([
+          SoulShardsData.loadSpellMeta(row.spec.fixed, { detail:true }),
+          Promise.all(row.spec.choices.map(function(filter){ return SoulShardsData.loadSpellsByFilter(filter, { detail:true }); }))
+        ]).then(function(res){
+          function annotate(sp){
+            var onLists = classNames.filter(function(name){ return sets[name][sp.name.toLowerCase()]; });
+            return Object.assign({}, sp, { _featClassLists:onLists });
+          }
+          _featSpellData[row.key] = { fixed:(res[0] || []).map(annotate), choices:row.spec.choices.map(function(filter, i){
+            var options = (res[1][i] || []).map(annotate);
+            return { filter:filter, options:options };
+          }) };
+        });
       }));
     });
-    return Promise.all(jobs);
   }
 
   function loadData(){
@@ -3531,24 +3554,65 @@ var FeatsUI = (function () {
     if (s.length > 180) s = s.slice(0, 178) + '…';
     return s;
   }
+  function featKnownBy(name){
+    var out = [], byClass = draft.spells && draft.spells.byClass || {}, needle = String(name || '').toLowerCase();
+    Object.keys(byClass).forEach(function(cls){
+      var b = byClass[cls] || {}, has = ['cantrips','known','prepared','spellbook'].some(function(k){ return (b[k] || []).some(function(n){ return String(n).toLowerCase() === needle; }); });
+      if (has) out.push(cls);
+    });
+    return out;
+  }
+  function featSpellAvailability(sp){
+    var known = featKnownBy(sp.name), lists = sp._featClassLists || [];
+    if (known.length) return { text:'already known · ' + known.join(' + '), cls:'' };
+    if (lists.length) return { text:'also on ' + lists.join(' + ') + ' list' + (lists.length > 1 ? 's' : ''), cls:'' };
+    return { text:'Fey Touched only', cls:' feat-only' };
+  }
+  function featSpellRow(k, gi, sp, picked, dc, ability, selectable){
+    var on = picked === sp.name, avail = featSpellAvailability(sp);
+    var save = (sp.savingThrow || []).map(function(a){ return String(a).slice(0,3).toUpperCase(); }).join('/');
+    var saveChip = save ? '<span class="gtag">' + esc(save) + ' save' + (dc != null ? ' · ' + String(ability || '').toUpperCase() + ' DC ' + dc : '') + '</span>' : '';
+    var flags = (sp.concentration ? '<span class="flag c" title="Concentration">C</span>' : '<span class="flag ph">C</span>') +
+      (sp.ritual ? '<span class="flag r" title="Ritual">R</span>' : '<span class="flag ph">R</span>');
+    var attrs = selectable ? ' data-fspell="' + esc(sp.name) + '" data-k="' + k + '" data-gi="' + gi + '"' : '';
+    return '<tr class="sp-row o-feat' + (on ? ' sel' : '') + (selectable ? '' : ' have') + '" data-spell-name="' + esc(sp.name.toLowerCase()) + '"' + attrs + '>' +
+      '<td class="sp-tick"><span class="dot"></span></td>' +
+      '<td class="sp-name">' + esc(sp.name) + '<span class="gtag' + avail.cls + '">' + esc(avail.text) + '</span>' + saveChip + '</td>' +
+      '<td class="sp-school">' + esc(FEAT_SCHOOL[sp.school] || sp.school || '') + '</td>' +
+      '<td class="sp-flagcell">' + flags + '</td>' +
+      '<td class="sp-icell"><button type="button" class="sp-info' + (_featSpellOpen && _featSpellOpen.k === k && _featSpellOpen.gi === gi && _featSpellOpen.name === sp.name ? ' open' : '') + '" data-fdetail="' + esc(sp.name) + '" data-k="' + k + '" data-gi="' + gi + '" aria-label="Read ' + esc(sp.name) + '">i</button></td>' +
+    '</tr>';
+  }
   function featSpellSub(k, fObj){
     var data = _featSpellData[k]; if (!data) return '';
     var e = slot(k) || {}, ability = Object.keys(e.abils || {})[0] || null;
     var pb = 2 + Math.floor((Math.max(1, totalLevel()) - 1) / 4), eff = effectiveAbilities(_race);
     var dc = ability ? 8 + pb + Math.floor(((eff[ability] || 10) - 10) / 2) : null;
-    var fixed = (data.fixed || []).map(function(sp){ return sp.name; }).join(', ');
+    var fixedRows = (data.fixed || []).map(function(sp){ return featSpellRow(k, -1, sp, null, dc, ability, false); }).join('');
+    var fixedOpen = _featSpellOpen && _featSpellOpen.k === k && _featSpellOpen.gi === -1
+      ? (data.fixed || []).filter(function(sp){ return sp.name === _featSpellOpen.name; })[0] : null;
+    var fixedDetail = fixedOpen && SpellsUI.detailCard ? SpellsUI.detailCard(fixedOpen, 'o-feat', { cls:e.name, saveDC:dc }) : '';
     var groups = (data.choices || []).map(function(group, gi){
       var picked = e.featSpells && e.featSpells[gi];
-      var rows = group.options.map(function(sp){
-        var save = (sp.savingThrow || []).map(function(a){ return String(a).slice(0,3).toUpperCase(); }).join('/');
-        var gist = levelEntryText(sp.entries || []); if (gist.length > 180) gist = gist.slice(0,177) + '\u2026';
-        return '<button type="button" class="ft-spell' + (picked === sp.name ? ' on' : '') + '" data-fspell="' + esc(sp.name) + '" data-k="' + k + '" data-gi="' + gi + '"><b>' + esc(sp.name) + '</b><span>' +
-          (save ? save + ' save' + (dc != null ? ' \u00b7 ' + (ability || '').toUpperCase() + ' DC ' + dc : '') : 'No saving throw') + ' \u00b7 ' + esc(FEAT_SCHOOL[sp.school] || sp.school || '') + '</span>' +
-          (gist ? '<span>' + esc(gist) + '</span>' : '') + '</button>';
-      }).join('');
-      return '<div class="ft-hint">Choose one spell' + (ability ? ' \u00b7 casts with ' + ability.toUpperCase() + (dc != null ? ' (save DC ' + dc + ')' : '') : ' \u00b7 choose the feat ability first') + '</div><div class="ft-spell-list">' + rows + '</div>';
+      var rows = group.options.map(function(sp){ return featSpellRow(k, gi, sp, picked, dc, ability, true); }).join('');
+      var open = _featSpellOpen && _featSpellOpen.k === k && _featSpellOpen.gi === gi
+        ? group.options.filter(function(sp){ return sp.name === _featSpellOpen.name; })[0] : null;
+      var detail = open && SpellsUI.detailCard ? SpellsUI.detailCard(open, 'o-feat', { cls:e.name, saveDC:dc }) : '';
+      var qk = k + '|' + gi;
+      return '<div class="ft-choice-group" data-ft-choice="' + qk + '">' +
+        '<div class="lvlbar"><span class="lab">Level</span><span class="lvltab on">1st</span></div>' +
+        '<div class="tblhead"><span class="t">Choose one spell</span><span class="c">' + (picked ? '1' : '0') + '/1</span><span class="s">Divination or Enchantment</span></div>' +
+        '<input class="sp-srch" type="search" data-ft-spell-search="' + qk + '" placeholder="Find an eligible spell…" value="' + esc(_featSpellQuery[qk] || '') + '">' +
+        '<table class="sp-tbl"><tbody>' + rows + '</tbody></table>' + detail + '</div>';
     }).join('');
-    return '<div class="ft-spells">' + (fixed ? '<div class="ft-spell-fixed"><b>Granted:</b> ' + esc(fixed) + '</div>' : '') + groups + '</div>';
+    var cast = ability ? ability.toUpperCase() + (dc != null ? ' · save DC ' + dc : '') : 'choose INT, WIS, or CHA above';
+    return '<div class="ft-spells"><div class="sp-stage ft-spell-stage">' +
+      '<div class="readout"><div class="ro-h"><span class="cls">' + esc(e.name || (fObj && fObj.name) || 'Feat') + '</span> · separate spell source</div>' +
+        '<div class="cast-meta"><span>Casting ability <b>' + esc(cast) + '</b></span><span>Each spell <b>1 free cast / long rest</b></span></div>' +
+        '<div class="legend"><span><i style="background:var(--o-feat)"></i>Feat spell</span><span><i class="l-class"></i>Class-list overlap is labeled</span></div></div>' +
+      (fixedRows ? '<div class="subhead">Granted automatically <span class="sp-note">doesn’t use your one choice</span></div><table class="sp-tbl"><tbody>' + fixedRows + '</tbody></table>' + fixedDetail : '') +
+      groups + '<p class="ft-overlap">A spell already known through Bard or Cleric remains selectable here: Fey Touched is a separate source, uses the ability chosen above, and grants its own free cast.</p>' +
+    '</div></div>';
   }
 
   function asiPicker(k){
@@ -3620,7 +3684,14 @@ var FeatsUI = (function () {
       row.style.display = (!query || nm.indexOf(query) !== -1) ? '' : 'none';
     });
   }
-  function reapplyFilters(host){ Array.prototype.forEach.call(host.querySelectorAll('.ft-srch'), function(inp){ if (inp.value) filterList(inp); }); }
+  function filterFeatSpells(inp){
+    var query = (inp.value || '').toLowerCase(), group = inp.closest('.ft-choice-group'); if (!group) return;
+    Array.prototype.forEach.call(group.querySelectorAll('.sp-row[data-spell-name]'), function(row){ row.style.display = !query || row.getAttribute('data-spell-name').indexOf(query) !== -1 ? '' : 'none'; });
+  }
+  function reapplyFilters(host){
+    Array.prototype.forEach.call(host.querySelectorAll('.ft-srch'), function(inp){ if (inp.value) filterList(inp); });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-ft-spell-search]'), function(inp){ if (inp.value) filterFeatSpells(inp); });
+  }
 
   function wire(host){
     Array.prototype.forEach.call(host.querySelectorAll('.ft-mode button'), function(el){
@@ -3645,6 +3716,7 @@ var FeatsUI = (function () {
       el.addEventListener('click', function(){
         if (el.classList.contains('dim')) return;
         var k = el.getAttribute('data-k'), name = el.getAttribute('data-feat'), e = slot(k) || {};
+        _featSpellOpen = null;
         if (e.kind === 'feat' && e.name === name){ setSlot(k, { kind:'feat', name: null, abils: {}, featSpells:{} }); loadData().then(render); return; }
         var fObj = featList().find(function(f){ return f.name === name; });
         var abils = (fObj && fObj.ability && fObj.ability.fixed) ? Object.assign({}, fObj.ability.fixed) : {};
@@ -3660,12 +3732,24 @@ var FeatsUI = (function () {
         setSlot(k, { kind:'feat', name: e.name, abils: abils, featSpells:e.featSpells || {} });
       });
     });
-    Array.prototype.forEach.call(host.querySelectorAll('.ft-spell[data-fspell]'), function(el){
-      el.addEventListener('click', function(){
+    Array.prototype.forEach.call(host.querySelectorAll('.ft-spells .sp-row[data-fspell]'), function(el){
+      el.addEventListener('click', function(ev){
+        if (ev.target.closest('.sp-info')) return;
         var k = el.getAttribute('data-k'), gi = el.getAttribute('data-gi'), e = slot(k); if (!e || e.kind !== 'feat') return;
         var picks = Object.assign({}, e.featSpells || {}); picks[gi] = el.getAttribute('data-fspell');
         setSlot(k, { kind:'feat', name:e.name, abils:Object.assign({}, e.abils || {}), featSpells:picks });
       });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('.ft-spells .sp-info[data-fdetail]'), function(el){
+      el.addEventListener('click', function(ev){
+        ev.stopPropagation();
+        var next = { k:el.getAttribute('data-k'), gi:+el.getAttribute('data-gi'), name:el.getAttribute('data-fdetail') };
+        _featSpellOpen = _featSpellOpen && _featSpellOpen.k === next.k && _featSpellOpen.gi === next.gi && _featSpellOpen.name === next.name ? null : next;
+        render();
+      });
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-ft-spell-search]'), function(el){
+      el.addEventListener('input', function(){ _featSpellQuery[el.getAttribute('data-ft-spell-search')] = el.value; filterFeatSpells(el); });
     });
     Array.prototype.forEach.call(host.querySelectorAll('.ft-srch'), function(el){
       el.addEventListener('input', function(){ _q[el.getAttribute('data-k')] = el.value; filterList(el); });

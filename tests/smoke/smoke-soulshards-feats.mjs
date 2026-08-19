@@ -52,6 +52,7 @@ const ok = (n, c) => { c ? pass++ : fail++; console.log((c ? '  ok   ' : '  FAIL
   ok('Fey Touched keeps its additional-spell schema', !!(fey && fey.additionalSpells));
   const feyChoices = await Data.loadSpellsByFilter('level=1|school=E;D', { detail: true });
   ok('Fey Touched filter resolves real 1st-level enchantment/divination spells', feyChoices.length > 5 && feyChoices.every(s => s.level === 1 && ['E','D'].includes(s.school)));
+  ok('  …includes Gift of Alacrity outside the base class-list index', feyChoices.some(s => s.name === 'Gift of Alacrity' && s.source === 'EGW' && s.school === 'D'));
   ok('  …choice spells carry descriptions + saving-throw metadata', feyChoices.some(s => s.entries && s.entries.length) && feyChoices.every(s => 'savingThrow' in s));
 
   // ── derive folds feats under a feat: stamp (→ purple) ──
