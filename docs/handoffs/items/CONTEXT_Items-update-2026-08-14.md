@@ -1,23 +1,28 @@
-# Durable item system handoff — current through 2026-08-18
+# Durable item system handoff — current through 2026-08-19
 
 Status: **identity/schema, staff adoption, and server-side transfer are applied;
 the real full-sheet adoption flow and tracked-item reader are field-visible on
 the normal sheet, with `?itemHistory=0` retained as the rollback switch. The
 mounted/rail sheet remains untouched. The next Gear/import presentation and
-Loot Workshop work remain standalone, no-dependency mocks; no production Loot
-Workshop, Forge, World, or Chronicle wiring is approved.**
+Loot Workshop work remain standalone, no-dependency mocks. The first guarded
+campaign-moment reader is local but its SQL is unapplied and its World /
+Chronicle field path is not yet proven. No production Loot Workshop or Forge
+runtime wiring is approved.**
 
 This document is the current item-system authority. Read it with `AGENTS.md`
 and `CONTEXT.md` before touching Gear, inventory imports, item SQL, Chronicle
 links, or World-map item projection.
 
-Current working baseline: local `main` at `bab024a` (`loot workskop`), with
-`origin/main` at `cf9c3b1` and four intentional uncommitted files: `CONTEXT.md`,
-this handoff, `_edits/mock-loot-workshop.html`, and
-`tests/smoke/smoke-loot-workshop-mock.mjs`. The original handoff checkpoint was
-`cc388e1` (`items and ownership`). The inherited documentation and item changes
-between those commits are intentional. M deploys manually. Codex never pushes
-and commits only when M explicitly asks.
+Current working baseline: local `main` and `origin/main` at `893e1d2`
+(`updated level up and spells`). The approved August 19 map-history mock begins
+from a clean tree and intentionally leaves four uncommitted files:
+`CONTEXT.md`, this handoff,
+`_edits/mock-campaign-connections-map-history.html`, and
+`tests/smoke/smoke-campaign-connections-map-history-mock.mjs`. The prior item
+checkpoint was local `bab024a` (`loot workskop`); the original handoff
+checkpoint was `cc388e1` (`items and ownership`). The later committed Level Up
+wave does not change item, Chronicle, World, or map dependencies. M deploys
+manually. Codex never pushes and commits only when M explicitly asks.
 
 ## 1. Executive verdict
 
@@ -204,8 +209,9 @@ TOTAL:                     145 passed, 0 failed
 ### August 16 tracked-item reader, management, and promotion candidate
 
 M approved `_edits/mock-item-history-management.html`. The smallest production
-reader lives in `item-history.js`; the August 16 local promotion is cache-stamped
-as `item-history.js?v=ih9` and mounts on the normal full sheet by default. It:
+reader lives in `item-history.js`; the August 19 connected-history candidate is
+cache-stamped as `item-history.js?v=ih10` and mounts on the normal full sheet by
+default. It:
 
 - claims tracked Gear details before the adoption bridge decorates ordinary
   items;
@@ -327,6 +333,71 @@ choose the authoritative licensed treasure-table data and exact 2014/2024 book
 coverage, and a separate durable roster/bundle contract must be designed for
 any future Forge or World attachment.
 
+### August 19 campaign connections + map-history direction — approved
+
+M directed the roadmap forward from item history into map history and the
+connections among sections. The first slice remains mock-first:
+`_edits/mock-campaign-connections-map-history.html` is standalone, has no
+dependencies, performs no reads or writes, and does not alter production World,
+Chronicle, Gear, Forge, or SQL.
+
+M approved the mock's interaction and language on August 19. It settles these
+presentation rules:
+
+- one recorded campaign moment is the fact; World, Chronicle, Item History,
+  and Encounter are projections that open the same identity;
+- current item custody/location is current truth, not a rewrite of the place
+  where an earlier item event occurred;
+- `entities.id`/Living Codex location keys remain the World link authority;
+  a nested place uses its top-level parent's continent pin rather than creating
+  a second pin;
+- approximate knowledge renders as a `?` region. Staff exact truth is a
+  separate layer and cannot leak into the player projection;
+- co-located moments cluster at one map home;
+- an unlocated event remains valid item history but receives no guessed World
+  pin, and every unavailable connection narrates why;
+- personal World marks in `data/map-pins.json` are excluded from permanent
+  history because they are mutable/deletable presentation marks; and
+- the existing item-event fields remain the source link vocabulary:
+  session, location, moment, encounter, Journal page, feed post, and battle
+  map. The shared `momentId` joins projections without consumer-
+  specific shadow IDs.
+
+At mock approval, one contract gate remained intentionally unresolved. Legacy
+Combat identifies a
+battle map through `scenes.key`/`encounters.map_ref`, while the current Forge
+identifies a shared table through `forge_sessions.id` and stores its exact map
+document inside that row. The guarded SQL candidate below now chooses typed
+`scenes.id` or `forge_sessions.id` references; the mock's readable battle-map
+label remains presentation only.
+
+Evidence: `smoke-campaign-connections-map-history-mock` passes **64/64**.
+Desktop and 390×844 browser passes covered player/staff audience changes,
+cross-section selection, filters, approximate truth, location clustering, and
+an unlinked Hexblade event. Mobile measured no horizontal overflow and 62px
+connection targets. No browser warning/error was reported. M first approved
+this interaction/language direction, then separately authorized the guarded
+local production build described below.
+
+M then authorized the first production build. The local guarded candidate uses
+`campaign-moments.js` as the shared `tok-campaign-moment/v1` reader and
+`schema_delta_campaign_moments.sql` as the unapplied database contract. World
+loads Party's Path only through `?path=1`, while `?campaignLinks=1` carries the
+same `moment` identity into Chronicle and the full-sheet item reader. The SQL
+stores either `scene_id → scenes.id` or `forge_session_id → forge_sessions.id`;
+it cannot persist a friendly battle-map label as identity. Public moments and
+`campaign_moment_secrets` have separate RLS, so approximate party knowledge and
+staff exact coordinates are different database projections.
+
+The build remains local and read-only. No sample production moment is seeded,
+the migration is not applied, and Forge runtime files are untouched. Current
+evidence is **34/34** campaign-moment checks, **279/279** affected runnable item
+checks, **11/11** Living Codex checks, and **36/36** relevant unchanged Forge
+checks. The real item-history harness passes at 1280×720 and 390×844 with no
+horizontal overflow, visible cross-section links, and 44px mobile link targets.
+The Chronicle and sheet DOM smokes cannot start because `jsdom` is absent; the
+unapplied World/Chronicle data path still requires an authenticated field pass.
+
 ## 6. File ownership map
 
 - `item-provenance.js` — pure durable identity/event/replay contract; no page
@@ -343,9 +414,16 @@ any future Forge or World attachment.
 - `item-adoption.js` — full-sheet staff adoption client and dialog; promoted by
   default locally with `?itemHistory=0` rollback.
 - `item-history.js` — tracked-item reader plus staff attunement-rule
-  control; public/history for members, separate secrets only for staff; full
-  sheet only.
-- `sheet-v2.html` — current full-sheet include/mount seam.
+  control and guarded campaign-moment links; public/history for members,
+  separate secrets only for staff; full sheet only.
+- `campaign-moments.js` — guarded shared moment reader, location-parent
+  projection, clustering, path ordering, and cross-section URL authority.
+- `schema_delta_campaign_moments.sql` — unapplied typed moment/map contract and
+  separate staff-only exact truth; no seed data.
+- `world.html` — guarded `?path=1` Party's Path production candidate.
+- `chronicle.html` — guarded `?campaignLinks=1` feed-entry connection candidate.
+- `sheet-v2.html` — current full-sheet include/mount seam; loads the shared
+  campaign reader before item history.
 - `gear-manager.js` — existing inventory renderer/editor; do not refactor it to
   solve item history unless the approved mock proves that seam is required.
 - `tests/fixtures/item-adoption-harness.html` — standalone production-module
@@ -359,6 +437,13 @@ any future Forge or World attachment.
   surface; no production wiring.
 - `tests/smoke/smoke-loot-workshop-mock.mjs` — structural and interaction
   known-answer gate for the Loot Workshop mock.
+- `_edits/mock-campaign-connections-map-history.html` — approved standalone
+  campaign-moment, Party's Path, and cross-section navigation direction; no
+  production data or wiring.
+- `tests/smoke/smoke-campaign-connections-map-history-mock.mjs` — approved-mock
+  identity/link/location/audience/responsive contract gate.
+- `tests/smoke/smoke-campaign-moments.mjs` — production schema/reader/World/
+  Chronicle known-answer gate.
 - `netlify/functions/items2.js` — existing importer endpoint; it does not create
   durable item instances automatically.
 
@@ -376,8 +461,15 @@ any future Forge or World attachment.
 - Loot Workshop setup, rolling, bundle editing, attachments, and release are
   mock-only. No authoritative treasure-table dataset or production persistence
   contract has been approved.
-- Item events are not yet projected into Chronicle, World, NPCs, encounters, or
-  battle-map UI.
+- Item events are not yet live-projected into Chronicle, World, NPCs,
+  encounters, or battle-map UI. A guarded local World/Chronicle/item read
+  candidate exists, but its SQL and real rows are not live.
+- The local schema now settles canonical battle-map identity as one nullable
+  typed reference to either `scenes.id` or `forge_sessions.id`; live application
+  and real-row verification remain open.
+- No campaign-moment authoring UI or client write path is approved. The first
+  field row must be inserted deliberately only after every linked real identity
+  is checked.
 - Quests and objective evidence do not exist.
 - Evolving-item deeds/unlocks do not exist. Manual `transformed` history is only
   a contract capability today.
@@ -435,34 +527,36 @@ Identity persists through every awakening, rename, and transfer.
 
 ## 9. Exact next slice for a fresh session
 
-Stay inside **items**. Do not start Chronicle, World, quests, or evolving-item
-automation yet.
+M explicitly advanced the roadmap on August 19 into map history and the
+connections among sections. The guarded local read slice exists, but live SQL
+application and promotion remain closed.
 
 1. Synchronize against `AGENTS.md`, `CONTEXT.md`, this handoff, current `HEAD`,
-   working tree, and changes since `cc388e1`.
-2. Grep the real full-sheet and mounted-sheet Gear callers before claiming a
-   seam is missing.
-3. Preserve the user-approved Loot Workshop interaction and its 140/140 smoke;
-   begin with M's language/refinement review rather than production wiring.
-4. If M approves production exploration, first identify the licensed treasure-
-   table source and write the bundle/roster persistence boundary. Do not wire
-   Forge, Compendium, Gear, World, or Chronicle directly from the mock.
-5. Complete the approved Gear/import presentation mock's production plan:
-   unidentified-at-import choice, description, rarity color, and closed-row
-   history marker. Re-grep both full and mounted Gear seams before editing.
-6. Confirm the live state of `schema_delta_item_attunement.sql`, then exercise
-   Attune/Release against a separate required item in staff and player sessions
-   on desktop and mobile.
-7. ~~Add narrow append-only SQL operations for identification/rename; never
-   direct-write history tables.~~ Local candidate complete; confirm live SQL
-   state and field-test.
-8. ~~Wire the already-applied `transfer_item` RPC through a narrated
-   confirmation flow.~~ Local candidate complete; verify both bearer sheets
-   after a field transfer.
-9. Field-test the complete tracked-item workflow before crossing into entity
-   links or World. Mounted-sheet rollout remains a separate approval boundary.
+   working tree, and changes since `893e1d2`.
+2. Review and apply `schema_delta_campaign_moments.sql` after confirming its
+   prerequisite tables are live. Do not seed its illustrative mock IDs.
+3. Resolve one safe real moment's feed, Journal, encounter, Living Codex
+   location, item-event, and typed scene-or-Forge identities before inserting
+   that first field row.
+4. Exercise `world.html?path=1`, the linked Chronicle entry, and the linked
+   full-sheet item history as player and staff on desktop and mobile. Confirm
+   approximate truth, staff exact truth, clustering, deep links, and narrated
+   missing links against that one real fact.
+5. Preserve Living Codex location identity, nested-parent projection,
+   approximate-versus-confirmed truth, and database-enforced staff secrets.
+   Personal GitHub-backed World marks remain outside permanent history.
+6. Keep the read slice guarded until the authenticated field pass succeeds.
+   Do not add authoring UI, client writes, quests, or evolving-item automation
+   during that proof.
+7. Carry the existing item gates independently: confirm management SQL live
+   state; field-test Attune/Release, identify, rename, and transfer; complete
+   the approved Gear/import presentation; and keep mounted-sheet rollout as a
+   separate boundary.
+8. Preserve the Loot Workshop's approved standalone interaction and 140/140
+   smoke. Its licensed data and bundle/roster persistence boundary remain
+   separate from campaign-moment production work.
 
-The immediate product question is how the Loot Workshop stays welcoming and
-rules-honest while producing a private bundle that can later enter the already-
-durable item system. The next session should refine and approve that boundary;
-it should not infer approval for production integration.
+The presentation and local read contract are settled: one fact, honest links,
+no guessed map truth, and typed battle-map identity. The next decision is
+whether the authenticated one-row field pass is trustworthy enough to promote
+the guarded readers; local build approval does not make the unapplied SQL live.

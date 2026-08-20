@@ -8,7 +8,8 @@ Updated: **August 19, 2026 (the approved guarded focused Level Up staging flow;
 durable notable-item identity, staff adoption,
 atomic custody transfer, the field-proven full-sheet item-history bridge, the
 approved Gear/import presentation mock, and the current standalone Loot
-Workshop mock; production Forge Blueprint → Build → Combat,
+Workshop mock; the first guarded shared campaign-moment / Party's Path reader;
+production Forge Blueprint → Build → Combat,
 implemented local map-import workflow, field-approved portal-owned stair architecture,
 Living Codex discovery/curation and NPC/World projection, approved
 reaction/cover integration, disposable Test Fight production candidate,
@@ -52,8 +53,9 @@ identity into the inventory, and appends origin plus initial-possession events
 atomically. It never auto-promotes every imported or generic sword. The
 full Gear sheet first loaded the production candidate behind
 `?itemHistory=1`; M field-proved that path by turning Cosmere's longsword into
-**The Hexblade**. The August 16 promotion loads
-`item-adoption.js?v=ia3` and `item-history.js?v=ih9` on the normal full sheet,
+**The Hexblade**. The August 19 connected-history candidate loads
+`campaign-moments.js?v=cm1`, `item-adoption.js?v=ia3`, and
+`item-history.js?v=ih10` on the normal full sheet,
 retains `?itemHistory=0` as a rollback switch, and leaves mounted/rail Gear
 untouched.
 
@@ -132,10 +134,51 @@ The approved sequence is:
 6. let completed deeds plus attached campaign evidence awaken or transform an
    item while preserving identity and appending the change to its history.
 
-The immediate next subsystem slice remains **items**. Begin by refining and
-approving the Loot Workshop boundary and the already-approved Gear/import
-presentation; do not cross into production Forge, Chronicle, or World wiring
-until those item workflows receive separate approval.
+The August 19 direction now begins the next connective phase **mock-first**.
+M approved the interaction and language in
+`_edits/mock-campaign-connections-map-history.html` as the standalone direction
+for the Party's Path and the links among World, Chronicle, item
+history, and an encounter. It treats one recorded campaign moment as the fact
+and each section as a linked view. Current custody remains separate from the
+place where an item event happened; nested locations project through their
+parent map home; approximate discoveries remain `?` regions; co-located
+moments cluster; and missing location/encounter links narrate why no consumer
+projection exists instead of guessing.
+
+The approved mock deliberately excludes the existing personal World marks from
+permanent history because those GitHub-backed marks can move or be deleted. It
+reuses the item event's established session/location/moment/encounter/Journal/
+feed/battle-map link vocabulary and proposed the shared campaign-moment
+identity now used by the local guarded reader. The mock left battle-map
+identity unresolved across legacy `scenes.key`/`encounters.map_ref` and Forge
+`forge_sessions.id`; the local SQL candidate below settles that seam with
+typed database references rather than a free-form label. The mock performs no
+reads, writes, or live wiring. Its structural contract passes **64/64**;
+browser passes at desktop and
+390×844 mobile found no horizontal overflow or warnings/errors, retained 62px
+mobile connection targets, and proved player/staff, filters, clustering,
+cross-section selection, and honest missing-link behavior.
+
+M's interaction/language review is complete. That approval settles the
+standalone presentation and authorized the first guarded production slice.
+The local candidate adds `tok-campaign-moment/v1` in `campaign-moments.js`,
+the unapplied `schema_delta_campaign_moments.sql`, and `?campaignLinks=1` /
+`?path=1` readers in World, Chronicle, and the full-sheet item history. It
+keeps public truth separate from staff-only exact truth, resolves battle-map
+identity through typed `scenes.id` or `forge_sessions.id` references, and never
+turns personal marks into history. No Forge runtime was changed.
+
+This is not live or field-proven yet. The SQL is unapplied and no production
+campaign-moment rows were invented. The first live pass must apply the delta,
+check the real feed/Journal/encounter/location/item-event/map identities, seed
+one safe linked moment, and verify player/staff desktop and mobile behavior.
+Dependency-free campaign evidence passes **34/34**; the affected runnable item
+gates pass **279/279**, Living Codex passes **11/11**, and the two relevant
+unchanged Forge gates pass **36/36**. The Chronicle and sheet DOM smokes remain
+unable to start because this checkout lacks `jsdom`; browser proof currently
+covers the real connected item-history module at 1280×720 and 390×844, not the
+unapplied World/Chronicle data path. Existing item-management and Gear/import
+gates remain carried work rather than silently becoming solved.
 
 ---
 

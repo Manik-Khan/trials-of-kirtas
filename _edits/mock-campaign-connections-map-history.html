@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Party's Path + Campaign Connections — approval mock</title>
+  <style>
+    :root {
+      --ink:#ede3ce; --muted:#9b927f; --dim:#6f6a5e; --night:#07100e;
+      --pine:#13231e; --pine-2:#1a2c26; --line:rgba(235,224,198,.15);
+      --gold:#c79a4a; --gold-2:#e5c27c; --teal:#54bcb6; --red:#cc7766;
+      --violet:#ad8bc1; --blue:#79aecd; --green:#77b984; --paper:#e8ddc5;
+    }
+    * { box-sizing:border-box; }
+    html,body { margin:0; min-height:100%; background:var(--night); color:var(--ink); }
+    body { font-family:"EB Garamond",Georgia,serif; background:
+      radial-gradient(circle at 70% -10%,rgba(61,119,99,.22),transparent 34rem),
+      linear-gradient(135deg,#091512,#050b09 70%); }
+    button { font:inherit; }
+    button:focus-visible { outline:2px solid var(--gold-2); outline-offset:2px; }
+    .shell { min-height:100vh; display:grid; grid-template-rows:auto auto 1fr; }
+    .topbar { min-height:72px; padding:13px 22px; display:flex; align-items:center; gap:18px;
+      border-bottom:1px solid var(--line); background:rgba(5,12,10,.92); }
+    .brand { min-width:240px; }
+    .eyebrow,.micro,.chip,.tab,.filter,.link-kind,.moment-kicker,.fact span,.connection-card small {
+      font-family:"Oswald","Arial Narrow",sans-serif; text-transform:uppercase; letter-spacing:.14em;
+    }
+    .eyebrow { color:var(--gold); font-size:9px; }
+    h1 { margin:3px 0 0; font:500 24px/1.1 "Playfair Display",Georgia,serif; }
+    .topnote { flex:1; color:var(--muted); font-size:13px; line-height:1.35; }
+    .audience { display:flex; border:1px solid var(--line); background:#0a1512; }
+    .audience button { min-height:42px; padding:0 14px; border:0; border-left:1px solid var(--line);
+      background:transparent; color:var(--muted); cursor:pointer; font:600 9px "Oswald",sans-serif;
+      letter-spacing:.12em; text-transform:uppercase; }
+    .audience button:first-child { border-left:0; }
+    .audience button[aria-pressed="true"] { background:rgba(199,154,74,.16); color:var(--gold-2); }
+    .section-nav { min-height:54px; padding:0 22px; display:flex; align-items:stretch; gap:4px;
+      border-bottom:1px solid var(--line); background:#0d1916; overflow-x:auto; }
+    .section-nav button { position:relative; min-width:126px; padding:0 18px; border:0; background:transparent;
+      color:var(--muted); cursor:pointer; white-space:nowrap; }
+    .section-nav button b { display:block; font:500 14px "Playfair Display",Georgia,serif; }
+    .section-nav button small { display:block; margin-top:2px; color:var(--dim); font:600 7px "Oswald",sans-serif;
+      letter-spacing:.12em; text-transform:uppercase; }
+    .section-nav button[aria-selected="true"] { color:var(--ink); background:rgba(199,154,74,.07); }
+    .section-nav button[aria-selected="true"]:after { content:""; position:absolute; left:18px; right:18px; bottom:0;
+      height:2px; background:var(--gold); }
+    .section-note { margin-left:auto; align-self:center; color:var(--dim); font-size:12px; white-space:nowrap; }
+
+    .workspace { min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 330px; }
+    .view { min-width:0; min-height:0; padding:18px; overflow:auto; }
+    .view[hidden] { display:none; }
+    .view-head { margin-bottom:14px; display:flex; align-items:flex-end; gap:14px; }
+    .view-head h2 { margin:2px 0 0; font:500 31px/1.05 "Playfair Display",Georgia,serif; }
+    .view-head p { max-width:650px; margin:0 0 2px auto; color:var(--muted); font-size:14px; }
+
+    .world-grid { display:grid; grid-template-columns:minmax(0,1fr) 250px; gap:14px; min-height:600px; }
+    .map-card { position:relative; min-height:540px; overflow:hidden; border:1px solid rgba(199,154,74,.42);
+      background:#111b17; box-shadow:0 16px 45px rgba(0,0,0,.28); }
+    .map-tools { position:absolute; z-index:6; top:12px; left:12px; right:12px; display:flex; flex-wrap:wrap; gap:6px; }
+    .filter { min-height:34px; padding:0 10px; border:1px solid rgba(235,224,198,.2); background:rgba(7,16,14,.88);
+      color:#aaa18f; font-size:8px; cursor:pointer; }
+    .filter[aria-pressed="true"] { color:#101814; border-color:var(--gold-2); background:var(--gold-2); }
+    .map-stage { position:absolute; inset:0; overflow:hidden; background:#b6a273; }
+    .map-stage:after { content:""; position:absolute; inset:0; pointer-events:none; opacity:.28; mix-blend-mode:multiply;
+      background-image:repeating-linear-gradient(18deg,transparent 0 3px,rgba(36,29,18,.08) 3px 4px); }
+    .map-ink { position:absolute; inset:0; width:100%; height:100%; }
+    .path-layer { position:absolute; inset:0; width:100%; height:100%; z-index:2; pointer-events:none; }
+    .path-line { fill:none; stroke:#d4b55f; stroke-width:5; stroke-dasharray:10 9; stroke-linecap:round;
+      filter:drop-shadow(0 2px 2px rgba(0,0,0,.55)); }
+    .path-shadow { fill:none; stroke:rgba(38,29,17,.5); stroke-width:9; stroke-linecap:round; }
+    .path-unconfirmed { fill:none; stroke:#6e5c48; stroke-width:4; stroke-dasharray:3 12; }
+    .map-marker { position:absolute; z-index:4; width:34px; height:34px; transform:translate(-50%,-50%); border:0;
+      background:transparent; color:var(--gold); cursor:pointer; }
+    .map-marker:before { content:""; position:absolute; inset:6px; transform:rotate(45deg); border:2px solid #201a12;
+      background:currentColor; box-shadow:0 0 0 2px rgba(239,222,179,.72),0 4px 12px rgba(0,0,0,.5); }
+    .map-marker:after { content:attr(data-index); position:absolute; inset:0; display:grid; place-items:center;
+      color:#101814; font:bold 10px Georgia,serif; }
+    .map-marker.selected { width:44px; height:44px; filter:drop-shadow(0 0 10px currentColor); }
+    .map-marker.approximate:before { border-radius:50%; transform:none; background:#705d75; }
+    .map-marker.npc { color:var(--blue); }.map-marker.battle { color:var(--red); }
+    .map-marker.treasure { color:var(--gold-2); }.map-marker.discovery { color:var(--violet); }
+    .map-marker.hidden-by-filter { display:none; }
+    .map-marker.current { color:var(--teal); }
+    .map-marker.current:before { border-radius:50%; transform:none; }
+    .marker-label { position:absolute; z-index:4; transform:translate(-50%,16px); color:#241d13; font:bold 11px Georgia,serif;
+      text-align:center; white-space:nowrap; text-shadow:0 1px rgba(238,220,177,.75); pointer-events:none; }
+    .marker-label.edge-left { transform:translate(0,16px); }
+    .marker-label.avoid-current { transform:translate(-50%,-34px); }
+    .marker-label.hidden-by-filter { display:none; }
+    .secret-pin { position:absolute; z-index:3; display:none; transform:translate(-50%,-50%); width:16px; height:16px;
+      border:2px solid #f0d5ff; border-radius:50%; background:#765486; box-shadow:0 0 12px #8f6ca0; }
+    body.staff .secret-pin { display:block; }
+    .map-legend { position:absolute; z-index:6; left:12px; bottom:12px; padding:9px 11px; border:1px solid rgba(32,25,17,.25);
+      background:rgba(229,215,177,.88); color:#33291b; font-size:11px; }
+    .map-legend b { display:block; font:600 8px "Oswald",sans-serif; letter-spacing:.14em; text-transform:uppercase; }
+    .now-badge { position:absolute; z-index:6; right:12px; bottom:12px; padding:8px 10px; border:1px solid rgba(84,188,182,.55);
+      background:rgba(7,16,14,.9); color:#9fdcd6; font:600 8px "Oswald",sans-serif; letter-spacing:.12em; text-transform:uppercase; }
+
+    .path-rail { border:1px solid var(--line); background:#0d1815; display:flex; flex-direction:column; min-height:0; }
+    .path-rail-head { padding:13px; border-bottom:1px solid var(--line); }
+    .path-rail-head h3 { margin:2px 0 0; font:500 21px "Playfair Display",Georgia,serif; }
+    .moment-list { padding:8px; display:flex; flex-direction:column; gap:7px; overflow:auto; }
+    .moment-card { width:100%; min-height:74px; padding:10px 10px 10px 13px; border:1px solid var(--line);
+      border-left:3px solid var(--moment-color,var(--gold)); background:#101d19; color:var(--ink); text-align:left; cursor:pointer; }
+    .moment-card[aria-current="true"] { border-color:rgba(199,154,74,.75); background:rgba(199,154,74,.1); }
+    .moment-card.filtered { display:none; }
+    .moment-kicker { color:var(--moment-color,var(--gold)); font-size:7px; }
+    .moment-card b { display:block; margin-top:4px; font:500 15px/1.12 "Playfair Display",Georgia,serif; }
+    .moment-card small { display:block; margin-top:4px; color:var(--muted); font-size:11px; line-height:1.25; }
+    .empty-filter { padding:18px 12px; color:var(--muted); font-style:italic; }
+
+    .connections { min-height:0; border-left:1px solid var(--line); background:#0b1512; overflow:auto; }
+    .connection-head { padding:17px 16px 14px; border-bottom:1px solid var(--line); }
+    .connection-head h2 { margin:4px 0 0; font:500 24px "Playfair Display",Georgia,serif; }
+    .connection-head p { margin:7px 0 0; color:var(--muted); font-size:13px; line-height:1.35; }
+    .selected-summary { padding:15px 16px; border-bottom:1px solid var(--line); background:rgba(199,154,74,.06); }
+    .selected-summary strong { display:block; color:var(--ink); font:500 18px/1.15 "Playfair Display",Georgia,serif; }
+    .selected-summary p { margin:7px 0 0; color:#b7ae9c; font-size:13px; line-height:1.4; }
+    .connection-list { padding:10px; display:flex; flex-direction:column; gap:7px; }
+    .connection-card { width:100%; min-height:58px; padding:9px 11px; display:grid; grid-template-columns:34px 1fr auto;
+      align-items:center; gap:9px; border:1px solid var(--line); background:#101d19; color:var(--ink); text-align:left; cursor:pointer; }
+    .connection-card:hover { border-color:rgba(199,154,74,.55); }
+    .connection-card:disabled { opacity:.64; cursor:not-allowed; }
+    .connection-card i { width:32px; height:32px; display:grid; place-items:center; border:1px solid rgba(199,154,74,.32);
+      color:var(--gold-2); font-style:normal; }
+    .connection-card b { display:block; font:500 14px "Playfair Display",Georgia,serif; }
+    .connection-card small { display:block; margin-top:2px; color:var(--dim); font-size:7px; }
+    .connection-card em { color:var(--gold); font-style:normal; font-size:16px; }
+    .connection-missing { margin:0 10px 10px; padding:10px; border-left:2px solid var(--red); background:rgba(204,119,102,.07);
+      color:#c8aa9f; font-size:12px; line-height:1.4; }
+    .staff-receipt { display:none; margin:4px 10px 14px; padding:11px; border:1px solid rgba(173,139,193,.32);
+      background:rgba(173,139,193,.06); }
+    body.staff .staff-receipt { display:block; }
+    .staff-receipt h3 { margin:0 0 8px; color:#c8a9d9; font:600 8px "Oswald",sans-serif; letter-spacing:.14em; text-transform:uppercase; }
+    .receipt-row { display:grid; grid-template-columns:92px 1fr; gap:7px; padding:5px 0; border-top:1px solid rgba(235,224,198,.08); }
+    .receipt-row:first-of-type { border-top:0; }
+    .receipt-row span { color:#847b70; font:600 7px "Oswald",sans-serif; text-transform:uppercase; letter-spacing:.08em; }
+    .receipt-row code { overflow-wrap:anywhere; color:#c9b8d0; font:10px/1.25 ui-monospace,SFMono-Regular,monospace; }
+
+    .chronicle-wrap,.item-wrap,.fight-wrap { max-width:980px; margin:0 auto; }
+    .session-spine { display:grid; grid-template-columns:130px minmax(0,1fr); gap:18px; }
+    .session-label { position:sticky; top:0; align-self:start; padding:12px; border:1px solid var(--line); background:#0d1916; }
+    .session-label b { display:block; color:var(--gold-2); font:500 18px "Playfair Display",Georgia,serif; }
+    .session-label span { color:var(--muted); font-size:12px; }
+    .chronicle-stream { position:relative; padding-left:26px; }
+    .chronicle-stream:before { content:""; position:absolute; left:8px; top:12px; bottom:12px; width:1px; background:rgba(199,154,74,.5); }
+    .chronicle-entry { position:relative; margin-bottom:10px; padding:15px; border:1px solid var(--line); background:#101d19; }
+    .chronicle-entry:before { content:""; position:absolute; left:-23px; top:22px; width:9px; height:9px; transform:rotate(45deg);
+      border:1px solid var(--gold); background:#0d1916; }
+    .chronicle-entry.selected { border-color:rgba(199,154,74,.75); box-shadow:0 0 0 1px rgba(199,154,74,.18); }
+    .chronicle-entry h3 { margin:4px 0 0; font:500 20px "Playfair Display",Georgia,serif; }
+    .chronicle-entry p { margin:8px 0 0; color:#b7ae9c; font-size:15px; line-height:1.55; }
+    .entry-links { display:flex; flex-wrap:wrap; gap:5px; margin-top:10px; }
+    .chip { padding:5px 7px; border:1px solid var(--line); color:#9f9787; font-size:7px; }
+    .chip.location { color:#8ad1cb; }.chip.item { color:#e5c27c; }.chip.battle { color:#e89b8b; }
+
+    .item-hero { padding:23px; display:grid; grid-template-columns:90px minmax(0,1fr) 210px; gap:18px;
+      border:1px solid rgba(199,154,74,.45); background:linear-gradient(120deg,#162721,#101b18); }
+    .item-sigil { width:82px; height:82px; display:grid; place-items:center; border:1px solid rgba(199,154,74,.5);
+      background:radial-gradient(circle,rgba(199,154,74,.22),transparent 65%); color:var(--gold-2); font-size:30px; }
+    .item-hero h2 { margin:3px 0 0; font:500 31px "Playfair Display",Georgia,serif; }
+    .item-hero p { margin:7px 0 0; color:var(--muted); }
+    .item-custody { padding-left:16px; border-left:1px solid var(--line); }
+    .item-custody b,.item-custody span { display:block; }
+    .item-custody b { margin-top:5px; color:var(--gold-2); font:500 17px "Playfair Display",Georgia,serif; }
+    .item-custody span { color:var(--muted); font-size:12px; }
+    .history-title { display:flex; align-items:end; gap:12px; margin:20px 0 10px; }
+    .history-title h3 { margin:0; font:500 24px "Playfair Display",Georgia,serif; }
+    .history-title span { margin-left:auto; color:var(--dim); font:600 8px "Oswald",sans-serif; letter-spacing:.12em; text-transform:uppercase; }
+    .item-history { position:relative; padding-left:28px; }
+    .item-history:before { content:""; position:absolute; left:8px; top:10px; bottom:18px; width:1px; background:rgba(199,154,74,.45); }
+    .item-event { position:relative; margin-bottom:8px; padding:13px; border:1px solid var(--line); background:#101d19; cursor:pointer; }
+    .item-event:before { content:""; position:absolute; left:-24px; top:17px; width:8px; height:8px; transform:rotate(45deg);
+      background:#12211d; border:1px solid var(--gold); }
+    .item-event.selected { border-color:var(--gold); background:rgba(199,154,74,.09); }
+    .item-event h4 { margin:4px 0 0; font:500 17px "Playfair Display",Georgia,serif; }
+    .item-event p { margin:5px 0 0; color:var(--muted); font-size:13px; }
+    .unmapped-note { margin-top:5px; color:#d19a8f!important; }
+
+    .fight-card { display:grid; grid-template-columns:minmax(0,1fr) 310px; border:1px solid rgba(204,119,102,.42); background:#101d19; }
+    .fight-map { position:relative; min-height:430px; overflow:hidden; background:
+      linear-gradient(90deg,transparent 49%,rgba(226,216,185,.12) 50%,transparent 51%),
+      linear-gradient(transparent 49%,rgba(226,216,185,.12) 50%,transparent 51%),#283c34;
+      background-size:52px 52px; }
+    .fight-map:before { content:""; position:absolute; left:12%; right:12%; top:43%; height:20%; transform:rotate(-8deg);
+      border:9px solid #7a6544; background:#9a8258; box-shadow:0 0 0 7px rgba(15,28,22,.6); }
+    .token { position:absolute; width:38px; height:38px; display:grid; place-items:center; border-radius:50%;
+      border:3px solid #1a1711; box-shadow:0 0 0 3px currentColor,0 5px 13px rgba(0,0,0,.55); background:#d9cba8;
+      color:var(--teal); font:bold 11px Georgia,serif; }
+    .token.foe { color:var(--red); }.token.loot { color:var(--gold); border-radius:4px; }
+    .fight-side { padding:18px; border-left:1px solid var(--line); }
+    .fight-side h2 { margin:4px 0 0; font:500 26px "Playfair Display",Georgia,serif; }
+    .fight-side p { color:var(--muted); line-height:1.45; }
+    .facts { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:16px; }
+    .fact { padding:9px; border:1px solid var(--line); }
+    .fact span { display:block; color:var(--dim); font-size:7px; }
+    .fact b { display:block; margin-top:4px; font:500 14px "Playfair Display",Georgia,serif; }
+    .fight-log { margin-top:16px; padding-top:12px; border-top:1px solid var(--line); }
+    .fight-log div { margin-top:7px; color:#aaa18f; font-size:13px; }
+    .fight-log strong { color:var(--red); }
+
+    .staff-only { display:none; }
+    body.staff .staff-only { display:block; }
+    body.player .player-secret-mask { display:none; }
+
+    @media (max-width:1000px) {
+      .workspace { grid-template-columns:minmax(0,1fr) 285px; }
+      .world-grid { grid-template-columns:minmax(0,1fr); min-width:0; }
+      .map-card,.path-rail { min-width:0; }
+      .path-rail { min-height:auto; }
+      .moment-list { flex-direction:row; overflow-x:auto; }
+      .moment-card { min-width:220px; }
+      .section-note { display:none; }
+    }
+    @media (max-width:760px) {
+      .shell { display:block; }
+      .topbar { min-height:0; padding:12px; flex-wrap:wrap; }
+      .brand { min-width:0; flex:1; }.topnote { order:3; flex-basis:100%; }
+      .audience button { min-height:46px; padding:0 11px; }
+      .section-nav { padding:0 8px; }.section-nav button { min-width:104px; min-height:54px; padding:0 10px; }
+      .workspace { display:flex; flex-direction:column; }
+      .view { padding:12px; overflow:visible; }.view-head { display:block; }.view-head h2 { font-size:27px; }
+      .view-head p { margin:7px 0 0; }
+      .map-card { min-height:430px; }.map-tools { overflow-x:auto; flex-wrap:nowrap; }.filter { min-height:44px; white-space:nowrap; }
+      .connections { border-left:0; border-top:1px solid var(--line); overflow:visible; }
+      .connection-card { min-height:62px; }
+      .item-hero { grid-template-columns:70px 1fr; padding:16px; }.item-sigil { width:64px; height:64px; }
+      .item-custody { grid-column:1/-1; padding:12px 0 0; border-left:0; border-top:1px solid var(--line); }
+      .session-spine { grid-template-columns:1fr; }.session-label { position:static; }
+      .fight-card { grid-template-columns:1fr; }.fight-map { min-height:330px; }.fight-side { border-left:0; border-top:1px solid var(--line); }
+      .map-marker { min-width:44px; min-height:44px; }
+      .moment-card { min-height:92px; }
+    }
+  </style>
+</head>
+<body class="player">
+<script id="mock-data" type="application/json">
+{
+  "contract":"tok-campaign-moment/v1-candidate",
+  "locations":{
+    "yevennia":{"label":"Yevennia","x":35.17,"y":41.11,"precision":"confirmed"},
+    "barrow-wastes":{"label":"Near the Barrow Wastes","x":15.5,"y":33.5,"precision":"approximate","secretLabel":"The Sunken Chapel","secretX":11.2,"secretY":29.8},
+    "verens-watch":{"label":"Veren's Watch","x":25.8,"y":52.4,"precision":"confirmed"},
+    "tiersgard":{"label":"Tiersgard","x":28.39,"y":70.93,"precision":"confirmed"},
+    "gold-leaf":{"label":"The Gold Leaf","parentId":"tiersgard","precision":"nested"}
+  },
+  "moments":[
+    {"id":"moment-hexblade-backstory","momentId":"moment-hexblade-backstory","order":0,"sessionId":null,"kind":"treasure","title":"The Hexblade entered the campaign","summary":"Cosmere began the campaign carrying the same permanent blade.","locationId":null,"itemId":"item-hexblade","itemEventId":"itemev-hexblade-recovered","feedPostId":null,"encounterId":null,"battleMapId":null,"journalPageId":null,"public":true},
+    {"id":"moment-road-begins","order":1,"sessionId":"7","kind":"journey","title":"The road east begins","summary":"The party left Yevennia with the old king's warning.","locationId":"yevennia","feedPostId":"feed-701","partyPresent":true,"public":true},
+    {"id":"moment-chapel-rumor","order":2,"sessionId":"8","kind":"discovery","title":"A drowned bell under the earth","summary":"The party learned of a ruin somewhere near the Barrow Wastes.","locationId":"barrow-wastes","feedPostId":"feed-812","journalPageId":"page-drowned-bell","partyPresent":false,"public":true,"staffTruth":"The clue points to the Sunken Chapel, not the whole marked region."},
+    {"id":"moment-skyblinder-recovered","momentId":"moment-skyblinder-recovered","order":3,"sessionId":"9","kind":"battle","also":["treasure"],"title":"Skyblinder recovered after the ambush","summary":"Among the fallen at Veren's Watch, Líadan found a smoke-dark staff.","locationId":"verens-watch","itemId":"item-skyblinder","itemEventId":"itemev-skyblinder-recovered","feedPostId":"feed-934","encounterId":"encounter-mire-ambush","battleMapId":"scene-verens-watch-road","journalPageId":"page-watch-aftermath","partyPresent":true,"public":true},
+    {"id":"moment-gold-leaf-meeting","order":4,"sessionId":"9","kind":"npc","title":"Sumi's warning at the Gold Leaf","summary":"Inside Tiersgard, Sumi named the crest seen on the ambushers.","locationId":"gold-leaf","feedPostId":"feed-948","journalPageId":"page-sumis-warning","npcId":"sumi","partyPresent":true,"public":true},
+    {"id":"moment-skyblinder-identified","momentId":"moment-skyblinder-identified","order":5,"sessionId":"10","kind":"treasure","title":"The staff's name was revealed","summary":"The smoke-dark staff was identified as the Skyblinder Staff.","locationId":"tiersgard","itemId":"item-skyblinder","itemEventId":"itemev-skyblinder-identified","feedPostId":"feed-1002","journalPageId":"page-skyblinder-study","partyPresent":true,"public":true}
+  ],
+  "current":{"locationId":"tiersgard","label":"Party now","x":31.1,"y":73.2},
+  "item":{"id":"item-skyblinder","name":"Skyblinder Staff","rarity":"Rare","bearer":"Líadan Luchóg","state":"Identified","description":"A pale staff whose carved eye seems to turn away from open sky."}
+}
+  </script>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="eyebrow">Standalone approval mock · no writes</div><h1>One story, connected everywhere</h1></div>
+      <div class="topnote">A recorded moment stays one fact. World, Chronicle, Item History, and the fight are linked views—not duplicate stories.</div>
+      <div class="audience" role="group" aria-label="Preview audience">
+        <button type="button" data-audience="player" aria-pressed="true">Player view</button>
+        <button type="button" data-audience="staff" aria-pressed="false">Staff view</button>
+      </div>
+    </header>
+    <nav class="section-nav" aria-label="Connected campaign sections">
+      <button type="button" data-view-tab="world" aria-selected="true"><b>World</b><small>Party's Path</small></button>
+      <button type="button" data-view-tab="chronicle" aria-selected="false"><b>Chronicle</b><small>Session story</small></button>
+      <button type="button" data-view-tab="item" aria-selected="false"><b>Item</b><small>Permanent history</small></button>
+      <button type="button" data-view-tab="fight" aria-selected="false"><b>Encounter</b><small>Battle record</small></button>
+      <span class="section-note">The selected moment follows you between sections.</span>
+    </nav>
+    <div class="workspace">
+      <section class="view" data-view="world">
+        <div class="view-head"><div><div class="eyebrow">World · shared campaign memory</div><h2>Party's Path</h2></div><p>Confirmed moments draw the traveled story. Approximate knowledge remains a region; nested places live inside their parent pin.</p></div>
+        <div class="world-grid">
+          <section class="map-card" aria-label="Stylized map history">
+            <div class="map-tools" role="group" aria-label="Path filters">
+              <button class="filter" type="button" data-filter="all" aria-pressed="true">All <span></span></button>
+              <button class="filter" type="button" data-filter="journey" aria-pressed="false">Journey <span></span></button>
+              <button class="filter" type="button" data-filter="discovery" aria-pressed="false">Discoveries <span></span></button>
+              <button class="filter" type="button" data-filter="battle" aria-pressed="false">Battles <span></span></button>
+              <button class="filter" type="button" data-filter="treasure" aria-pressed="false">Treasure <span></span></button>
+              <button class="filter" type="button" data-filter="npc" aria-pressed="false">People <span></span></button>
+            </div>
+            <div class="map-stage" data-map-stage>
+              <svg class="map-ink" viewBox="0 0 1000 620" preserveAspectRatio="none" aria-hidden="true">
+                <defs><filter id="rough"><feTurbulence baseFrequency=".018" numOctaves="3" seed="8" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="15"/></filter></defs>
+                <path d="M34 70Q180 5 318 60T565 38Q700 65 905 28L985 116 950 290Q990 448 882 586L610 603Q476 556 360 608L126 570Q75 432 24 316Z" fill="#c9b57d" stroke="#5d4d32" stroke-width="7" filter="url(#rough)"/>
+                <path d="M125 40Q184 128 152 214T240 355Q284 416 246 590" fill="none" stroke="#6c97a1" stroke-width="18" opacity=".72"/>
+                <path d="M505 54Q540 132 506 205T553 370Q592 452 540 594" fill="none" stroke="#6c97a1" stroke-width="12" opacity=".66"/>
+                <g fill="#655238" opacity=".78">
+                  <path d="M68 184l35-66 35 66 28-45 41 72zM620 145l42-85 42 85 29-52 42 83zM718 284l35-67 35 67 31-49 39 75z"/>
+                </g>
+                <g fill="#526a48" opacity=".7"><circle cx="294" cy="190" r="44"/><circle cx="347" cy="170" r="39"/><circle cx="388" cy="210" r="48"/><circle cx="798" cy="456" r="62"/></g>
+                <g fill="#3d3324" font-family="Georgia" font-size="20" font-style="italic" opacity=".84">
+                  <text x="275" y="272">Yevennia</text><text x="48" y="265">Barrow Wastes</text><text x="175" y="365">Veren's Watch</text><text x="245" y="485">Tiersgard</text>
+                </g>
+              </svg>
+              <svg class="path-layer" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path class="path-shadow" data-path-shadow/><path class="path-line" data-path-line/></svg>
+              <div data-markers></div>
+              <div class="secret-pin" data-secret-pin title="Staff-only confirmed place"></div>
+              <div class="map-legend"><b>Historical path</b>Solid facts only · no guessed pins</div>
+              <div class="now-badge">◆ Party now · Tiersgard</div>
+            </div>
+          </section>
+          <aside class="path-rail">
+            <div class="path-rail-head"><div class="eyebrow">Oldest first</div><h3>Journey moments</h3></div>
+            <div class="moment-list" data-moment-list></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" data-view="chronicle" hidden>
+        <div class="view-head"><div><div class="eyebrow">Chronicle · the session record</div><h2>Session 9 · The Watch Road</h2></div><p>The linked moment appears in narrative order. The item and fight are references on the same entry, not copied prose.</p></div>
+        <div class="chronicle-wrap"><div class="session-spine">
+          <aside class="session-label"><div class="micro">Session</div><b>Nine</b><span>The Watch Road</span></aside>
+          <div class="chronicle-stream" data-chronicle-stream></div>
+        </div></div>
+      </section>
+
+      <section class="view" data-view="item" hidden>
+        <div class="view-head"><div><div class="eyebrow">Item · one permanent object</div><h2>History follows identity</h2></div><p>Its present bearer is current truth. Earlier places remain linked history and never move when the item does.</p></div>
+        <div class="item-wrap">
+          <section class="item-hero"><div class="item-sigil">✦</div><div><div class="eyebrow">Identified · history active</div><h2>Skyblinder Staff</h2><p>A pale staff whose carved eye seems to turn away from open sky.</p><div class="entry-links"><span class="chip item">Rare</span><span class="chip">Permanent identity</span></div></div><div class="item-custody"><div class="micro">Current bearer</div><b>Líadan Luchóg</b><span>Held · current location follows its bearer</span><span>item-skyblinder</span></div></section>
+          <div class="history-title"><h3>Chronological history</h3><span>Append-only · oldest first</span></div>
+          <div class="item-history" data-item-history></div>
+        </div>
+      </section>
+
+      <section class="view" data-view="fight" hidden>
+        <div class="view-head"><div><div class="eyebrow">Encounter · exact battle evidence</div><h2>The Mire Ambush</h2></div><p>The encounter UUID and battle-map identity are different links. The campaign moment may point to both without making either own the story.</p></div>
+        <div class="fight-wrap"><section class="fight-card">
+          <div class="fight-map" aria-label="Stylized battle map"><span class="token" style="left:23%;top:61%">L</span><span class="token" style="left:34%;top:68%">C</span><span class="token foe" style="left:65%;top:32%">M</span><span class="token foe" style="left:75%;top:45%">M</span><span class="token loot" style="left:57%;top:67%">✦</span></div>
+          <aside class="fight-side"><div class="eyebrow">Linked battle record</div><h2>Veren's Watch Road</h2><p>The party broke the ambush and recovered a smoke-dark staff beside the old watch.</p><div class="facts"><div class="fact"><span>Encounter</span><b>The Mire Ambush</b></div><div class="fact"><span>Battle map</span><b>Veren's Watch Road</b></div><div class="fact"><span>Session</span><b>9</b></div><div class="fact"><span>Location</span><b>Veren's Watch</b></div></div><div class="fight-log"><div><strong>Round 3</strong> · the last ambusher fell.</div><div><strong>After combat</strong> · Skyblinder was recovered.</div></div></aside>
+        </section></div>
+      </section>
+
+      <aside class="connections" aria-label="Selected moment connections">
+        <header class="connection-head"><div class="eyebrow">Selected moment</div><h2>Connections</h2><p>Open the same fact where it matters. Missing links stay missing; the interface never invents them.</p></header>
+        <div class="selected-summary"><strong data-selected-title></strong><p data-selected-summary></p></div>
+        <div class="connection-list" data-connection-list></div>
+        <div class="connection-missing" data-missing-note></div>
+        <section class="staff-receipt"><h3>Staff · canonical link receipt</h3><div data-receipt></div></section>
+      </aside>
+    </div>
+  </main>
+  <script>
+  (function () {
+    'use strict';
+    var data = JSON.parse(document.getElementById('mock-data').textContent);
+    var moments = data.moments.slice().sort(function (a,b) { return a.order - b.order; });
+    var selectedId = 'moment-skyblinder-recovered';
+    var activeFilter = 'all';
+    var activeView = 'world';
+    var kindMeta = {
+      journey:{label:'Journey',color:'#54bcb6'}, discovery:{label:'Discovery',color:'#ad8bc1'},
+      battle:{label:'Battle',color:'#cc7766'}, treasure:{label:'Treasure',color:'#e5c27c'}, npc:{label:'People',color:'#79aecd'}
+    };
+    var linkMeta = {
+      world:{icon:'⌖',label:'World',field:'locationId'}, chronicle:{icon:'¶',label:'Chronicle',field:'feedPostId'},
+      item:{icon:'✦',label:'Item history',field:'itemEventId'}, fight:{icon:'⚔',label:'Encounter',field:'encounterId'}
+    };
+    function esc(value) { return String(value == null ? '' : value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function selected() { return moments.find(function (row) { return row.id === selectedId; }) || moments[0]; }
+    function locationFor(moment) { return moment && moment.locationId ? data.locations[moment.locationId] || null : null; }
+    function mapLocationFor(moment) {
+      var loc = locationFor(moment); if (!loc) return null;
+      if (loc.parentId) return data.locations[loc.parentId] || null;
+      return loc;
+    }
+    function mapLocationIdFor(moment) {
+      var loc = locationFor(moment); if (!loc) return null;
+      return loc.parentId || moment.locationId;
+    }
+    function momentMatches(moment, filter) { return filter === 'all' || moment.kind === filter || (moment.also || []).indexOf(filter) >= 0; }
+    function locatedMoments() { return moments.filter(function (moment) { return !!mapLocationFor(moment); }); }
+    function mapClusters(filter) {
+      var groups = {};
+      locatedMoments().filter(function(moment){return momentMatches(moment,filter||'all');}).forEach(function(moment){
+        var key=mapLocationIdFor(moment); if(!groups[key])groups[key]=[]; groups[key].push(moment);
+      });
+      return Object.keys(groups).map(function(key){return {locationId:key,moments:groups[key]};});
+    }
+    function pathData() {
+      var seen={};
+      return locatedMoments().filter(function(moment){
+        var key=mapLocationIdFor(moment);
+        if(!moment.partyPresent||seen[key])return false;
+        seen[key]=true; return true;
+      }).map(function (moment) { var loc = mapLocationFor(moment); return [loc.x,loc.y]; });
+    }
+    function linkReceipt(moment) {
+      return ['id','momentId','sessionId','locationId','itemEventId','feedPostId','encounterId','battleMapId','journalPageId'].map(function (field) {
+        return { field:field, value:moment[field] == null ? null : String(moment[field]) };
+      });
+    }
+    function renderFilters() {
+      document.querySelectorAll('[data-filter]').forEach(function (button) {
+        var filter = button.dataset.filter;
+        var count = moments.filter(function (moment) { return momentMatches(moment,filter); }).length;
+        button.setAttribute('aria-pressed', String(filter === activeFilter));
+        var counter = button.querySelector('span'); if (counter) counter.textContent = '· ' + count;
+      });
+    }
+    function renderMap() {
+      var markerHost = document.querySelector('[data-markers]');
+      markerHost.innerHTML = mapClusters(activeFilter).map(function (cluster) {
+        var chosen=cluster.moments.find(function(moment){return moment.id===selectedId;})||cluster.moments[cluster.moments.length-1];
+        var loc=mapLocationFor(chosen), own=locationFor(chosen), meta=kindMeta[chosen.kind]||kindMeta.journey;
+        var selectedClass=cluster.moments.some(function(moment){return moment.id===selectedId;})?' selected':'';
+        var count=cluster.moments.length, index=loc.precision==='approximate'?'?':(count>1?String(count):String(chosen.order));
+        var label=loc.label+(count>1?' · '+count+' moments':(own&&own.parentId?' · '+own.label:'')).replace(loc.label+' · '+loc.label,loc.label);
+        var labelClass=(loc.x<20?' edge-left':'')+(cluster.locationId===data.current.locationId?' avoid-current':'');
+        return '<button type="button" class="map-marker '+esc(chosen.kind)+(loc.precision === 'approximate' ? ' approximate':'')+selectedClass+'" style="left:'+loc.x+'%;top:'+loc.y+'%;color:'+meta.color+'" data-select="'+esc(chosen.id)+'" data-index="'+index+'" aria-label="'+esc(label)+'"></button>'
+          + '<span class="marker-label'+labelClass+'" style="left:'+loc.x+'%;top:'+loc.y+'%">'+esc(label)+'</span>';
+      }).join('') + '<button type="button" class="map-marker current" style="left:'+data.current.x+'%;top:'+data.current.y+'%" data-index="◆" aria-label="Party now at '+esc(data.current.label)+'"></button>';
+      var pts = pathData(), d = pts.length ? 'M '+pts.map(function (p) { return p[0]+' '+p[1]; }).join(' L ') : '';
+      document.querySelector('[data-path-line]').setAttribute('d',d);
+      document.querySelector('[data-path-shadow]').setAttribute('d',d);
+      var approximate = data.locations['barrow-wastes'];
+      var secret = document.querySelector('[data-secret-pin]');
+      secret.style.left = approximate.secretX+'%'; secret.style.top = approximate.secretY+'%';
+      markerHost.querySelectorAll('[data-select]').forEach(function (button) { button.onclick = function () { choose(button.dataset.select); }; });
+    }
+    function renderMomentList() {
+      var host = document.querySelector('[data-moment-list]');
+      var visible = moments.filter(function (moment) { return momentMatches(moment,activeFilter); });
+      host.innerHTML = visible.length ? visible.map(function (moment) {
+        var meta = kindMeta[moment.kind] || kindMeta.journey, loc = locationFor(moment);
+        return '<button type="button" class="moment-card" style="--moment-color:'+meta.color+'" data-select="'+esc(moment.id)+'" aria-current="'+(moment.id===selectedId)+'"><span class="moment-kicker">'+esc(meta.label)+' · '+(moment.sessionId?'Session '+moment.sessionId:'Before Session 1')+'</span><b>'+esc(moment.title)+'</b><small>'+(loc?esc(loc.label):'No linked map location')+'</small></button>';
+      }).join('') : '<div class="empty-filter">No recorded moments use this filter yet.</div>';
+      host.querySelectorAll('[data-select]').forEach(function (button) { button.onclick=function(){ choose(button.dataset.select); }; });
+    }
+    function renderChronicle() {
+      var host = document.querySelector('[data-chronicle-stream]');
+      var sessionNine = moments.filter(function (moment) { return moment.sessionId === '9'; });
+      host.innerHTML = sessionNine.map(function (moment) {
+        var loc=locationFor(moment), links=[];
+        if(loc) links.push('<span class="chip location">⌖ '+esc(loc.label)+'</span>');
+        if(moment.itemId) links.push('<span class="chip item">✦ Skyblinder Staff</span>');
+        if(moment.encounterId) links.push('<span class="chip battle">⚔ The Mire Ambush</span>');
+        if(moment.npcId) links.push('<span class="chip">Person · Sumi</span>');
+        return '<article class="chronicle-entry'+(moment.id===selectedId?' selected':'')+'" data-select="'+esc(moment.id)+'"><div class="eyebrow">'+(moment.kind==='battle'?'After the fight':'Later that night')+'</div><h3>'+esc(moment.title)+'</h3><p>'+esc(moment.summary)+'</p><div class="entry-links">'+links.join('')+'</div></article>';
+      }).join('');
+      host.querySelectorAll('[data-select]').forEach(function(card){card.onclick=function(){choose(card.dataset.select);};});
+    }
+    function itemMoments() { return moments.filter(function(moment){return moment.itemId==='item-skyblinder';}); }
+    function renderItemHistory() {
+      var host=document.querySelector('[data-item-history]');
+      host.innerHTML=itemMoments().map(function(moment){var loc=locationFor(moment), linked=!!loc;
+        return '<article class="item-event'+(moment.id===selectedId?' selected':'')+'" data-select="'+esc(moment.id)+'"><div class="eyebrow">'+(moment.itemEventId.indexOf('identified')>=0?'Identified':'Recovered')+'</div><h4>'+esc(moment.summary)+'</h4><p>'+(moment.sessionId?'Session '+moment.sessionId:'Unlinked session')+(loc?' · '+esc(loc.label):'')+'</p>'+(!linked?'<p class="unmapped-note">No location was recorded; World does not guess one.</p>':'')+'</article>';
+      }).join('')+'<article class="item-event"><div class="eyebrow">Current truth</div><h4>Líadan Luchóg bears the Skyblinder Staff.</h4><p>Custody is not a historical map pin. Earlier event places remain unchanged.</p></article>';
+      host.querySelectorAll('[data-select]').forEach(function(card){card.onclick=function(){choose(card.dataset.select);};});
+    }
+    function connectionTitle(key,moment) {
+      var loc=locationFor(moment);
+      if(key==='world') return loc ? loc.label : 'No location recorded';
+      if(key==='chronicle') return moment.feedPostId ? 'Session '+(moment.sessionId||'—') : 'No Chronicle entry';
+      if(key==='item') return moment.itemEventId ? (moment.itemId==='item-hexblade'?'The Hexblade':'Skyblinder Staff') : 'No item event';
+      if(key==='fight') return moment.encounterId ? 'The Mire Ambush' : 'No encounter linked';
+      return '';
+    }
+    function renderConnections() {
+      var moment=selected();
+      document.querySelector('[data-selected-title]').textContent=moment.title;
+      document.querySelector('[data-selected-summary]').textContent=moment.summary;
+      var host=document.querySelector('[data-connection-list]');
+      host.innerHTML=Object.keys(linkMeta).map(function(key){var meta=linkMeta[key], enabled=!!moment[meta.field];
+        return '<button type="button" class="connection-card" data-goto="'+key+'" '+(enabled?'':'disabled')+'><i>'+meta.icon+'</i><span><small>'+meta.label+'</small><b>'+esc(connectionTitle(key,moment))+'</b></span><em>'+(enabled?'›':'—')+'</em></button>';
+      }).join('');
+      host.querySelectorAll('[data-goto]').forEach(function(button){button.onclick=function(){showView(button.dataset.goto);};});
+      var missing=[];
+      if(!moment.locationId)missing.push('No map location was recorded, so Party\'s Path shows no pin.');
+      if(!moment.encounterId)missing.push('This moment was not part of a linked encounter.');
+      document.querySelector('[data-missing-note]').textContent=missing.join(' ')||'Every primary view needed for this moment has an explicit link.';
+      document.querySelector('[data-receipt]').innerHTML=linkReceipt(moment).map(function(row){return '<div class="receipt-row"><span>'+esc(row.field)+'</span><code>'+(row.value?esc(row.value):'null')+'</code></div>';}).join('');
+      var secret=document.querySelector('[data-selected-summary]');
+      if(document.body.classList.contains('staff')&&moment.staffTruth)secret.textContent=moment.summary+' Staff truth: '+moment.staffTruth;
+    }
+    function choose(id) {
+      if(!moments.some(function(row){return row.id===id;}))return;
+      selectedId=id; renderAll();
+    }
+    function showView(view) {
+      activeView=view;
+      document.querySelectorAll('[data-view]').forEach(function(panel){panel.hidden=panel.dataset.view!==view;});
+      document.querySelectorAll('[data-view-tab]').forEach(function(button){button.setAttribute('aria-selected',String(button.dataset.viewTab===view));});
+    }
+    function setAudience(audience) {
+      document.body.classList.toggle('staff',audience==='staff');
+      document.body.classList.toggle('player',audience!=='staff');
+      document.querySelectorAll('[data-audience]').forEach(function(button){button.setAttribute('aria-pressed',String(button.dataset.audience===audience));});
+      renderConnections();
+    }
+    function renderAll(){renderFilters();renderMap();renderMomentList();renderChronicle();renderItemHistory();renderConnections();}
+    document.querySelectorAll('[data-view-tab]').forEach(function(button){button.onclick=function(){showView(button.dataset.viewTab);};});
+    document.querySelectorAll('[data-audience]').forEach(function(button){button.onclick=function(){setAudience(button.dataset.audience);};});
+    document.querySelectorAll('[data-filter]').forEach(function(button){button.onclick=function(){activeFilter=button.dataset.filter;renderAll();};});
+    document.addEventListener('keydown',function(event){
+      if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;
+      var index=moments.findIndex(function(row){return row.id===selectedId;});
+      var next=Math.max(0,Math.min(moments.length-1,index+(event.key==='ArrowRight'?1:-1)));
+      if(next!==index){event.preventDefault();choose(moments[next].id);}
+    });
+    window.PartyPathMock={data:data,momentMatches:momentMatches,mapLocationFor:mapLocationFor,mapLocationIdFor:mapLocationIdFor,mapClusters:mapClusters,pathData:pathData,linkReceipt:linkReceipt};
+    showView(activeView); renderAll();
+  })();
+  </script>
+</body>
+</html>

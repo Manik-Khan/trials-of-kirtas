@@ -298,6 +298,38 @@
       .marks-panel.behind { right: 400px; }
     }
 
+    /* ── Guarded campaign history / Party's Path ── */
+    .party-path-layer { position:absolute; inset:0; z-index:3; width:100%; height:100%; pointer-events:none; display:none; }
+    .party-path-line-shadow { fill:none; stroke:rgba(9,7,4,.7); stroke-width:17; stroke-linecap:round; stroke-linejoin:round; }
+    .party-path-line { fill:none; stroke:#e1bb68; stroke-width:9; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:28 22; filter:drop-shadow(0 2px 4px rgba(0,0,0,.65)); }
+    .party-path-pins { position:absolute; inset:0; z-index:4; pointer-events:none; display:none; }
+    .world-map-wrap.path-mode .party-path-layer,
+    .world-map-wrap.path-mode .party-path-pins { display:block; }
+    .party-path-pin { position:absolute; width:38px; height:38px; transform:translate(-50%,-50%); border:0; background:transparent; color:#e1bb68; cursor:pointer; pointer-events:auto; }
+    .party-path-pin::before { content:""; position:absolute; inset:7px; transform:rotate(45deg); border:2px solid rgba(20,15,8,.9); background:currentColor; box-shadow:0 0 0 2px rgba(246,229,185,.78),0 4px 12px rgba(0,0,0,.58); }
+    .party-path-pin::after { content:attr(data-index); position:absolute; inset:0; display:grid; place-items:center; color:#171109; font:bold 10px Georgia,serif; }
+    .party-path-pin.approximate::before { border-radius:50%; transform:none; background:#9a78aa; }
+    .party-path-pin.staff-exact { width:26px; height:26px; color:#d6b0e5; }
+    .party-path-pin.staff-exact::before { inset:6px; border-radius:50%; transform:none; background:#765486; box-shadow:0 0 0 2px rgba(240,213,255,.8),0 0 13px #8f6ca0; }
+    .party-path-pin.staff-exact::after { content:""; }
+    .party-path-pin.selected { width:46px; height:46px; filter:drop-shadow(0 0 11px currentColor); }
+    .party-path-panel-note { margin:0 0 .8rem; color:var(--muted); font-size:.82rem; line-height:1.45; }
+    .party-path-filters { display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.9rem; }
+    .party-path-filter { min-height:34px; padding:.3rem .55rem; border:1px solid var(--gold-dim); background:transparent; color:var(--muted); cursor:pointer; font-family:var(--font-title); font-size:.38rem; letter-spacing:.1em; text-transform:uppercase; }
+    .party-path-filter.active { border-color:var(--gold); background:rgba(184,149,42,.12); color:var(--gold-light); }
+    .party-path-list { display:flex; flex-direction:column; gap:.45rem; }
+    .party-path-moment { width:100%; min-height:62px; padding:.6rem .7rem; border:1px solid var(--gold-dim); border-left:3px solid var(--gold); background:rgba(184,149,42,.05); color:var(--parchment2); text-align:left; cursor:pointer; }
+    .party-path-moment.active { border-color:var(--gold); background:rgba(184,149,42,.12); }
+    .party-path-moment small,.party-path-moment b { display:block; }
+    .party-path-moment small { color:var(--gold-dim); font-family:var(--font-title); font-size:.36rem; letter-spacing:.11em; text-transform:uppercase; }
+    .party-path-moment b { margin-top:.25rem; font-size:.9rem; font-weight:500; }
+    .party-path-connections { display:grid; gap:.4rem; margin-top:.85rem; }
+    .party-path-link { min-height:48px; padding:.55rem .65rem; display:flex; align-items:center; gap:.55rem; border:1px solid var(--gold-dim); color:var(--parchment2); text-decoration:none; }
+    .party-path-link:hover { border-color:var(--gold); color:var(--gold-light); }
+    .party-path-link.disabled { color:var(--muted); opacity:.7; cursor:not-allowed; }
+    .party-path-link span { color:var(--gold); }
+    .party-path-missing { margin-top:.8rem; padding:.65rem; border-left:2px solid #c05060; background:rgba(192,80,96,.07); color:#c9aaa2; font-size:.8rem; line-height:1.4; }
+
     /* ── Mobile: phone-sized screens ── */
     @media (max-width: 600px) {
       /* Rail: slightly narrower, still usable with thumb */
@@ -342,6 +374,8 @@
 
       /* Identity modal: full width */
       .id-modal { width: calc(100vw - 2rem); padding: 1rem 1.25rem; }
+      .party-path-pin { min-width:44px; min-height:44px; }
+      .party-path-filter { min-height:44px; }
     }
   </style>
 </head>
@@ -396,6 +430,11 @@
         <span class="rail-label">Unmapped</span><span class="rail-count" id="unmapped-count">0</span>
       </button>
       <div class="rail-divider"></div>
+      <button class="rail-btn" id="rail-path" onclick="togglePartyPath()" title="Party's Path" style="display:none">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="4" cy="15" r="2"/><circle cx="10" cy="9" r="2"/><circle cx="16" cy="4" r="2"/><path d="M5.5 13.5L8.5 10.5M11.5 7.5L14.5 5.5" stroke-dasharray="2 2"/></svg>
+        <span class="rail-label">Path</span>
+      </button>
+      <div class="rail-divider"></div>
       <button class="rail-btn" id="rail-marks" onclick="toggleMarksPanel()" title="Player Marks">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="8" r="4"/><path d="M10 12v6"/><path d="M7 17h6" stroke-width="1"/></svg>
         <span class="rail-label">Marks</span>
@@ -428,6 +467,11 @@
       <div class="map-canvas" id="map-canvas">
         <img src="img/maps/kirtas.jpeg" alt="Map of Kirtas" class="world-map-img" id="map-img" draggable="false">
         <div class="pins-layer" id="pins-layer"></div>
+        <svg class="party-path-layer" viewBox="0 0 4791 3055" preserveAspectRatio="none" aria-hidden="true">
+          <polyline class="party-path-line-shadow" id="party-path-shadow" points=""></polyline>
+          <polyline class="party-path-line" id="party-path-line" points=""></polyline>
+        </svg>
+        <div class="party-path-pins" id="party-path-pins"></div>
       </div>
       <div class="place-hint">Click the map to place pin — Esc to cancel</div>
       <div class="edit-banner">Edit mode — drag marks to reposition</div>
@@ -489,6 +533,7 @@
   <script src="nav.js?v=sup5"></script>
 <script src="tooltips.js"></script>
 <script src="living-codex.js?v=lc1"></script>
+<script src="campaign-moments.js?v=cm1"></script>
 <script src="battle.js?v=settings1"></script>
 <script src="feed-bridge.js"></script>
 <script>
@@ -599,6 +644,11 @@ let worldSB          = null;
 let worldIsStaff     = false;
 let livingCodex      = { characters: [], npcs: [], locations: [], entities: [], aliases: {} };
 let pendingCodexLocation = null;
+let campaignHistory  = { available: false, moments: [], error: '' };
+let partyPathEnabled = false;
+let partyPathFilter  = 'all';
+let selectedMomentId = null;
+let partyPathFocused = false;
 
 // Pan/zoom state
 let mapScale    = 1;
@@ -803,6 +853,141 @@ function renderPins() {
   }).join('');
 
   layer.innerHTML = canonHTML + livingHTML + playerHTML;
+  renderPartyPath();
+}
+
+// ══════════════════════════════════════════════════════════
+// PARTY'S PATH — guarded shared campaign history
+// ══════════════════════════════════════════════════════════
+function worldMomentLocations() {
+  const canon = CANON_LOCATIONS.map(loc => {
+    const data = LOCATION_DATA[loc.key] || {};
+    return { id:loc.key, label:data.name || loc.key, mapX:loc.x, mapY:loc.y };
+  });
+  return canon.concat(livingCodex.locations || []);
+}
+
+function renderPartyPath() {
+  const pins = document.getElementById('party-path-pins');
+  const line = document.getElementById('party-path-line');
+  const shadow = document.getElementById('party-path-shadow');
+  if (!pins || !line || !shadow || !window.CampaignMoments) return;
+  const moments = campaignHistory.moments || [];
+  const locations = worldMomentLocations();
+  const points = CampaignMoments.pathPoints(moments, locations)
+    .map(point => `${point.x * MAP_W / 100},${point.y * MAP_H / 100}`).join(' ');
+  line.setAttribute('points', points);
+  shadow.setAttribute('points', points);
+  const publicPins = CampaignMoments.mapClusters(moments, locations, partyPathFilter).map(cluster => {
+    const chosen = cluster.moments.find(moment => moment.id === selectedMomentId) || cluster.moments[cluster.moments.length - 1];
+    const approximate = chosen.mapPrecision === 'approximate';
+    const index = approximate ? '?' : (cluster.moments.length > 1 ? cluster.moments.length : (moments.indexOf(chosen) + 1));
+    return `<button type="button" class="party-path-pin${approximate?' approximate':''}${cluster.moments.some(moment=>moment.id===selectedMomentId)?' selected':''}"
+      style="left:${cluster.location.x}%;top:${cluster.location.y}%" data-index="${index}"
+      onclick="selectCampaignMoment(event,'${escapeHtml(chosen.id)}',true)" title="${escapeHtml(chosen.title)}"></button>`;
+  }).join('');
+  const staffPins = worldIsStaff ? moments.filter(moment => CampaignMoments.momentMatches(moment, partyPathFilter)
+    && Number.isFinite(moment.exactMapX) && Number.isFinite(moment.exactMapY)).map(moment =>
+      `<button type="button" class="party-path-pin staff-exact${moment.id===selectedMomentId?' selected':''}" style="left:${moment.exactMapX}%;top:${moment.exactMapY}%" onclick="selectCampaignMoment(event,'${escapeHtml(moment.id)}',false)" title="Staff-only exact place · ${escapeHtml(moment.staffTruth || moment.title)}"></button>`
+    ).join('') : '';
+  pins.innerHTML = publicPins + staffPins;
+}
+
+function partyPathMeta(moment) {
+  const when = moment.sessionId ? `Session ${moment.sessionId}` : 'Before the recorded sessions';
+  return `${moment.kind.charAt(0).toUpperCase()+moment.kind.slice(1)} · ${when}`;
+}
+
+function togglePartyPath() {
+  partyPathEnabled = !partyPathEnabled;
+  document.getElementById('map-wrap').classList.toggle('path-mode', partyPathEnabled);
+  document.getElementById('rail-path').classList.toggle('active', partyPathEnabled);
+  if (!partyPathEnabled) { closePanel(); return; }
+  renderPartyPathHome();
+}
+
+function setPartyPathFilter(filter) {
+  partyPathFilter = filter;
+  renderPartyPath();
+  renderPartyPathHome();
+}
+
+function renderPartyPathHome() {
+  document.getElementById('panel-type-label').textContent = 'Shared campaign memory';
+  document.getElementById('panel-type-label').style.color = 'var(--gold)';
+  const badge = document.getElementById('panel-status-badge');
+  badge.textContent = campaignHistory.available ? `${campaignHistory.moments.length} moments` : 'Unavailable';
+  badge.className = 'panel-status-badge';
+  badge.style.color = 'var(--gold)';
+  badge.style.borderColor = 'var(--gold-dim)';
+  document.getElementById('panel-name').textContent = "Party's Path";
+  document.getElementById('panel-subtitle').textContent = 'Oldest first · linked facts only';
+  if (!campaignHistory.available) {
+    document.getElementById('panel-body').innerHTML = `<div class="party-path-missing">${escapeHtml(campaignHistory.error || 'Campaign history is unavailable.')}</div>`;
+    openPanel(); return;
+  }
+  const filters = ['all'].concat(CampaignMoments.KINDS);
+  const visible = campaignHistory.moments.filter(moment => CampaignMoments.momentMatches(moment, partyPathFilter));
+  document.getElementById('panel-body').innerHTML = `
+    <p class="party-path-panel-note">A moment stays one fact across World, Chronicle, item history, and battle records. Personal marks are not permanent history.</p>
+    <div class="party-path-filters">${filters.map(filter=>`<button class="party-path-filter${partyPathFilter===filter?' active':''}" onclick="setPartyPathFilter('${filter}')">${filter==='all'?'All':filter}</button>`).join('')}</div>
+    <div class="party-path-list">${visible.length ? visible.map(moment=>`<button class="party-path-moment${selectedMomentId===moment.id?' active':''}" onclick="selectCampaignMoment(event,'${escapeHtml(moment.id)}',true)"><small>${escapeHtml(partyPathMeta(moment))}</small><b>${escapeHtml(moment.title)}</b></button>`).join('') : '<div class="panel-desc">No recorded moments use this filter yet.</div>'}</div>`;
+  openPanel();
+}
+
+function selectCampaignMoment(event, id, focus) {
+  if (event && event.stopPropagation) event.stopPropagation();
+  const moment = (campaignHistory.moments || []).find(row => row.id === id);
+  if (!moment) return;
+  selectedMomentId = id;
+  partyPathEnabled = true;
+  document.getElementById('map-wrap').classList.add('path-mode');
+  document.getElementById('rail-path').classList.add('active');
+  renderPartyPath();
+  const location = CampaignMoments.mapLocationFor(moment, worldMomentLocations());
+  if (focus && location) focusOnPin(location);
+  const targets = CampaignMoments.targets(moment);
+  const item = moment.items && moment.items[0];
+  document.getElementById('panel-type-label').textContent = partyPathMeta(moment);
+  document.getElementById('panel-type-label').style.color = 'var(--gold)';
+  const badge = document.getElementById('panel-status-badge');
+  badge.textContent = moment.mapPrecision === 'approximate' ? 'Approximate place' : (location ? 'Map linked' : 'No map link');
+  badge.className = 'panel-status-badge';
+  badge.style.color = moment.mapPrecision === 'approximate' ? '#b99ac8' : 'var(--gold)';
+  badge.style.borderColor = moment.mapPrecision === 'approximate' ? '#765486' : 'var(--gold-dim)';
+  document.getElementById('panel-name').textContent = moment.title;
+  document.getElementById('panel-subtitle').textContent = location ? location.label : 'No location was recorded';
+  const links = [
+    ['¶','Chronicle',targets.chronicle], ['✦',item ? item.name : 'Item history',targets.item], ['⚔','Encounter',targets.encounter]
+  ];
+  const missing = [];
+  if (!location) missing.push("No map location was recorded, so Party's Path does not guess a pin.");
+  if (!moment.encounterId && !moment.forgeSessionId) missing.push('This moment has no linked encounter.');
+  document.getElementById('panel-body').innerHTML = `
+    <div class="panel-section">Recorded moment</div><div class="panel-desc">${escapeHtml(moment.summary || 'No public summary was recorded.')}</div>
+    ${worldIsStaff && moment.staffTruth ? `<div class="panel-section">Staff-only truth</div><div class="panel-desc">${escapeHtml(moment.staffTruth)}</div>` : ''}
+    <div class="panel-section">Connections</div><div class="party-path-connections">${links.map(link=>link[2]
+      ? `<a class="party-path-link" href="${escapeHtml(link[2])}"><span>${link[0]}</span>${escapeHtml(link[1])}</a>`
+      : `<div class="party-path-link disabled"><span>${link[0]}</span>${escapeHtml(link[1])} unavailable</div>`).join('')}</div>
+    ${missing.length ? `<div class="party-path-missing">${escapeHtml(missing.join(' '))}</div>` : ''}`;
+  openPanel();
+}
+
+async function loadWorldMoments() {
+  if (!worldSB || !window.CampaignMoments || !CampaignMoments.isEnabled(location.search)) return;
+  try {
+    campaignHistory = await CampaignMoments.load(worldSB, { staff:worldIsStaff });
+  } catch (e) {
+    campaignHistory = { available:false, moments:[], error:e.message || 'Campaign history is unavailable.' };
+    console.warn('[campaign-moments] World path unavailable:', campaignHistory.error);
+  }
+  document.getElementById('rail-path').style.display = '';
+  renderPartyPath();
+  const requested = new URLSearchParams(location.search).get('moment');
+  if (requested && !partyPathFocused) {
+    partyPathFocused = true;
+    selectCampaignMoment(null, requested, true);
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1649,9 +1834,15 @@ async function startWorldCodex() {
   const profile = window.__tok.ready ? await window.__tok.ready : null;
   worldIsStaff = !!(profile && (profile.role === 'overseer' || profile.role === 'dm'));
   await loadWorldCodex();
+  await loadWorldMoments();
   worldSB.channel('world-codex-live')
     .on('postgres_changes', { event:'*', schema:'public', table:'entities' }, loadWorldCodex)
     .subscribe();
+  if (campaignHistory.available) {
+    worldSB.channel('world-campaign-history-live')
+      .on('postgres_changes', { event:'*', schema:'public', table:'campaign_moments' }, loadWorldMoments)
+      .subscribe();
+  }
 }
 
 // ══════════════════════════════════════════════════════════

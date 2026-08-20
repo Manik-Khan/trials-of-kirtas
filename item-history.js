@@ -11,7 +11,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  var VERSION = 'ih-6';
+  var VERSION = 'ih-7';
   var EVENT_LABELS = {
     recovered: 'Recovered', assigned: 'Assigned', identified: 'Identified',
     renamed: 'Renamed', transferred: 'Transferred', transformed: 'Transformed',
@@ -60,7 +60,7 @@
       .select('id,display_name,public_description,rarity,identification,mechanics,status,current_bearer_key,current_location_id,slot,requires_attunement,attuned,created_at')
       .eq('id', itemId).maybeSingle();
     var eventsRequest = sb.from('item_events')
-      .select('sequence,id,event_type,occurred_at,actor_character_key,summary,data,session_id,location_id,encounter_id,battle_map_id')
+      .select('sequence,id,event_type,occurred_at,actor_character_key,summary,data,session_id,location_id,moment_id,encounter_id,journal_page_id,feed_post_id,battle_map_id')
       .eq('item_id', itemId).order('occurred_at', { ascending: true }).order('sequence', { ascending: true });
     var secretRequest = staff
       ? sb.from('item_secrets').select('item_id,true_name,definition_key,rarity,public_description,mechanics,lore').eq('item_id', itemId).maybeSingle()
@@ -130,6 +130,26 @@
     if (text(row.battle_map_id)) parts.push('Battle map linked');
     return parts;
   }
+  function campaignUrl(path, values) {
+    var api = typeof globalThis !== 'undefined' && globalThis.CampaignMoments;
+    if (api && typeof api.queryUrl === 'function') return api.queryUrl(path, values);
+    var query = [];
+    Object.keys(values || {}).forEach(function (key) {
+      if (values[key] != null && text(values[key])) query.push(encodeURIComponent(key) + '=' + encodeURIComponent(values[key]));
+    });
+    return path + (query.length ? '?' + query.join('&') : '');
+  }
+  function eventConnectionsHtml(row) {
+    if (!text(row && row.moment_id)) return '';
+    var links = [];
+    if (text(row.location_id)) links.push('<a href="' + esc(campaignUrl('world.html', { campaignLinks:1, moment:row.moment_id })) + '">⌖ World</a>');
+    else links.push('<span class="unavailable">⌖ No location recorded</span>');
+    if (text(row.feed_post_id) || text(row.session_id)) links.push('<a href="' + esc(campaignUrl('chronicle.html', { campaignLinks:1, moment:row.moment_id })) + '">¶ Chronicle</a>');
+    else links.push('<span class="unavailable">¶ No Chronicle entry</span>');
+    if (text(row.encounter_id)) links.push('<a href="' + esc(campaignUrl('chronicle.html', { campaignLinks:1, session:row.session_id, encounter:row.encounter_id })) + '">⚔ Encounter</a>');
+    if (text(row.battle_map_id)) links.push('<span title="The canonical scene or Forge identity is resolved by the shared moment.">Battle map linked</span>');
+    return '<div class="tok-ih-event-links"><span class="receipt">One moment · ' + esc(row.moment_id) + '</span>' + links.join('') + '</div>';
+  }
   function eventsHtml(events, options) {
     if (!events.length) return '<div class="tok-ih-empty">No history moments are recorded yet.</div>';
     return events.map(function (row) {
@@ -138,7 +158,8 @@
       var detail = text(data.note || data.description || '');
       return '<article class="tok-ih-event"><span class="tok-ih-event-kind">' + esc(EVENT_LABELS[row.event_type] || row.event_type || 'Event') + '</span><h4>' + esc(summary) + '</h4>'
         + (detail ? '<p>' + esc(detail) + '</p>' : '')
-        + '<div class="tok-ih-event-meta">' + eventMeta(row, options || {}).map(function (part) { return '<span>' + esc(part) + '</span>'; }).join('<i>·</i>') + '</div></article>';
+        + '<div class="tok-ih-event-meta">' + eventMeta(row, options || {}).map(function (part) { return '<span>' + esc(part) + '</span>'; }).join('<i>·</i>') + '</div>'
+        + eventConnectionsHtml(row) + '</article>';
     }).join('');
   }
   function bearerLabel(item, options) {
@@ -176,11 +197,12 @@
       .tok-ih-identity{min-width:0}.tok-ih-state{color:#b79acb;font:600 8px/1 "Oswald",Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase}.tok-ih-hero.identified .tok-ih-state{color:var(--tok-ih-rarity,#9fb3ef)}.tok-ih-identity h3{margin:6px 0 5px;color:#f8efdc;font:500 clamp(30px,4vw,48px)/1 "Playfair Display",Georgia,serif}.tok-ih-identity p{max-width:590px;margin:0;color:#aaa18f;font:14px/1.42 "EB Garamond",Georgia,serif}.tok-ih-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}.tok-ih-badge{padding:5px 7px;border:1px solid rgba(236,226,205,.16);color:#999181;font:600 7px/1 "Oswald",Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase}.tok-ih-badge.rarity{border-color:var(--tok-ih-rarity,#a786d8);color:var(--tok-ih-rarity,#c3a9d7)}.tok-ih-custody{padding:12px 13px;border:1px solid rgba(236,226,205,.14);background:rgba(5,12,10,.28)}.tok-ih-custody span,.tok-ih-custody b{display:block}.tok-ih-custody span{color:#8d8675;font:600 7px/1 "Oswald",Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase}.tok-ih-custody b{margin:6px 0 3px;color:#f3e8d1;font:500 17px "EB Garamond",Georgia,serif}.tok-ih-custody em{display:block;margin-bottom:5px;color:#999181;font:11px/1.3 "EB Garamond",Georgia,serif}.tok-ih-custody small{display:block;overflow-wrap:anywhere;color:#7f796c;font:11px/1.35 ui-monospace,SFMono-Regular,monospace}
       .tok-ih-tabs{display:flex;border-bottom:1px solid rgba(236,226,205,.13)}.tok-ih-tabs button{min-height:50px;padding:0 19px;border:0;border-bottom:2px solid transparent;background:transparent;color:#807a6c;font:600 8px/1 "Oswald",Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase;cursor:pointer}.tok-ih-tabs button[aria-selected="true"]{border-bottom-color:#e7c279;color:#e7c279}.tok-ih-body{display:grid;grid-template-columns:minmax(0,1fr) 320px}.tok-ih-main{min-width:0;padding:0 23px 27px;border-right:1px solid rgba(236,226,205,.13)}.tok-ih-panel{display:none;padding-top:20px}.tok-ih-panel.on{display:block}.tok-ih-label{color:#c79a4a;font:600 8px/1 "Oswald",Arial,sans-serif;letter-spacing:.15em;text-transform:uppercase}.tok-ih-copy{margin:7px 0 18px;color:#d8cfbd;font:16px/1.5 "EB Garamond",Georgia,serif}.tok-ih-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.tok-ih-fact{min-height:74px;padding:11px;border:1px solid rgba(236,226,205,.13);background:rgba(5,12,10,.22)}.tok-ih-fact span,.tok-ih-fact b{display:block}.tok-ih-fact span{color:#817b6e;font:600 7px/1 "Oswald",Arial,sans-serif;letter-spacing:.11em;text-transform:uppercase}.tok-ih-fact b{margin-top:7px;color:#efe5d1;font:500 14px/1.2 "EB Garamond",Georgia,serif}.tok-ih-rules{margin-top:15px;padding:14px 15px;border-left:2px solid var(--tok-ih-rarity,#a786d8);background:rgba(167,134,216,.06)}.tok-ih-rules h4{margin:0 0 5px;color:var(--tok-ih-rarity,#c3a9d7);font:500 17px "Playfair Display",Georgia,serif}.tok-ih-rules p{margin:0;color:#aaa18f;white-space:pre-line;font:13px/1.5 "EB Garamond",Georgia,serif}
       .tok-ih-history-head{display:flex;align-items:flex-end;gap:12px}.tok-ih-history-head h3{margin:4px 0 0;color:#f3e8d1;font:500 23px "Playfair Display",Georgia,serif}.tok-ih-order{margin-left:auto;color:#777265;font:600 7px/1 "Oswald",Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase}.tok-ih-timeline{position:relative;margin-top:18px;padding-left:29px}.tok-ih-timeline:before{content:"";position:absolute;left:9px;top:10px;bottom:15px;width:1px;background:linear-gradient(#c79a4a,rgba(199,154,74,.16))}.tok-ih-event{position:relative;margin-bottom:10px;padding:12px 13px;border:1px solid rgba(236,226,205,.13);background:rgba(5,12,10,.23)}.tok-ih-event:before{content:"";position:absolute;left:-24px;top:17px;width:8px;height:8px;border:1px solid #c79a4a;background:#12221d;transform:rotate(45deg)}.tok-ih-event-kind{color:#e7c279;font:600 7px/1 "Oswald",Arial,sans-serif;letter-spacing:.13em;text-transform:uppercase}.tok-ih-event h4{margin:5px 0 0;color:#efe5d1;font:500 15px/1.25 "EB Garamond",Georgia,serif}.tok-ih-event p{margin:5px 0 0;color:#999181;font:12px/1.4 "EB Garamond",Georgia,serif}.tok-ih-event-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;color:#777265;font:600 7px/1 "Oswald",Arial,sans-serif;letter-spacing:.07em;text-transform:uppercase}.tok-ih-event-meta i{font-style:normal}.tok-ih-empty{padding:18px;border:1px solid rgba(236,226,205,.13);color:#8d8675;font:13px "EB Garamond",Georgia,serif}
+      .tok-ih-event-links{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}.tok-ih-event-links a,.tok-ih-event-links>span{min-height:30px;padding:5px 7px;display:inline-flex;align-items:center;border:1px solid rgba(199,154,74,.3);color:#e7c279;text-decoration:none;font:600 7px/1 "Oswald",Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase}.tok-ih-event-links a:hover{border-color:#c79a4a;background:rgba(199,154,74,.08)}.tok-ih-event-links .receipt,.tok-ih-event-links .unavailable{border-color:rgba(236,226,205,.13);color:#777265}.tok-ih-event-links .unavailable{opacity:.75}
       .tok-ih-side{padding:20px}.tok-ih-secret{position:relative;padding:14px;border:1px solid rgba(167,134,216,.4);background:rgba(167,134,216,.07)}.tok-ih-secret.error{border-color:rgba(224,160,122,.45);background:rgba(224,160,122,.06)}.tok-ih-secret-label{margin-bottom:10px;color:#bfa5d4;font:600 8px/1 "Oswald",Arial,sans-serif;letter-spacing:.15em;text-transform:uppercase}.tok-ih-secret-row{padding:9px 0;border-top:1px solid rgba(167,134,216,.15)}.tok-ih-secret-row span,.tok-ih-secret-row b{display:block}.tok-ih-secret-row span{color:#91859b;font:600 7px/1 "Oswald",Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase}.tok-ih-secret-row b{margin-top:4px;color:#d5c6e1;font:500 14px "EB Garamond",Georgia,serif}.tok-ih-secret-row p,.tok-ih-secret>p{margin:4px 0 0;color:#a99daf;white-space:pre-line;font:12px/1.42 "EB Garamond",Georgia,serif}.tok-ih-manage{margin-top:12px;padding:14px;border:1px solid rgba(236,226,205,.15)}.tok-ih-manage b,.tok-ih-manage small{display:block}.tok-ih-manage b{color:#efe5d1;font:500 15px "EB Garamond",Georgia,serif}.tok-ih-manage small{margin:5px 0 10px;color:#999181;font:12px/1.4 "EB Garamond",Georgia,serif}.tok-ih-manage button{width:100%;min-height:48px;border:1px solid rgba(199,154,74,.5);background:rgba(199,154,74,.08);color:#e7c279;font:600 8px/1 "Oswald",Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}.tok-ih-manage-msg{min-height:16px;margin-top:8px;color:#c7b999;font:11px/1.35 "EB Garamond",Georgia,serif}.tok-ih-player-note{padding:14px;border:1px solid rgba(85,196,192,.3);background:rgba(85,196,192,.05);color:#9da99f;font:13px/1.48 "EB Garamond",Georgia,serif}.tok-ih-player-note b{color:#68c7c1}.tok-ih-player .tok-ih-side{display:none}.tok-ih-player .tok-ih-body{grid-template-columns:1fr}.tok-ih-player .tok-ih-main{border-right:0}
       .tok-ih-manage>strong{display:block;margin-bottom:8px;color:#c79a4a;font:600 8px/1 "Oswald",Arial,sans-serif;letter-spacing:.13em;text-transform:uppercase}.tok-ih-manage button{margin-top:6px;padding:7px 9px;text-align:left}.tok-ih-manage button:disabled{opacity:.45;cursor:not-allowed}.tok-ih-manage button small{display:block;margin:4px 0 0;color:#999181;font:11px/1.3 "EB Garamond",Georgia,serif;letter-spacing:0;text-transform:none}.tok-ih-action-veil{position:absolute;inset:0;z-index:4;display:grid;place-items:center;padding:18px;background:rgba(3,8,7,.9)}.tok-ih-action-veil[hidden]{display:none}.tok-ih-action-dialog{width:min(520px,100%);max-height:calc(100% - 20px);overflow:auto;padding:18px;border:1px solid rgba(199,154,74,.58);background:#10201b;box-shadow:0 20px 60px rgba(0,0,0,.55)}.tok-ih-action-dialog h3{margin:4px 0 8px;color:#f3e8d1;font:500 24px "Playfair Display",Georgia,serif}.tok-ih-action-dialog p{margin:0 0 12px;color:#aaa18f;font:13px/1.45 "EB Garamond",Georgia,serif}.tok-ih-action-field{display:block;margin-top:10px}.tok-ih-action-field span{display:block;margin-bottom:5px;color:#c79a4a;font:600 7px/1 "Oswald",Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase}.tok-ih-action-field input,.tok-ih-action-field select,.tok-ih-action-field textarea{width:100%;min-height:48px;padding:9px;border:1px solid rgba(236,226,205,.2);background:#091410;color:#ece2cd;font:14px "EB Garamond",Georgia,serif;box-sizing:border-box}.tok-ih-action-field textarea{min-height:74px;resize:vertical}.tok-ih-action-check{display:flex;gap:9px;align-items:flex-start;margin-top:12px;color:#aaa18f;font:12px/1.4 "EB Garamond",Georgia,serif}.tok-ih-action-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}.tok-ih-action-foot button{min-height:48px;padding:0 14px;border:1px solid rgba(236,226,205,.2);background:transparent;color:#aaa18f;font:600 8px/1 "Oswald",Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase}.tok-ih-action-foot button.primary{border-color:#c79a4a;background:rgba(199,154,74,.1);color:#e7c279}.tok-ih-action-error{min-height:18px;margin-top:8px;color:#e0a07a;font:12px/1.4 "EB Garamond",Georgia,serif}
       .tok-ih-foot{display:flex;justify-content:flex-end;padding:11px 18px calc(11px + env(safe-area-inset-bottom));border-top:1px solid rgba(236,226,205,.13);background:#0d1815}.tok-ih-foot button{min-height:42px;padding:0 15px;border:1px solid rgba(199,154,74,.5);background:rgba(199,154,74,.1);color:#e7c279;font:600 8px/1 "Oswald",Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
       .tok-ih-rarity-common{--tok-ih-rarity:#aaa18f}.tok-ih-rarity-uncommon{--tok-ih-rarity:#68b878}.tok-ih-rarity-rare{--tok-ih-rarity:#8099dc}.tok-ih-rarity-very-rare{--tok-ih-rarity:#a786d8}.tok-ih-rarity-legendary{--tok-ih-rarity:#e2b955}.tok-ih-rarity-artifact{--tok-ih-rarity:#db6957}
-      @media(max-width:700px){.tok-ih-overlay{align-items:flex-end;padding:0}.tok-ih-dialog{width:100%;max-height:92vh;border-left:0;border-right:0;border-bottom:0}.tok-ih-head{padding:13px 12px 10px}.tok-ih-head h2{font-size:22px}.tok-ih-audience button{min-height:44px;padding:0 9px}.tok-ih-close{width:44px;height:44px}.tok-ih-hero{grid-template-columns:72px 1fr;gap:13px;min-height:0;padding:18px 13px}.tok-ih-sigil{width:62px;height:62px}.tok-ih-sigil span{font-size:23px}.tok-ih-identity h3{font-size:29px}.tok-ih-custody{grid-column:1/-1}.tok-ih-body{grid-template-columns:1fr}.tok-ih-main{padding:0 13px 23px;border-right:0}.tok-ih-side{padding:16px 13px 22px;border-top:1px solid rgba(236,226,205,.13)}.tok-ih-facts{grid-template-columns:1fr}.tok-ih-tabs button{flex:1;min-height:48px;padding:0 8px}.tok-ih-history-head{align-items:flex-start;flex-direction:column}.tok-ih-order{margin-left:0}.tok-ih-player .tok-ih-side{display:none}.tok-ih-foot button{min-height:48px}}
+      @media(max-width:700px){.tok-ih-overlay{align-items:flex-end;padding:0}.tok-ih-dialog{width:100%;max-height:92vh;border-left:0;border-right:0;border-bottom:0}.tok-ih-head{padding:13px 12px 10px}.tok-ih-head h2{font-size:22px}.tok-ih-audience button{min-height:44px;padding:0 9px}.tok-ih-close{width:44px;height:44px}.tok-ih-hero{grid-template-columns:72px 1fr;gap:13px;min-height:0;padding:18px 13px}.tok-ih-sigil{width:62px;height:62px}.tok-ih-sigil span{font-size:23px}.tok-ih-identity h3{font-size:29px}.tok-ih-custody{grid-column:1/-1}.tok-ih-body{grid-template-columns:1fr}.tok-ih-main{padding:0 13px 23px;border-right:0}.tok-ih-side{padding:16px 13px 22px;border-top:1px solid rgba(236,226,205,.13)}.tok-ih-facts{grid-template-columns:1fr}.tok-ih-tabs button{flex:1;min-height:48px;padding:0 8px}.tok-ih-history-head{align-items:flex-start;flex-direction:column}.tok-ih-order{margin-left:0}.tok-ih-player .tok-ih-side{display:none}.tok-ih-foot button{min-height:48px}.tok-ih-event-links a,.tok-ih-event-links>span{min-height:44px}}
       @media(max-width:470px){.tok-ih-kicker{font-size:7px}.tok-ih-head.staff{display:grid;grid-template-columns:minmax(0,1fr) 44px}.tok-ih-head.staff>div:first-child{grid-column:1;grid-row:1}.tok-ih-head.staff .tok-ih-audience{position:static;grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:1fr 1fr;margin:8px 0 0}.tok-ih-head.staff .tok-ih-audience button{width:100%}.tok-ih-head.staff .tok-ih-close{grid-column:2;grid-row:1}.tok-ih-hero{grid-template-columns:61px 1fr}.tok-ih-sigil{width:53px;height:53px}.tok-ih-identity h3{font-size:26px}}
       @media(prefers-reduced-motion:reduce){.tok-ih-overlay{backdrop-filter:none}}
     `;
@@ -337,6 +359,9 @@
     var staff = isStaff(profile);
     var nameField = sheet.querySelector ? sheet.querySelector('[data-f="name"]') : null;
     var characterName = text(options.characterName || (nameField && nameField.textContent));
+    var requestedItemId = '';
+    try { requestedItemId = text(new URLSearchParams(search).get('item')); } catch (_) {}
+    var requestedOpenQueued = false;
 
     function decorate() {
       var inventory = (box.__gmCtx && box.__gmCtx.inventory) || [];
@@ -350,6 +375,11 @@
         var wrap = doc.createElement('div');
         wrap.innerHTML = '<div class="gm-history-active' + (unidentified ? ' unidentified' : '') + '" data-item-history-action><button class="gm-history-open" type="button" data-item-history-open="' + esc(item.instanceId) + '"><span class="dot"></span><span><b>' + (unidentified ? 'Unidentified history' : 'History active') + '</b><small>Open this item\'s permanent record.</small></span><span class="chev">›</span></button></div>';
         detail.insertBefore(wrap.firstChild, edit.parentNode || null);
+        if (!requestedOpenQueued && requestedItemId === text(item.instanceId)) {
+          requestedOpenQueued = true;
+          var requestedButton = detail.querySelector('[data-item-history-open="' + requestedItemId.replace(/"/g, '\\"') + '"]');
+          if (requestedButton) setTimeout(function () { requestedButton.click(); }, 0);
+        }
       });
     }
     function narrate(button, message) {
@@ -382,5 +412,5 @@
     return { active: true, staff: staff, decorate: decorate, destroy: function () { hostRoot.removeEventListener('click', onClick, true); if (observer) observer.disconnect(); } };
   }
 
-  return { VERSION: VERSION, isEnabled: isEnabled, isStaff: isStaff, mechanicsText: mechanicsText, labelKey: labelKey, attunementLabel: attunementLabel, sortEvents: sortEvents, loadItem: loadItem, setRequirement: setRequirement, identifyItem: identifyItem, renameItem: renameItem, transferItem: transferItem, injectCss: injectCss, open: open, mount: mount, itemByKey: itemByKey };
+  return { VERSION: VERSION, isEnabled: isEnabled, isStaff: isStaff, mechanicsText: mechanicsText, labelKey: labelKey, attunementLabel: attunementLabel, sortEvents: sortEvents, loadItem: loadItem, setRequirement: setRequirement, identifyItem: identifyItem, renameItem: renameItem, transferItem: transferItem, campaignUrl: campaignUrl, eventConnectionsHtml: eventConnectionsHtml, injectCss: injectCss, open: open, mount: mount, itemByKey: itemByKey };
 });

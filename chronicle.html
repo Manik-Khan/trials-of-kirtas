@@ -1206,6 +1206,12 @@
     .sv-hit-ch { color: var(--gold); }
     .sv-hit-body { font-size: 0.82rem; color: var(--parchment); }
     .sv-hit-body mark { background: var(--gold-dim); color: var(--gold-light); }
+    .campaign-moment-links { display:flex; flex-wrap:wrap; gap:5px; margin-top:9px; }
+    .campaign-moment-link { min-height:30px; padding:5px 8px; display:inline-flex; align-items:center; gap:5px; border:1px solid var(--gold-dim); color:var(--gold-light); text-decoration:none; font-family:var(--font-title); font-size:.48rem; letter-spacing:.09em; text-transform:uppercase; }
+    .campaign-moment-link:hover { border-color:var(--gold); background:rgba(184,149,42,.08); }
+    .campaign-moment-receipt { color:var(--muted); border-color:var(--nav-border); }
+    .campaign-moment-focus { box-shadow:0 0 0 2px var(--gold),0 0 28px rgba(184,149,42,.18); }
+    @media(max-width:600px) { .campaign-moment-link { min-height:44px; } }
   </style>
 </head>
 <body>
@@ -1401,6 +1407,7 @@
 <script src="characters.js"></script>
 <script src="nav.js?v=sup5"></script>
 <script src="living-codex.js?v=lc1"></script>
+<script src="campaign-moments.js?v=cm1"></script>
 <script src="battle.js?v=settings1"></script>
 <script src="feed-bridge.js"></script>
 <script src="feed-render.js"></script>
@@ -1417,6 +1424,8 @@ let SB = null;        // shared authenticated client (from nav.js)
 let ME = null;        // viewer profile { userId, role, characterKey, ... }
 let IS_STAFF = false;
 let LIVING_CODEX = { characters: [], npcs: [], locations: [], entities: [], aliases: {} };
+let CAMPAIGN_HISTORY = { available:false, moments:[], error:'' };
+let SELECTED_CAMPAIGN_MOMENT_ID = null;
 
 // nav.js mounts async (session gate) — wait for it like combat.html does.
 function whenReady(cb) {
@@ -1500,6 +1509,61 @@ async function loadLivingCodex() {
     console.warn('[living-codex] live names unavailable:', e.message);
     setDrawerStatus('The shared codex could not refresh; known canon names still work.', 'error');
   }
+}
+
+async function loadCampaignHistory() {
+  if (!SB || !window.CampaignMoments || !CampaignMoments.isEnabled(location.search)) return;
+  try {
+    CAMPAIGN_HISTORY = await CampaignMoments.load(SB, { staff:IS_STAFF });
+  } catch (e) {
+    CAMPAIGN_HISTORY = { available:false, moments:[], error:e.message || 'Campaign history is unavailable.' };
+    console.warn('[campaign-moments] Chronicle links unavailable:', CAMPAIGN_HISTORY.error);
+  }
+}
+
+function campaignMomentForFeed(feedId) {
+  return (CAMPAIGN_HISTORY.moments || []).find(moment => String(moment.feedPostId || '') === String(feedId));
+}
+
+function campaignEntryConnections(entry) {
+  const moment = campaignMomentForFeed(entry && entry._rowId);
+  if (!moment) return '';
+  const targets = CampaignMoments.targets(moment);
+  const item = moment.items && moment.items[0];
+  const links = [
+    ['⌖ World', targets.world],
+    [item ? `✦ ${item.name}` : '✦ Item history', targets.item],
+    ['⚔ Encounter', targets.encounter]
+  ].filter(link => !!link[1]);
+  return `<div class="campaign-moment-links"><span class="campaign-moment-link campaign-moment-receipt">One moment · ${svEsc(moment.id)}</span>${links.map(link=>`<a class="campaign-moment-link" href="${svEsc(link[1])}">${svEsc(link[0])}</a>`).join('')}</div>`;
+}
+
+async function focusCampaignRequest() {
+  if (!window.CampaignMoments || !CampaignMoments.isEnabled(location.search)) return;
+  const query = new URLSearchParams(location.search);
+  const encounterId = query.get('encounter');
+  if (encounterId) {
+    const session = Number(query.get('session'));
+    if (Number.isFinite(session)) await openCombatChannel(session, encounterId);
+    return;
+  }
+  const momentId = query.get('moment');
+  const moment = (CAMPAIGN_HISTORY.moments || []).find(row => row.id === momentId);
+  if (!moment) return;
+  SELECTED_CAMPAIGN_MOMENT_ID = moment.id;
+  activeChannel = null;
+  const momentSession = Number(moment.sessionId);
+  activeFilters = { session:Number.isFinite(momentSession) ? momentSession : null, author:null, tags:[], search:'' };
+  setPane('entries');
+  renderSidebar();
+  renderEntries();
+  requestAnimationFrame(() => {
+    const entry = moment.feedPostId ? document.getElementById(`entry-${moment.feedPostId}`) : null;
+    if (!entry) { setDrawerStatus('This moment has no linked Chronicle entry.', 'error'); return; }
+    entry.classList.add('campaign-moment-focus');
+    const scroller = document.getElementById('c-main');
+    if (scroller) scroller.scrollTop += entry.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 18;
+  });
 }
 
 // ══════════════════════════════════════════════════════════
@@ -2152,6 +2216,7 @@ async function loadChronicle() {
     encounterMap = {};
     (encs || []).forEach(e => { encounterMap[e.id] = e; });
     campaignConfig = (camp && camp.config) || {};
+    await loadCampaignHistory();
     svFR = window.FeedRender ? FeedRender.create({
       characters: typeof CHARACTERS !== 'undefined' ? CHARACTERS : {},
       canDelete: canDeleteFeedRow,
@@ -2164,6 +2229,7 @@ async function loadChronicle() {
     renderSidebar();
     renderEntries();
     initChronicleRealtime();
+    await focusCampaignRequest();
   } catch(e) {
     document.getElementById('c-loading').innerHTML =
       `<div style="color:var(--blood)">Could not load chronicle.<br><small style="color:var(--muted);font-style:italic">${e.message}</small></div>`;
@@ -2856,6 +2922,7 @@ function renderEntry(e) {
     </div>` : '';
 
   let html = processEntryHTML(e.text||'');
+  const momentLinks = campaignEntryConnections(e);
 
   // Journal provenance — shown when the entry was shared from a journal page
   const fromJournal = e.fromJournal
@@ -2869,6 +2936,7 @@ function renderEntry(e) {
         <div class="c-entry-dm-label">Narrator${fromJournal ? ' ' + fromJournal : ''}${menu ? ' ' + menu : ''}</div>
         <div class="c-entry-text">${html}</div>
         ${tags?`<div class="c-entry-tags">${tags}</div>`:''}
+        ${momentLinks}
       </div>`;
   }
 
@@ -2899,6 +2967,7 @@ const firstName = rawName === 'tyros' ? 'cosmere' : rawName.normalize('NFD').rep
           </div>
           <div class="c-entry-text">${html}</div>
           ${tags?`<div class="c-entry-tags">${tags}</div>`:''}
+          ${momentLinks}
         </div>
       </div>
     </div>`;
