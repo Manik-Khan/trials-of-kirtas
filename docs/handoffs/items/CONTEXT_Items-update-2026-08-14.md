@@ -13,16 +13,14 @@ This document is the current item-system authority. Read it with `AGENTS.md`
 and `CONTEXT.md` before touching Gear, inventory imports, item SQL, Chronicle
 links, or World-map item projection.
 
-Current working baseline: local `main` and `origin/main` at `893e1d2`
-(`updated level up and spells`). The approved August 19 map-history mock begins
-from a clean tree and intentionally leaves four uncommitted files:
-`CONTEXT.md`, this handoff,
-`_edits/mock-campaign-connections-map-history.html`, and
-`tests/smoke/smoke-campaign-connections-map-history-mock.mjs`. The prior item
-checkpoint was local `bab024a` (`loot workskop`); the original handoff
-checkpoint was `cc388e1` (`items and ownership`). The later committed Level Up
-wave does not change item, Chronicle, World, or map dependencies. M deploys
-manually. Codex never pushes and commits only when M explicitly asks.
+Current synchronized baseline: local `main` and `origin/main` at `d7bc253`
+(`prepping for map inclusion`). That commit contains the approved mock and the
+guarded campaign-moment reader built from `893e1d2`; the tree was clean before
+the read-only field-kit follow-up. The prior item checkpoint was local
+`bab024a` (`loot workskop`); the original handoff checkpoint was `cc388e1`
+(`items and ownership`). No later dependency change overlaps item, Chronicle,
+World, or map authority. M deploys manually. Codex never pushes and commits
+only when M explicitly asks.
 
 ## 1. Executive verdict
 
@@ -398,6 +396,18 @@ horizontal overflow, visible cross-section links, and 44px mobile link targets.
 The Chronicle and sheet DOM smokes cannot start because `jsdom` is absent; the
 unapplied World/Chronicle data path still requires an authenticated field pass.
 
+The follow-up field kit is deliberately operational rather than a new consumer
+or write surface. `docs/guides/CAMPAIGN-MOMENT-PREFLIGHT.sql` inspects the live
+prerequisite relations, exact identity types, RLS helpers, and post-apply
+security/realtime state without mutation.
+`CAMPAIGN-MOMENT-IDENTITY-RESOLVER.sql` returns recent feed, shared Journal,
+encounter/scene, Forge session, Living Codex location, and permanent-item-event
+identity candidates without selecting a fact or exposing Forge map documents.
+`CAMPAIGN-MOMENT-FIELD-PASS.md` owns the fail-closed manual sequence and browser
+matrix. Its smoke passes **30/30**. Existing item events remain append-only: a
+row already needs the chosen `moment_id`, or the pass stops pending a separately
+approved truthful new event.
+
 ## 6. File ownership map
 
 - `item-provenance.js` — pure durable identity/event/replay contract; no page
@@ -420,6 +430,12 @@ unapplied World/Chronicle data path still requires an authenticated field pass.
   projection, clustering, path ordering, and cross-section URL authority.
 - `schema_delta_campaign_moments.sql` — unapplied typed moment/map contract and
   separate staff-only exact truth; no seed data.
+- `docs/guides/CAMPAIGN-MOMENT-PREFLIGHT.sql` — read-only prerequisite and
+  post-apply security/realtime evidence.
+- `docs/guides/CAMPAIGN-MOMENT-IDENTITY-RESOLVER.sql` — read-only recent live
+  identity candidates; no selection or mutation.
+- `docs/guides/CAMPAIGN-MOMENT-FIELD-PASS.md` — exact manual one-row promotion
+  and authenticated browser matrix.
 - `world.html` — guarded `?path=1` Party's Path production candidate.
 - `chronicle.html` — guarded `?campaignLinks=1` feed-entry connection candidate.
 - `sheet-v2.html` — current full-sheet include/mount seam; loads the shared
@@ -444,6 +460,8 @@ unapplied World/Chronicle data path still requires an authenticated field pass.
   identity/link/location/audience/responsive contract gate.
 - `tests/smoke/smoke-campaign-moments.mjs` — production schema/reader/World/
   Chronicle known-answer gate.
+- `tests/smoke/smoke-campaign-moment-field-kit.mjs` — read-only and fail-closed
+  field-kit contract gate.
 - `netlify/functions/items2.js` — existing importer endpoint; it does not create
   durable item instances automatically.
 
@@ -532,12 +550,16 @@ connections among sections. The guarded local read slice exists, but live SQL
 application and promotion remain closed.
 
 1. Synchronize against `AGENTS.md`, `CONTEXT.md`, this handoff, current `HEAD`,
-   working tree, and changes since `893e1d2`.
-2. Review and apply `schema_delta_campaign_moments.sql` after confirming its
-   prerequisite tables are live. Do not seed its illustrative mock IDs.
-3. Resolve one safe real moment's feed, Journal, encounter, Living Codex
-   location, item-event, and typed scene-or-Forge identities before inserting
-   that first field row.
+   working tree, and changes since `d7bc253`.
+2. Run `docs/guides/CAMPAIGN-MOMENT-PREFLIGHT.sql`. Apply
+   `schema_delta_campaign_moments.sql` only when it reports
+   `ready_to_apply`; rerun it after application and review the returned
+   policies, grants, and realtime membership.
+3. Run `CAMPAIGN-MOMENT-IDENTITY-RESOLVER.sql` and follow
+   `CAMPAIGN-MOMENT-FIELD-PASS.md`. Resolve one safe real moment's feed,
+   Journal, encounter, Living Codex location, item-event, and typed
+   scene-or-Forge identities before inserting that first field row. Never
+   update an old append-only item event to manufacture its `moment_id`.
 4. Exercise `world.html?path=1`, the linked Chronicle entry, and the linked
    full-sheet item history as player and staff on desktop and mobile. Confirm
    approximate truth, staff exact truth, clustering, deep links, and narrated

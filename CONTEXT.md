@@ -172,6 +172,14 @@ This is not live or field-proven yet. The SQL is unapplied and no production
 campaign-moment rows were invented. The first live pass must apply the delta,
 check the real feed/Journal/encounter/location/item-event/map identities, seed
 one safe linked moment, and verify player/staff desktop and mobile behavior.
+The read-only field kit now lives in `docs/guides/CAMPAIGN-MOMENT-PREFLIGHT.sql`,
+`CAMPAIGN-MOMENT-IDENTITY-RESOLVER.sql`, and
+`CAMPAIGN-MOMENT-FIELD-PASS.md`. It proves the live prerequisite types, returns
+recent real identity candidates without dumping Forge map documents, and keeps
+promotion fail-closed. In particular, an old `item_events` row may not be
+updated to manufacture a connection: the first fact needs an already matching
+`moment_id` or a separately approved new append-only event. The field-kit gate
+passes **30/30**.
 Dependency-free campaign evidence passes **34/34**; the affected runnable item
 gates pass **279/279**, Living Codex passes **11/11**, and the two relevant
 unchanged Forge gates pass **36/36**. The Chronicle and sheet DOM smokes remain
