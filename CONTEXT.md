@@ -55,7 +55,7 @@ full Gear sheet first loaded the production candidate behind
 `?itemHistory=1`; M field-proved that path by turning Cosmere's longsword into
 **The Hexblade**. The August 19 connected-history candidate loads
 `campaign-moments.js?v=cm2`, `item-adoption.js?v=ia3`, and
-`item-history.js?v=ih11` on the normal full sheet,
+`item-history.js?v=ih12` on the normal full sheet,
 retains `?itemHistory=0` as a rollback switch, and leaves mounted/rail Gear
 untouched.
 
@@ -203,21 +203,25 @@ returns both rows, the association, and the unchanged source event for review.
 history while keeping a session number from fabricating a Chronicle link. M
 applied the delta successfully on August 20: its evidence returned
 `installed_review_two_facts`, both exact moment rows, one Skyblinder
-association, and the source event still at `moment_id = null`. The database
-contract is live; the `cm-2` / `ih-8` client update remains local and undeployed.
-Its production contract passes **49/49** and the item-history UI passes
-**45/45**; the revised mock remains **72/72**.
-Desktop production-module proof at 1280×720 has no overflow or browser logs.
-The 390×844 frame retains 44px targets and no overflow, but the browser's
-nested-frame instrumentation emits a MutationObserver error, so authenticated
-mobile proof remains a required post-deploy gate.
+association, and the source event still at `moment_id = null`. The database and
+`cm-2` / `ih-8` client reached live commit `e5120a6`. Authenticated desktop proof
+at 1280×720 shows one two-moment Veren's Watch cluster: the satchel opens only
+Chronicle feed 449 and `Bridge Ambush (test)`, while Skyblinder exposes only its
+Item History link. World, Chronicle focus, and encounter deep links have no
+overflow or browser logs. The deployed Skyblinder link reaches the correct
+Vesperian sheet but stops at the closed Gear row instead of opening Item
+History. Local `item-history.js` `ih-9` fixes that seam by opening the requested
+permanent identity directly and narrating failure in Gear; the closed-row
+production harness proves it at 1280×720 with no overflow or logs. Its UI gate
+passes **46/46**; the campaign contract remains **49/49** and mock **72/72**.
+The `ih-9` repair and authenticated mobile proof remain undeployed/open.
 Both applied campaign deltas are now append-only history: correct them only
 through a new delta. Expanded campaign evidence passes **49/49**; the affected runnable item
-gates pass **279/279**, Living Codex passes **11/11**, and the two relevant
+gates pass **286/286**, Living Codex passes **11/11**, and the two relevant
 unchanged Forge gates pass **36/36**. The Chronicle and sheet DOM smokes remain
-unable to start because this checkout lacks `jsdom`; browser proof currently
-covers the real connected item-history module at 1280×720 and 390×844, not the
-post-seed World/Chronicle path. Existing item-management and Gear/import
+unable to start because this checkout lacks `jsdom`; authenticated desktop
+browser proof now covers the post-seed World/Chronicle/Encounter path, with the
+Item History repair and mobile matrix still open. Existing item-management and Gear/import
 gates remain carried work rather than silently becoming solved.
 
 ---

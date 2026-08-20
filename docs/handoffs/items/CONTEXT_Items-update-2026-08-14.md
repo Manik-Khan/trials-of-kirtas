@@ -5,9 +5,9 @@ the real full-sheet adoption flow and tracked-item reader are field-visible on
 the normal sheet, with `?itemHistory=0` retained as the rollback switch. The
 mounted/rail sheet remains untouched. The next Gear/import presentation and
 Loot Workshop work remain standalone, no-dependency mocks. The first guarded
-campaign-moment reader, schema, and first two real rows are live; its earlier
-authenticated player empty state is field-proven, but the post-seed client and
-staff projection are not. No
+campaign-moment reader, schema, and first two real rows are live. The post-seed
+World/Chronicle/Encounter desktop path is field-proven; one local Item History
+deep-link repair and the authenticated mobile/staff matrix remain. No
 production Loot Workshop or Forge runtime wiring is approved.**
 
 This document is the current item-system authority. Read it with `AGENTS.md`
@@ -209,7 +209,7 @@ TOTAL:                     145 passed, 0 failed
 
 M approved `_edits/mock-item-history-management.html`. The smallest production
 reader lives in `item-history.js`; the August 19 connected-history candidate is
-cache-stamped as `item-history.js?v=ih11` and mounts on the normal full sheet by
+cache-stamped as `item-history.js?v=ih12` and mounts on the normal full sheet by
 default. It:
 
 - claims tracked Gear details before the adoption bridge decorates ordinary
@@ -434,14 +434,17 @@ moment rows, the one Skyblinder association, and the unchanged source event at
 `moment_id = null`. The delta fails closed
 against the resolver's exact identities, inserts the two separate reviewed
 moments, associates only Skyblinder's recovery event, and returns the unchanged
-source item event in its evidence cell. `campaign-moments.js` `cm-2` and
-`item-history.js` `ih-8` read direct and legacy links without turning a session
-number into a Chronicle link. Those client updates remain local and undeployed.
-Production contracts pass **49/49** and **45/45**;
-the revised mock remains **72/72**. Desktop production-module browser proof at
-1280×720 has no overflow or logs. The 390×844 framed layout retains 44px targets
-and no overflow, but browser instrumentation emits a nested-frame
-MutationObserver error, so authenticated mobile proof remains open.
+source item event in its evidence cell. `campaign-moments.js` `cm-2` and the
+`item-history.js` legacy reader reached live commit `e5120a6` without turning a
+session number into a Chronicle link. Authenticated 1280×720 proof shows the
+two-moment cluster, correct satchel and Skyblinder connection boundaries,
+Chronicle feed 449 focus, and the real `Bridge Ambush (test)` channel with no
+overflow or logs. The deployed Skyblinder link reaches Vesperian's sheet but
+does not open the closed Gear row's history. Local `item-history.js` `ih-9`
+opens the requested permanent item directly and narrates failure in Gear; its
+closed-row production harness has no desktop overflow or logs. Production
+contracts pass **49/49** and **46/46**; the mock remains **72/72**. The repair
+and authenticated mobile/staff matrix remain undeployed/open.
 
 ## 6. File ownership map
 
@@ -518,10 +521,9 @@ MutationObserver error, so authenticated mobile proof remains open.
 - Loot Workshop setup, rolling, bundle editing, attachments, and release are
   mock-only. No authoritative treasure-table dataset or production persistence
   contract has been approved.
-- Item events are not yet live-projected into Chronicle, World, NPCs,
-  encounters, or battle-map UI. The base reader, both SQL deltas, association,
-  and first two real rows are live; the `cm-2` / `ih-8` client update is local
-  but undeployed.
+- The first two facts are live-projected through World, Chronicle, and the real
+  encounter channel. Skyblinder's World-to-sheet target is correct, but the
+  local `ih-9` repair must deploy before Item History deep-link promotion.
 - The live schema now settles canonical battle-map identity as one nullable
   typed reference to either `scenes.id` or `forge_sessions.id`; the satchel's
   typed scene row is database-proven, while its client projection remains open.
@@ -587,38 +589,45 @@ Identity persists through every awakening, rename, and transfer.
 
 M explicitly advanced the roadmap on August 19 into map history and the
 connections among sections. Both SQL deltas and the first two real rows are
-live. Client deployment and post-seed promotion remain closed.
+live. The first client deployment reached `e5120a6`; its final Item History
+deep-link repair and authenticated mobile promotion remain closed.
 
 1. Synchronize against `AGENTS.md`, `CONTEXT.md`, this handoff, current `HEAD`,
-   working tree, and changes since `03c6b52`.
+   working tree, and changes since `e5120a6`.
 2. Preserve both campaign SQL files as applied history. The saved link-delta
    evidence is `installed_review_two_facts`; it contains both reviewed rows,
    one Skyblinder association, and the source event with `moment_id = null`.
    Use a new delta for any later correction and never update an old item event.
-3. Deploy the cache-stamped `campaign-moments.js`, `item-history.js`, World,
-   Chronicle, full sheet, and item-history harness files, then exercise
-   `world.html?path=1`, the satchel's linked Chronicle/Encounter views, and
-   Skyblinder's linked full-sheet Item History as player and staff on desktop
-   and mobile. Confirm approximate truth, staff exact truth, clustering, deep
-   links, and narrated missing links across both facts.
+3. Deploy the cache-stamped `item-history.js` `ih-9` repair with
+   `sheet-v2.html` loading `?v=ih12` and the matching closed-Gear browser
+   harness. No SQL accompanies this repair.
 4. Preserve the two separate facts throughout the field pass: the satchel owns
    its feed/encounter/scene links and has no item; Skyblinder owns its item-event
    association and has no feed/Journal/encounter/map link.
-5. Preserve Living Codex location identity, nested-parent projection,
+5. Recheck Skyblinder's linked full-sheet Item History as player and staff on
+   desktop and mobile. It must open the requested permanent record while the
+   Gear row begins closed, retain the legacy receipt and World link, omit
+   fabricated Chronicle/Encounter links, narrate failure, and produce no
+   horizontal overflow or browser errors.
+6. Complete the authenticated mobile check for the two-moment World cluster and
+   the satchel's Chronicle/Encounter path. Preserve approximate truth, staff
+   exact truth, clustering, deep links, and narrated missing links.
+7. Preserve Living Codex location identity, nested-parent projection,
    approximate-versus-confirmed truth, and database-enforced staff secrets.
    Personal GitHub-backed World marks remain outside permanent history.
-6. Keep the read slice guarded until the authenticated field pass succeeds.
+8. Keep the read slice guarded until the authenticated field pass succeeds.
    Do not add authoring UI, client writes, quests, or evolving-item automation
    during that proof.
-7. Carry the existing item gates independently: confirm management SQL live
+9. Carry the existing item gates independently: confirm management SQL live
    state; field-test Attune/Release, identify, rename, and transfer; complete
    the approved Gear/import presentation; and keep mounted-sheet rollout as a
    separate boundary.
-8. Preserve the Loot Workshop's approved standalone interaction and 140/140
+10. Preserve the Loot Workshop's approved standalone interaction and 140/140
    smoke. Its licensed data and bundle/roster persistence boundary remain
    separate from campaign-moment production work.
 
 The presentation and guarded read contract are settled: distinct facts, honest
 partial links, no guessed map truth, and typed battle-map identity. The next
-decision follows the SQL evidence and authenticated two-fact field pass;
-successful schema application alone does not prove the connected experience.
+decision follows deployment of the `ih-9` repair and the remaining authenticated
+mobile/staff field pass. Once that gate closes, the roadmap can advance
+mock-first to the quest foundation without reopening the proven two-fact model.

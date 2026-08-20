@@ -7,9 +7,10 @@
   <style>*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#182826;color:#ece2cd;font-family:Georgia,serif}.harness{width:min(760px,calc(100% - 28px));margin:30px auto;padding:18px;border:1px solid rgba(199,154,74,.4);background:#101c19}.gm-detail{padding:18px;border:1px solid rgba(236,226,205,.14)}.gm-d-edit{margin-top:12px}.gm-d-editbtn{min-height:42px;border:1px solid rgba(236,226,205,.2);background:transparent;color:#a9a08d}</style>
 </head>
 <body>
-  <main class="harness"><h1>Tracked Gear detail</h1><p>The production item-history module is mounted below with an in-memory read boundary.</p><section class="tok-sheet"><div data-equip><div class="gm-detail"><div>The selected inventory row already carries a permanent identity.</div><div class="gm-d-edit"><button class="gm-d-editbtn" data-editopen="id:hexblade">Edit item</button></div></div></div></section></main>
+  <main class="harness"><h1>Tracked Gear detail</h1><p>The production item-history module is mounted below with an in-memory read boundary.</p><section class="tok-sheet"><div data-equip></div></section></main>
+  <script src="../../gear-manager.js?v=gm3"></script>
   <script src="../../campaign-moments.js?v=cm2"></script>
-  <script src="../../item-history.js?v=ih11"></script>
+  <script src="../../item-history.js?v=ih12"></script>
   <script>
     (function(){
       var params=new URLSearchParams(location.search),staff=params.get('staff')==='1',identified=params.get('identified')==='1';
@@ -18,7 +19,8 @@
       window.__historyHarness={calls:[]};
       function builder(table){var b={select:function(){return b},eq:function(){return b},order:function(){return b},maybeSingle:function(){window.__historyHarness.calls.push(table);return Promise.resolve({data:rows[table],error:null});},then:function(resolve,reject){window.__historyHarness.calls.push(table);return Promise.resolve({data:rows[table],error:null}).then(resolve,reject)}};return b;}
       var sb={from:function(table){return builder(table)},rpc:function(name,payload){window.__historyHarness.calls.push(name);if(name==='set_item_attunement_requirement'){item.requires_attunement=!!payload.p_requires_attunement;if(!item.requires_attunement)item.attuned=false;return Promise.resolve({data:{ok:true,item:item,inventoryItem:{}},error:null});}if(name==='identify_item'){item.identification='identified';item.display_name='The Hexblade';item.rarity='Rare';return Promise.resolve({data:{ok:true,item:item,event:{id:'ev_identify'}},error:null});}if(name==='rename_item'){item.display_name=payload.p_new_name;return Promise.resolve({data:{ok:true,item:item,event:{id:'ev_rename'}},error:null});}if(name==='transfer_item'){item.current_bearer_key=payload.p_to_character_key;item.slot=null;item.attuned=false;return Promise.resolve({data:{ok:true,item:item,event:{id:'ev_transfer'}},error:null});}return Promise.resolve({data:null,error:{message:'Unknown mock RPC'}});}};
-      var box=document.querySelector('[data-equip]');box.__gmCtx={inventory:[{id:'hexblade',instanceId:'item_hexblade',name:item.display_name,identification:item.identification,rarity:item.rarity}]};
+      var box=document.querySelector('[data-equip]'),inventory=[{id:'hexblade',instanceId:'item_hexblade',name:item.display_name,identification:item.identification,rarity:item.rarity}];
+      window.GearManager.render(box,{inventory:inventory,currency:{},strScore:10,itemHistoryActive:true});window.GearManager.bind(box);
       window.__historyHarness.ready=window.ItemHistory.mount({document:document,root:document,search:location.search,profile:{role:staff?'dm':'player'},supabase:sb,characterKey:'cosmere',characterName:'Cosmere Runestar'});
     })();
   </script>

@@ -11,7 +11,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  var VERSION = 'ih-8';
+  var VERSION = 'ih-9';
   var EVENT_LABELS = {
     recovered: 'Recovered', assigned: 'Assigned', identified: 'Identified',
     renamed: 'Renamed', transferred: 'Transferred', transformed: 'Transformed',
@@ -203,6 +203,7 @@
     style.id = 'tok-ih-css';
     style.textContent = `
       .tok-sheet .gm-history-open{display:flex;align-items:center;gap:10px;width:100%;padding:0;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.tok-sheet .gm-history-open:hover b{color:#f3e8d1}.tok-sheet .gm-history-active.unidentified .dot{background:#aa8bc4;box-shadow:0 0 12px rgba(170,139,196,.55)}.tok-sheet .gm-history-active.unidentified b{color:#c2a8d7}.tok-sheet .gm-history-active .chev{margin-left:auto;color:#8d8675;font-size:16px}
+      .tok-sheet .gm-history-deep-error{margin:0 0 10px;padding:9px 11px;border:1px solid rgba(224,160,122,.45);background:rgba(224,160,122,.06);color:#e0a07a;font:12px/1.4 "EB Garamond",Georgia,serif}
       .tok-ih-overlay{position:fixed;inset:0;z-index:10045;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(3,8,7,.86);box-sizing:border-box;backdrop-filter:blur(3px)}.tok-ih-dialog{width:min(980px,100%);max-height:min(800px,calc(100vh - 40px));display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(199,154,74,.62);background:linear-gradient(145deg,#142620,#0b1714);box-shadow:0 28px 90px rgba(0,0,0,.72);color:#ece2cd}
       .tok-ih-head{display:flex;align-items:flex-start;gap:16px;padding:16px 18px 13px;border-bottom:1px solid rgba(236,226,205,.13);background:#0d1815}.tok-ih-head>div:first-child{flex:1}.tok-ih-kicker{color:#c79a4a;font:600 8px/1 "Oswald",Arial,sans-serif;letter-spacing:.17em;text-transform:uppercase}.tok-ih-head h2{margin:5px 0 0;color:#f3e8d1;font:500 27px/1.05 "Playfair Display",Georgia,serif}.tok-ih-audience{display:flex;gap:6px;margin-left:auto}.tok-ih-audience button{min-height:42px;padding:0 12px;border:1px solid rgba(236,226,205,.18);background:transparent;color:#8d8675;font:600 8px/1 "Oswald",Arial,sans-serif;letter-spacing:.11em;text-transform:uppercase;cursor:pointer}.tok-ih-audience button[aria-pressed="true"]{border-color:#c79a4a;background:rgba(199,154,74,.1);color:#e7c279}.tok-ih-close{flex:0 0 auto;width:42px;height:42px;border:1px solid rgba(236,226,205,.2);background:transparent;color:#a9a08d;font-size:20px;cursor:pointer}
       .tok-ih-scroll{min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}.tok-ih-hero{position:relative;display:grid;grid-template-columns:116px 1fr 215px;align-items:center;gap:21px;min-height:166px;padding:22px 25px;border-bottom:1px solid rgba(236,226,205,.13);overflow:hidden}.tok-ih-hero.unidentified{background:radial-gradient(circle at 10% 50%,rgba(154,119,182,.16),transparent 31%)}.tok-ih-sigil{position:relative;width:88px;height:88px;display:grid;place-items:center;margin:auto;border:1px solid rgba(170,139,196,.55);background:radial-gradient(circle,rgba(145,111,177,.27),rgba(11,24,21,.84) 65%);box-shadow:0 0 38px rgba(145,111,177,.2);transform:rotate(45deg)}.tok-ih-sigil:before,.tok-ih-sigil:after{content:"";position:absolute;border-radius:50%;filter:blur(10px);background:rgba(190,161,212,.13)}.tok-ih-sigil:before{width:76px;height:32px;transform:translate(-22px,13px)}.tok-ih-sigil:after{width:50px;height:52px;transform:translate(25px,-15px)}.tok-ih-sigil span{position:relative;z-index:1;color:#e7c279;font-size:31px;transform:rotate(-45deg)}.tok-ih-hero.identified .tok-ih-sigil{border-color:var(--tok-ih-rarity,#718ddb);box-shadow:0 0 38px color-mix(in srgb,var(--tok-ih-rarity,#718ddb) 25%,transparent)}.tok-ih-hero.identified .tok-ih-sigil:before,.tok-ih-hero.identified .tok-ih-sigil:after{opacity:.2}
@@ -399,28 +400,41 @@
       var note = row && row.querySelector('small');
       if (note) { note.textContent = message; note.classList.add('gm-history-message'); }
     }
+    function narrateRequestedError(message) {
+      var note = box.querySelector('[data-item-history-deep-error]');
+      if (!note) { note = doc.createElement('div'); note.className = 'gm-history-deep-error'; note.setAttribute('data-item-history-deep-error', ''); box.insertBefore(note, box.firstChild); }
+      note.textContent = message;
+    }
+    async function openRecord(itemId, button) {
+      if (button) { button.disabled = true; narrate(button, 'Opening the current item record…'); }
+      try {
+        var record = await loadItem(sb, itemId, staff);
+        var requirementChanged = false;
+        open({ document: doc, record: record, staff: staff, supabase: sb, characterKey: options.characterKey, characterName: characterName, onRequirementChange: function () { requirementChanged = true; }, onManagedChange: function () { requirementChanged = true; }, onClose: function () {
+          if (requirementChanged && view && view.location && view.location.reload) { view.location.reload(); return; }
+          if (button) { button.disabled = false; narrate(button, 'Open this item\'s permanent record.'); }
+        } });
+      } catch (error) {
+        var message = (error && error.message) || 'Item history is unavailable.';
+        if (button) { button.disabled = false; narrate(button, message); }
+        else narrateRequestedError(message);
+      }
+    }
     async function onClick(event) {
       var button = event.target && event.target.closest ? event.target.closest('[data-item-history-open]') : null;
       if (!button || !hostRoot.contains(button) || button.disabled) return;
       event.preventDefault(); event.stopPropagation();
-      button.disabled = true; narrate(button, 'Opening the current item record…');
-      try {
-        var record = await loadItem(sb, button.getAttribute('data-item-history-open'), staff);
-        var requirementChanged = false;
-        open({ document: doc, record: record, staff: staff, supabase: sb, characterKey: options.characterKey, characterName: characterName, onRequirementChange: function () { requirementChanged = true; }, onManagedChange: function () { requirementChanged = true; }, onClose: function () {
-          if (requirementChanged && view && view.location && view.location.reload) { view.location.reload(); return; }
-          button.disabled = false; narrate(button, 'Open this item\'s permanent record.');
-        } });
-      } catch (error) {
-        button.disabled = false;
-        narrate(button, (error && error.message) || 'Item history is unavailable.');
-      }
+      await openRecord(button.getAttribute('data-item-history-open'), button);
     }
     hostRoot.addEventListener('click', onClick, true);
     var Observer = (view && view.MutationObserver) || (typeof MutationObserver !== 'undefined' ? MutationObserver : null);
     var observer = Observer ? new Observer(decorate) : null;
     if (observer) observer.observe(box, { childList: true, subtree: true });
     decorate();
+    if (requestedItemId && !requestedOpenQueued) {
+      requestedOpenQueued = true;
+      await openRecord(requestedItemId, null);
+    }
     return { active: true, staff: staff, decorate: decorate, destroy: function () { hostRoot.removeEventListener('click', onClick, true); if (observer) observer.disconnect(); } };
   }
 

@@ -6,7 +6,7 @@ let pass = 0;
 let fail = 0;
 function ok(condition, name) { if (condition) { pass++; console.log('  PASS ' + name); } else { fail++; console.log('  FAIL ' + name); } }
 
-ok(ItemHistory.VERSION === 'ih-8', 'reader exposes the ih-8 legacy-link contract');
+ok(ItemHistory.VERSION === 'ih-9', 'reader exposes the ih-9 deep-link contract');
 ok(ItemHistory.isEnabled('') && ItemHistory.isEnabled('?itemHistory=1'), 'full-sheet default and explicit flag enable the reader');
 ok(!ItemHistory.isEnabled('?itemHistory=0'), 'zero remains an explicit rollback switch');
 ok(ItemHistory.isStaff({ role: 'dm' }) && ItemHistory.isStaff({ role: 'overseer' }) && !ItemHistory.isStaff({ role: 'player' }), 'only campaign staff receive the staff projection');
@@ -89,13 +89,14 @@ ok(source.includes('data-ih-view="player"') && source.includes('tok-ih-player'),
 ok(ItemHistory.eventConnectionsHtml(staffRecord.events[0]).includes('world.html?campaignLinks=1&amp;moment=moment-a'), 'linked item event opens the same World moment');
 ok(ItemHistory.eventConnectionsHtml(staffRecord.events[0]).includes('Legacy link') && ItemHistory.eventConnectionsHtml(staffRecord.events[0]).includes('No Chronicle entry'), 'legacy receipt narrates its honest partial connections');
 ok(ItemHistory.eventConnectionsHtml({ moment_id:'moment-unlocated' }).includes('No location recorded'), 'unlocated item history narrates the unavailable map link');
-ok(source.includes('data-item-history-open') && source.includes("get('item')"), 'a campaign link can reopen the permanent item identity on its current bearer sheet');
+ok(source.includes('data-item-history-open') && source.includes("get('item')") && source.includes('await openRecord(requestedItemId, null)'), 'a campaign deep link opens the permanent item without requiring its Gear row to be expanded');
+ok(source.includes('data-item-history-deep-error'), 'a failed direct item request narrates inside Gear');
 ok(source.includes('@media(max-width:700px)') && source.includes('min-height:48px'), 'mobile bottom sheet retains touch-sized controls');
-ok(sheet.includes('campaign-moments.js?v=cm2') && sheet.includes('item-history.js?v=ih11'), 'full sheet loads cache-stamped campaign and item readers');
+ok(sheet.includes('campaign-moments.js?v=cm2') && sheet.includes('item-history.js?v=ih12'), 'full sheet loads cache-stamped campaign and item readers');
 ok(sheet.includes("root.dataset.itemHistoryActive = new URLSearchParams(location.search).get('itemHistory') === '0' ? '0' : '1'"), 'full sheet promotes item history while retaining a rollback switch');
 ok(sheet.indexOf('ItemHistory.mount') < sheet.indexOf('ItemAdoption.mount'), 'reader claims tracked details before adoption decorates ordinary items');
 ok(!/item-history\.js/.test(readFileSync(new URL('../../sheet-mount.js', import.meta.url), 'utf8')), 'mounted sheet remains untouched');
-ok(harness.includes('../../campaign-moments.js?v=cm2') && harness.includes('../../item-history.js?v=ih11') && harness.includes('window.ItemHistory.mount'), 'browser harness uses the production connected-history modules');
+ok(harness.includes('../../gear-manager.js?v=gm3') && harness.includes('../../campaign-moments.js?v=cm2') && harness.includes('../../item-history.js?v=ih12') && harness.includes('window.ItemHistory.mount'), 'browser harness uses the production closed-Gear and connected-history modules');
 
 console.log(`\nsmoke-item-history-ui: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);
