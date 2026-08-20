@@ -4,7 +4,7 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **August 19, 2026 (the approved guarded focused Level Up staging flow;
+Updated: **August 20, 2026 (the approved guarded focused Level Up staging flow;
 durable notable-item identity, staff adoption,
 atomic custody transfer, the field-proven full-sheet item-history bridge, the
 approved Gear/import presentation mock, and the current standalone Loot
@@ -54,8 +54,8 @@ atomically. It never auto-promotes every imported or generic sword. The
 full Gear sheet first loaded the production candidate behind
 `?itemHistory=1`; M field-proved that path by turning Cosmere's longsword into
 **The Hexblade**. The August 19 connected-history candidate loads
-`campaign-moments.js?v=cm1`, `item-adoption.js?v=ia3`, and
-`item-history.js?v=ih10` on the normal full sheet,
+`campaign-moments.js?v=cm2`, `item-adoption.js?v=ia3`, and
+`item-history.js?v=ih11` on the normal full sheet,
 retains `?itemHistory=0` as a rollback switch, and leaves mounted/rail Gear
 untouched.
 
@@ -153,7 +153,7 @@ identity now used by the local guarded reader. The mock left battle-map
 identity unresolved across legacy `scenes.key`/`encounters.map_ref` and Forge
 `forge_sessions.id`; the local SQL candidate below settles that seam with
 typed database references rather than a free-form label. The mock performs no
-reads, writes, or live wiring. Its structural contract passes **64/64**;
+reads, writes, or live wiring. Its initial structural contract passed **64/64**;
 browser passes at desktop and
 390×844 mobile found no horizontal overflow or warnings/errors, retained 62px
 mobile connection targets, and proved player/staff, filters, clustering,
@@ -161,17 +161,24 @@ cross-section selection, and honest missing-link behavior.
 
 M's interaction/language review is complete. That approval settles the
 standalone presentation and authorized the first guarded production slice.
-The local candidate adds `tok-campaign-moment/v1` in `campaign-moments.js`,
-the unapplied `schema_delta_campaign_moments.sql`, and `?campaignLinks=1` /
+The guarded slice adds `tok-campaign-moment/v1` in `campaign-moments.js`,
+the now-applied `schema_delta_campaign_moments.sql`, and `?campaignLinks=1` /
 `?path=1` readers in World, Chronicle, and the full-sheet item history. It
 keeps public truth separate from staff-only exact truth, resolves battle-map
 identity through typed `scenes.id` or `forge_sessions.id` references, and never
 turns personal marks into history. No Forge runtime was changed.
 
-This is not live or field-proven yet. The SQL is unapplied and no production
-campaign-moment rows were invented. The first live pass must apply the delta,
-check the real feed/Journal/encounter/location/item-event/map identities, seed
-one safe linked moment, and verify player/staff desktop and mobile behavior.
+The schema and guarded readers are now live, but the connected-history field
+pass is not complete. M successfully applied `schema_delta_campaign_moments.sql`
+and deployed commit `03c6b52`. An authenticated player read on August 20 proved
+the World Path control at 1280×720 and 390×844 with no overflow, browser
+warnings, or errors; both viewports honestly reported **0 moments**. Chronicle
+loaded 34 real entries with zero campaign-moment connections. The live
+Hexblade and Skyblinder Staff histories also contained no moment receipts, so
+no existing item event may be assumed to authorize the first shared fact. The
+remaining pass must preserve the resolver's separate facts, approve any legacy
+association needed for Item History, insert only the resulting truthful partial
+links, and then verify the player/staff desktop and mobile projections.
 The read-only field kit now lives in `docs/guides/CAMPAIGN-MOMENT-PREFLIGHT.sql`,
 `CAMPAIGN-MOMENT-IDENTITY-RESOLVER.sql`, and
 `CAMPAIGN-MOMENT-FIELD-PASS.md`. It proves the live prerequisite types, returns
@@ -180,12 +187,37 @@ promotion fail-closed. In particular, an old `item_events` row may not be
 updated to manufacture a connection: the first fact needs an already matching
 `moment_id` or a separately approved new append-only event. The field-kit gate
 passes **30/30**.
-Dependency-free campaign evidence passes **34/34**; the affected runnable item
+
+The live resolver then disproved the illustrative mock's combined treasure
+story. M confirmed that Skyblinder Staff was **not** inside the chieftain's
+satchel; the satchel remains unopened. The corrected standalone mock now keeps
+two facts: feed 449 owns the unopened satchel plus its encounter/scene evidence,
+while the Skyblinder recovery owns its real Session 8 / `veren-s-watch` item
+event and receives no guessed Chronicle, encounter, scene, or Journal link.
+Because that legacy item event correctly has `moment_id = null`, the approved
+build now uses the additive `schema_delta_campaign_moment_item_links.sql`
+association instead of rewriting it. The delta fails closed on the reviewed
+live identities, creates the satchel and Skyblinder as separate rows, and
+returns both rows, the association, and the unchanged source event for review.
+`campaign-moments.js` `cm-2` and `item-history.js` `ih-8` join native and legacy
+history while keeping a session number from fabricating a Chronicle link. M
+applied the delta successfully on August 20: its evidence returned
+`installed_review_two_facts`, both exact moment rows, one Skyblinder
+association, and the source event still at `moment_id = null`. The database
+contract is live; the `cm-2` / `ih-8` client update remains local and undeployed.
+Its production contract passes **49/49** and the item-history UI passes
+**45/45**; the revised mock remains **72/72**.
+Desktop production-module proof at 1280×720 has no overflow or browser logs.
+The 390×844 frame retains 44px targets and no overflow, but the browser's
+nested-frame instrumentation emits a MutationObserver error, so authenticated
+mobile proof remains a required post-deploy gate.
+Both applied campaign deltas are now append-only history: correct them only
+through a new delta. Expanded campaign evidence passes **49/49**; the affected runnable item
 gates pass **279/279**, Living Codex passes **11/11**, and the two relevant
 unchanged Forge gates pass **36/36**. The Chronicle and sheet DOM smokes remain
 unable to start because this checkout lacks `jsdom`; browser proof currently
 covers the real connected item-history module at 1280×720 and 390×844, not the
-unapplied World/Chronicle data path. Existing item-management and Gear/import
+post-seed World/Chronicle path. Existing item-management and Gear/import
 gates remain carried work rather than silently becoming solved.
 
 ---

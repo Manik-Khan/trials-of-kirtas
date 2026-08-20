@@ -1,22 +1,23 @@
-# Durable item system handoff — current through 2026-08-19
+# Durable item system handoff — current through 2026-08-20
 
 Status: **identity/schema, staff adoption, and server-side transfer are applied;
 the real full-sheet adoption flow and tracked-item reader are field-visible on
 the normal sheet, with `?itemHistory=0` retained as the rollback switch. The
 mounted/rail sheet remains untouched. The next Gear/import presentation and
 Loot Workshop work remain standalone, no-dependency mocks. The first guarded
-campaign-moment reader is local but its SQL is unapplied and its World /
-Chronicle field path is not yet proven. No production Loot Workshop or Forge
-runtime wiring is approved.**
+campaign-moment reader, schema, and first two real rows are live; its earlier
+authenticated player empty state is field-proven, but the post-seed client and
+staff projection are not. No
+production Loot Workshop or Forge runtime wiring is approved.**
 
 This document is the current item-system authority. Read it with `AGENTS.md`
 and `CONTEXT.md` before touching Gear, inventory imports, item SQL, Chronicle
 links, or World-map item projection.
 
-Current synchronized baseline: local `main` and `origin/main` at `d7bc253`
-(`prepping for map inclusion`). That commit contains the approved mock and the
-guarded campaign-moment reader built from `893e1d2`; the tree was clean before
-the read-only field-kit follow-up. The prior item checkpoint was local
+Current synchronized baseline: local `main` and `origin/main` at `03c6b52`
+(`connecting map pathing`). That commit contains the approved mock, guarded
+campaign-moment reader, and read-only field kit built from `893e1d2`; the tree
+was clean at the August 20 field pass. The prior item checkpoint was local
 `bab024a` (`loot workskop`); the original handoff checkpoint was `cc388e1`
 (`items and ownership`). No later dependency change overlaps item, Chronicle,
 World, or map authority. M deploys manually. Codex never pushes and commits
@@ -208,7 +209,7 @@ TOTAL:                     145 passed, 0 failed
 
 M approved `_edits/mock-item-history-management.html`. The smallest production
 reader lives in `item-history.js`; the August 19 connected-history candidate is
-cache-stamped as `item-history.js?v=ih10` and mounts on the normal full sheet by
+cache-stamped as `item-history.js?v=ih11` and mounts on the normal full sheet by
 default. It:
 
 - claims tracked Gear details before the adoption bridge decorates ordinary
@@ -369,7 +370,7 @@ document inside that row. The guarded SQL candidate below now chooses typed
 `scenes.id` or `forge_sessions.id` references; the mock's readable battle-map
 label remains presentation only.
 
-Evidence: `smoke-campaign-connections-map-history-mock` passes **64/64**.
+Initial evidence: `smoke-campaign-connections-map-history-mock` passed **64/64**.
 Desktop and 390×844 browser passes covered player/staff audience changes,
 cross-section selection, filters, approximate truth, location clustering, and
 an unlinked Hexblade event. Mobile measured no horizontal overflow and 62px
@@ -377,9 +378,9 @@ connection targets. No browser warning/error was reported. M first approved
 this interaction/language direction, then separately authorized the guarded
 local production build described below.
 
-M then authorized the first production build. The local guarded candidate uses
+M then authorized the first production build. The deployed guarded reader uses
 `campaign-moments.js` as the shared `tok-campaign-moment/v1` reader and
-`schema_delta_campaign_moments.sql` as the unapplied database contract. World
+`schema_delta_campaign_moments.sql` as the applied database contract. World
 loads Party's Path only through `?path=1`, while `?campaignLinks=1` carries the
 same `moment` identity into Chronicle and the full-sheet item reader. The SQL
 stores either `scene_id → scenes.id` or `forge_session_id → forge_sessions.id`;
@@ -387,14 +388,22 @@ it cannot persist a friendly battle-map label as identity. Public moments and
 `campaign_moment_secrets` have separate RLS, so approximate party knowledge and
 staff exact coordinates are different database projections.
 
-The build remains local and read-only. No sample production moment is seeded,
-the migration is not applied, and Forge runtime files are untouched. Current
+The client remains read-only and Forge runtime files are untouched. M applied
+the campaign-moment migration successfully and deployed the guarded reader at
+`03c6b52`; no sample or production moment has been seeded. Current
 evidence is **34/34** campaign-moment checks, **279/279** affected runnable item
 checks, **11/11** Living Codex checks, and **36/36** relevant unchanged Forge
 checks. The real item-history harness passes at 1280×720 and 390×844 with no
 horizontal overflow, visible cross-section links, and 44px mobile link targets.
-The Chronicle and sheet DOM smokes cannot start because `jsdom` is absent; the
-unapplied World/Chronicle data path still requires an authenticated field pass.
+The Chronicle and sheet DOM smokes cannot start because `jsdom` is absent.
+
+The August 20 authenticated player pass proved the deployed World Path control
+at 1280×720 and 390×844. Both viewports had no horizontal overflow or browser
+warnings/errors and honestly rendered **0 moments**. Chronicle loaded 34 real
+entries with zero campaign-moment connections. The live Hexblade and
+Skyblinder Staff records opened cleanly, but neither history contained a moment
+receipt. This proves the player-readable empty state, not the first connected
+fact or the staff-only exact projection.
 
 The follow-up field kit is deliberately operational rather than a new consumer
 or write surface. `docs/guides/CAMPAIGN-MOMENT-PREFLIGHT.sql` inspects the live
@@ -407,6 +416,32 @@ identity candidates without selecting a fact or exposing Forge map documents.
 matrix. Its smoke passes **30/30**. Existing item events remain append-only: a
 row already needs the chosen `moment_id`, or the pass stops pending a separately
 approved truthful new event.
+
+The resolver's real rows forced one further mock correction. M confirmed that
+the chieftain's satchel in feed 449 is unopened and did not contain Skyblinder
+Staff. `_edits/mock-campaign-connections-map-history.html` now keeps them as two
+co-located but independent facts. The satchel owns feed 449, Session 8,
+`veren-s-watch`, encounter `84b36678-21b3-4a64-baf5-96a3d1c3475f`, and scene
+`ce811962-031d-431d-bc2d-ebcdb83693d1`; it has no item identity. Skyblinder's
+recovery owns item event `itemev_4b983df8-a75c-4601-aefe-73849ec8d759`, Session
+8, and `veren-s-watch`; it has no recorded feed, Journal, encounter, or map
+identity. No Forge session was inferred.
+
+The approved build implements that narrow legacy association in
+`schema_delta_campaign_moment_item_links.sql`. M applied the delta successfully
+on August 20. Its evidence returned `installed_review_two_facts`, both exact
+moment rows, the one Skyblinder association, and the unchanged source event at
+`moment_id = null`. The delta fails closed
+against the resolver's exact identities, inserts the two separate reviewed
+moments, associates only Skyblinder's recovery event, and returns the unchanged
+source item event in its evidence cell. `campaign-moments.js` `cm-2` and
+`item-history.js` `ih-8` read direct and legacy links without turning a session
+number into a Chronicle link. Those client updates remain local and undeployed.
+Production contracts pass **49/49** and **45/45**;
+the revised mock remains **72/72**. Desktop production-module browser proof at
+1280×720 has no overflow or logs. The 390×844 framed layout retains 44px targets
+and no overflow, but browser instrumentation emits a nested-frame
+MutationObserver error, so authenticated mobile proof remains open.
 
 ## 6. File ownership map
 
@@ -428,13 +463,16 @@ approved truthful new event.
   separate secrets only for staff; full sheet only.
 - `campaign-moments.js` — guarded shared moment reader, location-parent
   projection, clustering, path ordering, and cross-section URL authority.
-- `schema_delta_campaign_moments.sql` — unapplied typed moment/map contract and
+- `schema_delta_campaign_moments.sql` — applied typed moment/map contract and
   separate staff-only exact truth; no seed data.
+- `schema_delta_campaign_moment_item_links.sql` — applied additive legacy
+  association plus the two fail-closed reviewed field rows; never updates an
+  item event.
 - `docs/guides/CAMPAIGN-MOMENT-PREFLIGHT.sql` — read-only prerequisite and
   post-apply security/realtime evidence.
 - `docs/guides/CAMPAIGN-MOMENT-IDENTITY-RESOLVER.sql` — read-only recent live
   identity candidates; no selection or mutation.
-- `docs/guides/CAMPAIGN-MOMENT-FIELD-PASS.md` — exact manual one-row promotion
+- `docs/guides/CAMPAIGN-MOMENT-FIELD-PASS.md` — exact manual two-fact promotion
   and authenticated browser matrix.
 - `world.html` — guarded `?path=1` Party's Path production candidate.
 - `chronicle.html` — guarded `?campaignLinks=1` feed-entry connection candidate.
@@ -454,8 +492,9 @@ approved truthful new event.
 - `tests/smoke/smoke-loot-workshop-mock.mjs` — structural and interaction
   known-answer gate for the Loot Workshop mock.
 - `_edits/mock-campaign-connections-map-history.html` — approved standalone
-  campaign-moment, Party's Path, and cross-section navigation direction; no
-  production data or wiring.
+  campaign-moment, Party's Path, and cross-section navigation direction; its
+  corrected unopened-satchel / Skyblinder separation and legacy association
+  are the approved source for the guarded local build.
 - `tests/smoke/smoke-campaign-connections-map-history-mock.mjs` — approved-mock
   identity/link/location/audience/responsive contract gate.
 - `tests/smoke/smoke-campaign-moments.mjs` — production schema/reader/World/
@@ -480,14 +519,15 @@ approved truthful new event.
   mock-only. No authoritative treasure-table dataset or production persistence
   contract has been approved.
 - Item events are not yet live-projected into Chronicle, World, NPCs,
-  encounters, or battle-map UI. A guarded local World/Chronicle/item read
-  candidate exists, but its SQL and real rows are not live.
-- The local schema now settles canonical battle-map identity as one nullable
-  typed reference to either `scenes.id` or `forge_sessions.id`; live application
-  and real-row verification remain open.
-- No campaign-moment authoring UI or client write path is approved. The first
-  field row must be inserted deliberately only after every linked real identity
-  is checked.
+  encounters, or battle-map UI. The base reader, both SQL deltas, association,
+  and first two real rows are live; the `cm-2` / `ih-8` client update is local
+  but undeployed.
+- The live schema now settles canonical battle-map identity as one nullable
+  typed reference to either `scenes.id` or `forge_sessions.id`; the satchel's
+  typed scene row is database-proven, while its client projection remains open.
+- No campaign-moment authoring UI or client write path is approved. Every future
+  field row must still be inserted deliberately only after each linked real
+  identity is checked.
 - Quests and objective evidence do not exist.
 - Evolving-item deeds/unlocks do not exist. Manual `transformed` history is only
   a contract capability today.
@@ -546,24 +586,24 @@ Identity persists through every awakening, rename, and transfer.
 ## 9. Exact next slice for a fresh session
 
 M explicitly advanced the roadmap on August 19 into map history and the
-connections among sections. The guarded local read slice exists, but live SQL
-application and promotion remain closed.
+connections among sections. Both SQL deltas and the first two real rows are
+live. Client deployment and post-seed promotion remain closed.
 
 1. Synchronize against `AGENTS.md`, `CONTEXT.md`, this handoff, current `HEAD`,
-   working tree, and changes since `d7bc253`.
-2. Run `docs/guides/CAMPAIGN-MOMENT-PREFLIGHT.sql`. Apply
-   `schema_delta_campaign_moments.sql` only when it reports
-   `ready_to_apply`; rerun it after application and review the returned
-   policies, grants, and realtime membership.
-3. Run `CAMPAIGN-MOMENT-IDENTITY-RESOLVER.sql` and follow
-   `CAMPAIGN-MOMENT-FIELD-PASS.md`. Resolve one safe real moment's feed,
-   Journal, encounter, Living Codex location, item-event, and typed
-   scene-or-Forge identities before inserting that first field row. Never
-   update an old append-only item event to manufacture its `moment_id`.
-4. Exercise `world.html?path=1`, the linked Chronicle entry, and the linked
-   full-sheet item history as player and staff on desktop and mobile. Confirm
-   approximate truth, staff exact truth, clustering, deep links, and narrated
-   missing links against that one real fact.
+   working tree, and changes since `03c6b52`.
+2. Preserve both campaign SQL files as applied history. The saved link-delta
+   evidence is `installed_review_two_facts`; it contains both reviewed rows,
+   one Skyblinder association, and the source event with `moment_id = null`.
+   Use a new delta for any later correction and never update an old item event.
+3. Deploy the cache-stamped `campaign-moments.js`, `item-history.js`, World,
+   Chronicle, full sheet, and item-history harness files, then exercise
+   `world.html?path=1`, the satchel's linked Chronicle/Encounter views, and
+   Skyblinder's linked full-sheet Item History as player and staff on desktop
+   and mobile. Confirm approximate truth, staff exact truth, clustering, deep
+   links, and narrated missing links across both facts.
+4. Preserve the two separate facts throughout the field pass: the satchel owns
+   its feed/encounter/scene links and has no item; Skyblinder owns its item-event
+   association and has no feed/Journal/encounter/map link.
 5. Preserve Living Codex location identity, nested-parent projection,
    approximate-versus-confirmed truth, and database-enforced staff secrets.
    Personal GitHub-backed World marks remain outside permanent history.
@@ -578,7 +618,7 @@ application and promotion remain closed.
    smoke. Its licensed data and bundle/roster persistence boundary remain
    separate from campaign-moment production work.
 
-The presentation and local read contract are settled: one fact, honest links,
-no guessed map truth, and typed battle-map identity. The next decision is
-whether the authenticated one-row field pass is trustworthy enough to promote
-the guarded readers; local build approval does not make the unapplied SQL live.
+The presentation and guarded read contract are settled: distinct facts, honest
+partial links, no guessed map truth, and typed battle-map identity. The next
+decision follows the SQL evidence and authenticated two-fact field pass;
+successful schema application alone does not prove the connected experience.

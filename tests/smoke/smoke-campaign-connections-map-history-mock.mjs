@@ -35,8 +35,8 @@ ok(!/supabase|__tok\.sb/i.test(html), 'mock has no production database dependenc
 ok(!/localStorage|sessionStorage/.test(html), 'mock writes no browser storage');
 
 if (data) {
-  ok(data.contract === 'tok-campaign-moment/v1-candidate', 'candidate names one shared campaign-moment contract');
-  ok(Array.isArray(data.moments) && data.moments.length === 6, 'six linked and unlinked moments exercise the flow');
+  ok(data.contract === 'tok-campaign-moment/v1-legacy-link-candidate', 'candidate names the shared moment plus legacy-link contract');
+  ok(Array.isArray(data.moments) && data.moments.length === 7, 'seven linked and unlinked moments exercise the corrected flow');
   const ids = data.moments.map(row => row.id);
   ok(new Set(ids).size === ids.length, 'campaign moment identities are unique');
   const orders = data.moments.map(row => row.order);
@@ -46,19 +46,26 @@ if (data) {
 
   const itemMoments = data.moments.filter(row => row.itemEventId);
   ok(itemMoments.length === 3, 'three item events prove cross-section history');
-  ok(itemMoments.every(row => row.momentId === row.id), 'item events point to the same campaign-moment identity');
   ok(itemMoments.every(row => row.itemId && row.itemEventId), 'item links retain item and event identity separately');
+  ok(itemMoments.every(row => row.itemLinkId), 'legacy item events use an explicit association identity');
+  ok(data.itemEventLinks.length === itemMoments.length, 'every displayed legacy item event has one association row');
+  ok(data.itemEventLinks.every(link => data.moments.some(row => row.id === link.momentId && row.itemEventId === link.itemEventId)), 'association rows resolve both immutable identities');
+  ok(Object.values(data.itemEvents).every(row => row.momentId === null), 'source item events remain byte-for-byte unclaimed by a moment');
 
-  const battle = data.moments.find(row => row.id === 'moment-skyblinder-recovered');
-  ok(!!battle, 'recovery moment exists');
-  ok(battle.sessionId === '9', 'recovery links its canonical session');
-  ok(battle.locationId === 'verens-watch', 'recovery links its canonical World location');
-  ok(!!battle.feedPostId, 'recovery links its Chronicle row');
-  ok(!!battle.journalPageId, 'recovery links its Journal evidence');
-  ok(!!battle.encounterId, 'recovery links its encounter separately');
-  ok(!!battle.battleMapId, 'recovery links its battle map separately');
-  ok(battle.also.includes('treasure'), 'one fact may appear in battle and treasure filters without duplication');
-  ok(battle.partyPresent === true, 'confirmed battle contributes to the traveled path');
+  const satchel = data.moments.find(row => row.id === 'moment-s8-unopened-satchel');
+  ok(!!satchel && satchel.contentsState === 'unopened', 'the chieftain satchel remains explicitly unopened');
+  ok(satchel.sessionId === '8' && satchel.locationId === 'veren-s-watch', 'satchel uses its real session and Living Codex location');
+  ok(satchel.feedPostId === '449', 'satchel links the exact Chronicle row');
+  ok(!!satchel.encounterId && !!satchel.battleMapId, 'satchel retains its typed encounter and scene evidence');
+  ok(satchel.itemId === null && satchel.itemEventId === null, 'unopened contents do not invent a durable item');
+  ok(satchel.also.includes('battle'), 'one satchel fact may appear in treasure and battle filters without duplication');
+
+  const recovered = data.moments.find(row => row.id === 'moment-s8-skyblinder-recovered');
+  ok(!!recovered, 'separate Skyblinder recovery moment exists');
+  ok(recovered.sessionId === '8' && recovered.locationId === 'veren-s-watch', 'Skyblinder retains its real recovery context');
+  ok(!!recovered.itemEventId && !!recovered.itemLinkId, 'Skyblinder reaches immutable item history through the legacy bridge');
+  ok(recovered.feedPostId === null && recovered.encounterId === null && recovered.battleMapId === null, 'Skyblinder receives no guessed satchel, encounter, or scene link');
+  ok(satchel.id !== recovered.id, 'satchel and Skyblinder remain separate campaign facts');
 
   const noMap = data.moments.find(row => row.id === 'moment-hexblade-backstory');
   ok(noMap.locationId === null, 'backstory event remains explicitly unlocated');
@@ -76,13 +83,16 @@ if (data) {
 
   ok(data.current.locationId === 'tiersgard', 'current party position is explicit current truth');
   ok(!data.moments.some(row => row.id === data.current.locationId), 'current truth is not forged into historical event identity');
-  ok(data.item.id === 'item-skyblinder' && data.item.bearer === 'Líadan Luchóg', 'current item custody remains separate from event locations');
+  ok(data.item.id === 'item_876939c0-74c5-4cd2-9c45-35308cec409b' && data.item.bearer === 'Vesperian Vale', 'current item custody matches live truth and remains separate from event locations');
 }
 
 ['data-view-tab="world"','data-view-tab="chronicle"','data-view-tab="item"','data-view-tab="fight"'].forEach((value) => has(value, value + ' section is present'));
 ['data-filter="journey"','data-filter="discovery"','data-filter="battle"','data-filter="treasure"','data-filter="npc"'].forEach((value) => has(value, value + ' history filter is present'));
 has('The selected moment follows you between sections.', 'cross-section selection behavior is narrated');
 has('Missing links stay missing; the interface never invents them.', 'missing-link behavior is narrated');
+has('The unopened satchel and Skyblinder Staff are separate facts.', 'field correction is explicit at the top level');
+has('The satchel is unopened, so no durable item exists yet.', 'unopened contents narrate why Item History is unavailable');
+has('Legacy link · the original item event remains unchanged.', 'legacy association narrates item-event immutability');
 has('No location was recorded; World does not guess one.', 'unlocated item event narrates why it has no pin');
 has('Current truth', 'item view distinguishes current custody from history');
 has('Append-only · oldest first', 'item chronology remains append-only and oldest-first');

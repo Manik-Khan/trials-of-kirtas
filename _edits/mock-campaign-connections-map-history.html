@@ -236,30 +236,41 @@
 <body class="player">
 <script id="mock-data" type="application/json">
 {
-  "contract":"tok-campaign-moment/v1-candidate",
+  "contract":"tok-campaign-moment/v1-legacy-link-candidate",
   "locations":{
     "yevennia":{"label":"Yevennia","x":35.17,"y":41.11,"precision":"confirmed"},
     "barrow-wastes":{"label":"Near the Barrow Wastes","x":15.5,"y":33.5,"precision":"approximate","secretLabel":"The Sunken Chapel","secretX":11.2,"secretY":29.8},
-    "verens-watch":{"label":"Veren's Watch","x":25.8,"y":52.4,"precision":"confirmed"},
+    "veren-s-watch":{"label":"Veren's Watch","x":72.43,"y":77.01,"precision":"confirmed"},
     "tiersgard":{"label":"Tiersgard","x":28.39,"y":70.93,"precision":"confirmed"},
     "gold-leaf":{"label":"The Gold Leaf","parentId":"tiersgard","precision":"nested"}
   },
   "moments":[
-    {"id":"moment-hexblade-backstory","momentId":"moment-hexblade-backstory","order":0,"sessionId":null,"kind":"treasure","title":"The Hexblade entered the campaign","summary":"Cosmere began the campaign carrying the same permanent blade.","locationId":null,"itemId":"item-hexblade","itemEventId":"itemev-hexblade-recovered","feedPostId":null,"encounterId":null,"battleMapId":null,"journalPageId":null,"public":true},
+    {"id":"moment-hexblade-backstory","order":0,"sessionId":null,"kind":"treasure","title":"The Hexblade entered the campaign","summary":"Cosmere began the campaign carrying the same permanent blade.","locationId":null,"itemId":"item_5076c92b-bc82-4ddb-8bcc-ecc9b0564b83","itemEventId":"itemev_7eccc301-95b2-4e90-8eed-cd43ab40e343","itemLinkId":"momentitemlink-hexblade-backstory","feedPostId":null,"encounterId":null,"battleMapId":null,"journalPageId":null,"public":true},
     {"id":"moment-road-begins","order":1,"sessionId":"7","kind":"journey","title":"The road east begins","summary":"The party left Yevennia with the old king's warning.","locationId":"yevennia","feedPostId":"feed-701","partyPresent":true,"public":true},
     {"id":"moment-chapel-rumor","order":2,"sessionId":"8","kind":"discovery","title":"A drowned bell under the earth","summary":"The party learned of a ruin somewhere near the Barrow Wastes.","locationId":"barrow-wastes","feedPostId":"feed-812","journalPageId":"page-drowned-bell","partyPresent":false,"public":true,"staffTruth":"The clue points to the Sunken Chapel, not the whole marked region."},
-    {"id":"moment-skyblinder-recovered","momentId":"moment-skyblinder-recovered","order":3,"sessionId":"9","kind":"battle","also":["treasure"],"title":"Skyblinder recovered after the ambush","summary":"Among the fallen at Veren's Watch, Líadan found a smoke-dark staff.","locationId":"verens-watch","itemId":"item-skyblinder","itemEventId":"itemev-skyblinder-recovered","feedPostId":"feed-934","encounterId":"encounter-mire-ambush","battleMapId":"scene-verens-watch-road","journalPageId":"page-watch-aftermath","partyPresent":true,"public":true},
-    {"id":"moment-gold-leaf-meeting","order":4,"sessionId":"9","kind":"npc","title":"Sumi's warning at the Gold Leaf","summary":"Inside Tiersgard, Sumi named the crest seen on the ambushers.","locationId":"gold-leaf","feedPostId":"feed-948","journalPageId":"page-sumis-warning","npcId":"sumi","partyPresent":true,"public":true},
-    {"id":"moment-skyblinder-identified","momentId":"moment-skyblinder-identified","order":5,"sessionId":"10","kind":"treasure","title":"The staff's name was revealed","summary":"The smoke-dark staff was identified as the Skyblinder Staff.","locationId":"tiersgard","itemId":"item-skyblinder","itemEventId":"itemev-skyblinder-identified","feedPostId":"feed-1002","journalPageId":"page-skyblinder-study","partyPresent":true,"public":true}
+    {"id":"moment-s8-unopened-satchel","order":3,"sessionId":"8","kind":"treasure","also":["battle"],"title":"The chieftain's satchel was recovered","summary":"The party took an unopened satchel from the bugbear chieftain. Its contents are not known.","locationId":"veren-s-watch","itemId":null,"itemEventId":null,"itemLinkId":null,"feedPostId":"449","encounterId":"84b36678-21b3-4a64-baf5-96a3d1c3475f","battleMapId":"ce811962-031d-431d-bc2d-ebcdb83693d1","journalPageId":null,"contentsState":"unopened","partyPresent":true,"public":true},
+    {"id":"moment-s8-skyblinder-recovered","order":4,"sessionId":"8","kind":"treasure","title":"Skyblinder Staff was recovered","summary":"Skyblinder Staff was recovered at Veren's Watch. It was not inside the unopened satchel.","locationId":"veren-s-watch","itemId":"item_876939c0-74c5-4cd2-9c45-35308cec409b","itemEventId":"itemev_4b983df8-a75c-4601-aefe-73849ec8d759","itemLinkId":"momentitemlink-s8-skyblinder-recovered","feedPostId":null,"encounterId":null,"battleMapId":null,"journalPageId":null,"partyPresent":true,"public":true},
+    {"id":"moment-gold-leaf-meeting","order":5,"sessionId":"9","kind":"npc","title":"Sumi's warning at the Gold Leaf","summary":"Inside Tiersgard, Sumi named the crest seen on the ambushers.","locationId":"gold-leaf","feedPostId":"feed-948","journalPageId":"page-sumis-warning","npcId":"sumi","partyPresent":true,"public":true},
+    {"id":"moment-skyblinder-identified","order":6,"sessionId":null,"kind":"treasure","title":"The staff's name was revealed","summary":"Skyblinder Staff was identified as Skyblinder Staff.","locationId":null,"itemId":"item_876939c0-74c5-4cd2-9c45-35308cec409b","itemEventId":"itemev_3d5d31de-3d87-47a5-bc98-9df092b6bd44","itemLinkId":"momentitemlink-skyblinder-identified","feedPostId":null,"journalPageId":null,"partyPresent":false,"public":true}
+  ],
+  "itemEvents":{
+    "itemev_7eccc301-95b2-4e90-8eed-cd43ab40e343":{"momentId":null,"summary":"Cosmere's sentient sword from his pact."},
+    "itemev_4b983df8-a75c-4601-aefe-73849ec8d759":{"momentId":null,"summary":"Recovered Skyblinder Staff."},
+    "itemev_3d5d31de-3d87-47a5-bc98-9df092b6bd44":{"momentId":null,"summary":"Skyblinder Staff was identified as Skyblinder Staff."}
+  },
+  "itemEventLinks":[
+    {"id":"momentitemlink-hexblade-backstory","momentId":"moment-hexblade-backstory","itemEventId":"itemev_7eccc301-95b2-4e90-8eed-cd43ab40e343"},
+    {"id":"momentitemlink-s8-skyblinder-recovered","momentId":"moment-s8-skyblinder-recovered","itemEventId":"itemev_4b983df8-a75c-4601-aefe-73849ec8d759"},
+    {"id":"momentitemlink-skyblinder-identified","momentId":"moment-skyblinder-identified","itemEventId":"itemev_3d5d31de-3d87-47a5-bc98-9df092b6bd44"}
   ],
   "current":{"locationId":"tiersgard","label":"Party now","x":31.1,"y":73.2},
-  "item":{"id":"item-skyblinder","name":"Skyblinder Staff","rarity":"Rare","bearer":"Líadan Luchóg","state":"Identified","description":"A pale staff whose carved eye seems to turn away from open sky."}
+  "item":{"id":"item_876939c0-74c5-4cd2-9c45-35308cec409b","name":"Skyblinder Staff","rarity":"Uncommon","bearer":"Vesperian Vale","state":"Identified","description":"No public description recorded."}
 }
   </script>
   <main class="shell">
     <header class="topbar">
-      <div class="brand"><div class="eyebrow">Standalone approval mock · no writes</div><h1>One story, connected everywhere</h1></div>
-      <div class="topnote">A recorded moment stays one fact. World, Chronicle, Item History, and the fight are linked views—not duplicate stories.</div>
+      <div class="brand"><div class="eyebrow">Standalone approval mock · no writes</div><h1>One story, connected honestly</h1></div>
+      <div class="topnote">The unopened satchel and Skyblinder Staff are separate facts. A legacy item-event bridge may connect old history without rewriting it.</div>
       <div class="audience" role="group" aria-label="Preview audience">
         <button type="button" data-audience="player" aria-pressed="true">Player view</button>
         <button type="button" data-audience="staff" aria-pressed="false">Staff view</button>
@@ -314,9 +325,9 @@
       </section>
 
       <section class="view" data-view="chronicle" hidden>
-        <div class="view-head"><div><div class="eyebrow">Chronicle · the session record</div><h2>Session 9 · The Watch Road</h2></div><p>The linked moment appears in narrative order. The item and fight are references on the same entry, not copied prose.</p></div>
+        <div class="view-head"><div><div class="eyebrow">Chronicle · the session record</div><h2>Recorded entries</h2></div><p>The unopened satchel keeps its Chronicle and encounter evidence. Skyblinder receives no Chronicle link because none was recorded.</p></div>
         <div class="chronicle-wrap"><div class="session-spine">
-          <aside class="session-label"><div class="micro">Session</div><b>Nine</b><span>The Watch Road</span></aside>
+          <aside class="session-label"><div class="micro">Evidence</div><b>Linked</b><span>Only where recorded</span></aside>
           <div class="chronicle-stream" data-chronicle-stream></div>
         </div></div>
       </section>
@@ -324,17 +335,17 @@
       <section class="view" data-view="item" hidden>
         <div class="view-head"><div><div class="eyebrow">Item · one permanent object</div><h2>History follows identity</h2></div><p>Its present bearer is current truth. Earlier places remain linked history and never move when the item does.</p></div>
         <div class="item-wrap">
-          <section class="item-hero"><div class="item-sigil">✦</div><div><div class="eyebrow">Identified · history active</div><h2>Skyblinder Staff</h2><p>A pale staff whose carved eye seems to turn away from open sky.</p><div class="entry-links"><span class="chip item">Rare</span><span class="chip">Permanent identity</span></div></div><div class="item-custody"><div class="micro">Current bearer</div><b>Líadan Luchóg</b><span>Held · current location follows its bearer</span><span>item-skyblinder</span></div></section>
+          <section class="item-hero"><div class="item-sigil">✦</div><div><div class="eyebrow">Identified · history active</div><h2>Skyblinder Staff</h2><p>No public description recorded.</p><div class="entry-links"><span class="chip item">Uncommon</span><span class="chip">Permanent identity</span></div></div><div class="item-custody"><div class="micro">Current bearer</div><b>Vesperian Vale</b><span>Held · current location follows its bearer</span><span>item_876939c0-74c5-4cd2-9c45-35308cec409b</span></div></section>
           <div class="history-title"><h3>Chronological history</h3><span>Append-only · oldest first</span></div>
           <div class="item-history" data-item-history></div>
         </div>
       </section>
 
       <section class="view" data-view="fight" hidden>
-        <div class="view-head"><div><div class="eyebrow">Encounter · exact battle evidence</div><h2>The Mire Ambush</h2></div><p>The encounter UUID and battle-map identity are different links. The campaign moment may point to both without making either own the story.</p></div>
+        <div class="view-head"><div><div class="eyebrow">Encounter · exact battle evidence</div><h2>Bridge Ambush (test)</h2></div><p>The encounter UUID and scene identity belong to the unopened-satchel entry. They do not make the unknown contents or Skyblinder part of that fact.</p></div>
         <div class="fight-wrap"><section class="fight-card">
           <div class="fight-map" aria-label="Stylized battle map"><span class="token" style="left:23%;top:61%">L</span><span class="token" style="left:34%;top:68%">C</span><span class="token foe" style="left:65%;top:32%">M</span><span class="token foe" style="left:75%;top:45%">M</span><span class="token loot" style="left:57%;top:67%">✦</span></div>
-          <aside class="fight-side"><div class="eyebrow">Linked battle record</div><h2>Veren's Watch Road</h2><p>The party broke the ambush and recovered a smoke-dark staff beside the old watch.</p><div class="facts"><div class="fact"><span>Encounter</span><b>The Mire Ambush</b></div><div class="fact"><span>Battle map</span><b>Veren's Watch Road</b></div><div class="fact"><span>Session</span><b>9</b></div><div class="fact"><span>Location</span><b>Veren's Watch</b></div></div><div class="fight-log"><div><strong>Round 3</strong> · the last ambusher fell.</div><div><strong>After combat</strong> · Skyblinder was recovered.</div></div></aside>
+          <aside class="fight-side"><div class="eyebrow">Linked battle record</div><h2>Lava Dungeon - Entrance</h2><p>The Chronicle records one precise fact: the party took the chieftain's satchel, and it remains unopened.</p><div class="facts"><div class="fact"><span>Encounter</span><b>Bridge Ambush (test)</b></div><div class="fact"><span>Battle map</span><b>Lava Dungeon - Entrance</b></div><div class="fact"><span>Session</span><b>8</b></div><div class="fact"><span>Location</span><b>Veren's Watch</b></div></div><div class="fight-log"><div><strong>Chronicle</strong> · the chieftain fell and the satchel was recovered.</div><div><strong>Contents</strong> · unopened; no durable item exists yet.</div></div></aside>
         </section></div>
       </section>
 
@@ -352,7 +363,7 @@
     'use strict';
     var data = JSON.parse(document.getElementById('mock-data').textContent);
     var moments = data.moments.slice().sort(function (a,b) { return a.order - b.order; });
-    var selectedId = 'moment-skyblinder-recovered';
+    var selectedId = 'moment-s8-unopened-satchel';
     var activeFilter = 'all';
     var activeView = 'world';
     var kindMeta = {
@@ -393,8 +404,10 @@
       }).map(function (moment) { var loc = mapLocationFor(moment); return [loc.x,loc.y]; });
     }
     function linkReceipt(moment) {
-      return ['id','momentId','sessionId','locationId','itemEventId','feedPostId','encounterId','battleMapId','journalPageId'].map(function (field) {
-        return { field:field, value:moment[field] == null ? null : String(moment[field]) };
+      var source = data.itemEvents[moment.itemEventId] || {};
+      var receipt = Object.assign({}, moment, { sourceEventMomentId:source.momentId == null ? null : source.momentId });
+      return ['id','itemLinkId','sourceEventMomentId','sessionId','locationId','itemEventId','feedPostId','encounterId','battleMapId','journalPageId'].map(function (field) {
+        return { field:field, value:receipt[field] == null ? null : String(receipt[field]) };
       });
     }
     function renderFilters() {
@@ -436,31 +449,31 @@
     }
     function renderChronicle() {
       var host = document.querySelector('[data-chronicle-stream]');
-      var sessionNine = moments.filter(function (moment) { return moment.sessionId === '9'; });
-      host.innerHTML = sessionNine.map(function (moment) {
+      var feedMoments = moments.filter(function (moment) { return !!moment.feedPostId; });
+      host.innerHTML = feedMoments.map(function (moment) {
         var loc=locationFor(moment), links=[];
         if(loc) links.push('<span class="chip location">⌖ '+esc(loc.label)+'</span>');
         if(moment.itemId) links.push('<span class="chip item">✦ Skyblinder Staff</span>');
-        if(moment.encounterId) links.push('<span class="chip battle">⚔ The Mire Ambush</span>');
+        if(moment.encounterId) links.push('<span class="chip battle">⚔ Bridge Ambush (test)</span>');
         if(moment.npcId) links.push('<span class="chip">Person · Sumi</span>');
         return '<article class="chronicle-entry'+(moment.id===selectedId?' selected':'')+'" data-select="'+esc(moment.id)+'"><div class="eyebrow">'+(moment.kind==='battle'?'After the fight':'Later that night')+'</div><h3>'+esc(moment.title)+'</h3><p>'+esc(moment.summary)+'</p><div class="entry-links">'+links.join('')+'</div></article>';
       }).join('');
       host.querySelectorAll('[data-select]').forEach(function(card){card.onclick=function(){choose(card.dataset.select);};});
     }
-    function itemMoments() { return moments.filter(function(moment){return moment.itemId==='item-skyblinder';}); }
+    function itemMoments() { return moments.filter(function(moment){return moment.itemId===data.item.id;}); }
     function renderItemHistory() {
       var host=document.querySelector('[data-item-history]');
       host.innerHTML=itemMoments().map(function(moment){var loc=locationFor(moment), linked=!!loc;
-        return '<article class="item-event'+(moment.id===selectedId?' selected':'')+'" data-select="'+esc(moment.id)+'"><div class="eyebrow">'+(moment.itemEventId.indexOf('identified')>=0?'Identified':'Recovered')+'</div><h4>'+esc(moment.summary)+'</h4><p>'+(moment.sessionId?'Session '+moment.sessionId:'Unlinked session')+(loc?' · '+esc(loc.label):'')+'</p>'+(!linked?'<p class="unmapped-note">No location was recorded; World does not guess one.</p>':'')+'</article>';
-      }).join('')+'<article class="item-event"><div class="eyebrow">Current truth</div><h4>Líadan Luchóg bears the Skyblinder Staff.</h4><p>Custody is not a historical map pin. Earlier event places remain unchanged.</p></article>';
+        return '<article class="item-event'+(moment.id===selectedId?' selected':'')+'" data-select="'+esc(moment.id)+'"><div class="eyebrow">'+(moment.id.indexOf('identified')>=0?'Identified':'Recovered')+'</div><h4>'+esc(moment.summary)+'</h4><p>'+(moment.sessionId?'Session '+moment.sessionId:'Unlinked session')+(loc?' · '+esc(loc.label):'')+'</p><p>Legacy link · the original item event remains unchanged.</p>'+(!linked?'<p class="unmapped-note">No location was recorded; World does not guess one.</p>':'')+'</article>';
+      }).join('')+'<article class="item-event"><div class="eyebrow">Current truth</div><h4>Vesperian Vale bears the Skyblinder Staff.</h4><p>Custody is not a historical map pin. Earlier event places remain unchanged.</p></article>';
       host.querySelectorAll('[data-select]').forEach(function(card){card.onclick=function(){choose(card.dataset.select);};});
     }
     function connectionTitle(key,moment) {
       var loc=locationFor(moment);
       if(key==='world') return loc ? loc.label : 'No location recorded';
       if(key==='chronicle') return moment.feedPostId ? 'Session '+(moment.sessionId||'—') : 'No Chronicle entry';
-      if(key==='item') return moment.itemEventId ? (moment.itemId==='item-hexblade'?'The Hexblade':'Skyblinder Staff') : 'No item event';
-      if(key==='fight') return moment.encounterId ? 'The Mire Ambush' : 'No encounter linked';
+      if(key==='item') return moment.itemEventId ? (moment.itemId===data.item.id?'Skyblinder Staff':'The Hexblade') : (moment.contentsState==='unopened'?'Unopened · no item identity':'No item event');
+      if(key==='fight') return moment.encounterId ? 'Bridge Ambush (test)' : 'No encounter linked';
       return '';
     }
     function renderConnections() {
@@ -474,6 +487,8 @@
       host.querySelectorAll('[data-goto]').forEach(function(button){button.onclick=function(){showView(button.dataset.goto);};});
       var missing=[];
       if(!moment.locationId)missing.push('No map location was recorded, so Party\'s Path shows no pin.');
+      if(!moment.feedPostId)missing.push('No Chronicle entry was recorded for this fact.');
+      if(!moment.itemEventId)missing.push(moment.contentsState==='unopened'?'The satchel is unopened, so no durable item exists yet.':'No item event was recorded for this fact.');
       if(!moment.encounterId)missing.push('This moment was not part of a linked encounter.');
       document.querySelector('[data-missing-note]').textContent=missing.join(' ')||'Every primary view needed for this moment has an explicit link.';
       document.querySelector('[data-receipt]').innerHTML=linkReceipt(moment).map(function(row){return '<div class="receipt-row"><span>'+esc(row.field)+'</span><code>'+(row.value?esc(row.value):'null')+'</code></div>';}).join('');

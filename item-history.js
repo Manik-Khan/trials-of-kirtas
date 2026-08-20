@@ -11,7 +11,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  var VERSION = 'ih-7';
+  var VERSION = 'ih-8';
   var EVENT_LABELS = {
     recovered: 'Recovered', assigned: 'Assigned', identified: 'Identified',
     renamed: 'Renamed', transferred: 'Transferred', transformed: 'Transformed',
@@ -66,7 +66,8 @@
       ? sb.from('item_secrets').select('item_id,true_name,definition_key,rarity,public_description,mechanics,lore').eq('item_id', itemId).maybeSingle()
       : Promise.resolve({ data: null, error: null });
     var charactersRequest = sb.from('characters').select('key,structural,delete_marked');
-    var results = await Promise.all([publicRequest, eventsRequest, secretRequest, charactersRequest]);
+    var itemLinkRequest = sb.from('campaign_moment_item_events').select('id,moment_id,item_event_id');
+    var results = await Promise.all([publicRequest, eventsRequest, secretRequest, charactersRequest, itemLinkRequest]);
     if (results[0] && results[0].error) throw new Error(errorMessage(results[0], 'The tracked item could not be read.'));
     if (!results[0] || !results[0].data) throw new Error('This tracked item no longer exists or is unavailable.');
     if (results[1] && results[1].error) throw new Error(errorMessage(results[1], 'The item history could not be read.'));
@@ -74,11 +75,21 @@
     (results[3] && !results[3].error && Array.isArray(results[3].data) ? results[3].data : []).forEach(function (row) {
       characterNames[text(row.key)] = text(row.structural && row.structural.name) || text(row.key);
     });
+    var itemLinks = {};
+    (results[4] && !results[4].error && Array.isArray(results[4].data) ? results[4].data : []).forEach(function (row) {
+      itemLinks[text(row.item_event_id)] = row;
+    });
+    var events = sortEvents(results[1] && results[1].data).map(function (row) {
+      var link = itemLinks[text(row.id)];
+      if (!link || text(row.moment_id)) return row;
+      return Object.assign({}, row, { moment_id: text(link.moment_id), moment_link_id: text(link.id) });
+    });
     return {
       item: results[0].data,
-      events: sortEvents(results[1] && results[1].data),
+      events: events,
       secret: results[2] && !results[2].error ? results[2].data : null,
       secretError: staff && results[2] && results[2].error ? errorMessage(results[2], 'Staff truth is unavailable.') : '',
+      linkError: results[4] && results[4].error ? errorMessage(results[4], 'Legacy campaign links are unavailable.') : '',
       characterNames: characterNames,
       characters: results[3] && !results[3].error && Array.isArray(results[3].data) ? results[3].data : []
     };
@@ -144,11 +155,12 @@
     var links = [];
     if (text(row.location_id)) links.push('<a href="' + esc(campaignUrl('world.html', { campaignLinks:1, moment:row.moment_id })) + '">⌖ World</a>');
     else links.push('<span class="unavailable">⌖ No location recorded</span>');
-    if (text(row.feed_post_id) || text(row.session_id)) links.push('<a href="' + esc(campaignUrl('chronicle.html', { campaignLinks:1, moment:row.moment_id })) + '">¶ Chronicle</a>');
+    if (text(row.feed_post_id)) links.push('<a href="' + esc(campaignUrl('chronicle.html', { campaignLinks:1, moment:row.moment_id })) + '">¶ Chronicle</a>');
     else links.push('<span class="unavailable">¶ No Chronicle entry</span>');
     if (text(row.encounter_id)) links.push('<a href="' + esc(campaignUrl('chronicle.html', { campaignLinks:1, session:row.session_id, encounter:row.encounter_id })) + '">⚔ Encounter</a>');
+    else links.push('<span class="unavailable">⚔ No linked encounter</span>');
     if (text(row.battle_map_id)) links.push('<span title="The canonical scene or Forge identity is resolved by the shared moment.">Battle map linked</span>');
-    return '<div class="tok-ih-event-links"><span class="receipt">One moment · ' + esc(row.moment_id) + '</span>' + links.join('') + '</div>';
+    return '<div class="tok-ih-event-links"><span class="receipt">' + (text(row.moment_link_id) ? 'Legacy link' : 'One moment') + ' · ' + esc(row.moment_id) + '</span>' + links.join('') + '</div>';
   }
   function eventsHtml(events, options) {
     if (!events.length) return '<div class="tok-ih-empty">No history moments are recorded yet.</div>';
@@ -238,7 +250,7 @@
       + '<div class="tok-ih-body"><section class="tok-ih-main"><nav class="tok-ih-tabs" aria-label="Item detail sections"><button type="button" role="tab" data-ih-tab="overview" aria-selected="true">Overview</button><button type="button" role="tab" data-ih-tab="history" aria-selected="false">History</button></nav>'
       + '<section class="tok-ih-panel on" data-ih-panel="overview" role="tabpanel"><div class="tok-ih-label">' + esc(name) + '</div><p class="tok-ih-copy">' + esc(description) + '</p>'
       + '<div class="tok-ih-rules"><h4>' + (identified ? 'Known properties' : 'Properties unrevealed') + '</h4><p>' + esc(identified ? (rules || 'No public mechanics recorded.') : 'True rarity and mechanics remain outside the party-readable item until identification.') + '</p></div></section>'
-      + '<section class="tok-ih-panel" data-ih-panel="history" role="tabpanel"><div class="tok-ih-history-head"><div><div class="tok-ih-label">Permanent campaign record</div><h3>Chronological history</h3></div><div class="tok-ih-order">Oldest first · append-only</div></div><div class="tok-ih-timeline">' + eventsHtml(record.events, options) + '</div></section></section>'
+      + '<section class="tok-ih-panel" data-ih-panel="history" role="tabpanel"><div class="tok-ih-history-head"><div><div class="tok-ih-label">Permanent campaign record</div><h3>Chronological history</h3></div><div class="tok-ih-order">Oldest first · append-only</div></div>' + (record.linkError ? '<div class="tok-ih-empty">Campaign connections unavailable: ' + esc(record.linkError) + '</div>' : '') + '<div class="tok-ih-timeline">' + eventsHtml(record.events, options) + '</div></section></section>'
       + (staff ? '<aside class="tok-ih-side">' + secretHtml(record) + '<section class="tok-ih-manage"><strong>Staff management</strong><button type="button" data-ih-action="identify"' + (identified || !record.secret ? ' disabled' : '') + '>Identify item<small>' + (identified ? 'Already identified.' : 'Publish the prepared name, rarity, description, and rules.') + '</small></button><button type="button" data-ih-action="rename">Rename item<small>Keep its permanent identity and append a history moment.</small></button><button type="button" data-ih-requirement>' + (item.requires_attunement ? 'Does not require attunement' : 'Requires attunement') + '<small>Staff sets the rule; the bearer uses Gear to attune or release.</small></button><button type="button" data-ih-action="transfer"' + (item.status !== 'held' ? ' disabled' : '') + '>Transfer item<small>Move canonical custody and the real inventory row together.</small></button><div class="tok-ih-manage-msg" aria-live="polite"></div></section></aside>' : '') + '</div></div><footer class="tok-ih-foot"><button type="button" data-ih-done>Return to item</button></footer><div class="tok-ih-action-veil" hidden></div></section>';
     (doc.body || doc.documentElement).appendChild(overlay);
     var dialog = overlay.querySelector('.tok-ih-dialog');

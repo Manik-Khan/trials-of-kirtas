@@ -6,7 +6,7 @@ let pass = 0;
 let fail = 0;
 function ok(condition, name) { if (condition) { pass++; console.log('  PASS ' + name); } else { fail++; console.log('  FAIL ' + name); } }
 
-ok(ItemHistory.VERSION === 'ih-7', 'reader exposes the ih-7 connected-history contract');
+ok(ItemHistory.VERSION === 'ih-8', 'reader exposes the ih-8 legacy-link contract');
 ok(ItemHistory.isEnabled('') && ItemHistory.isEnabled('?itemHistory=1'), 'full-sheet default and explicit flag enable the reader');
 ok(!ItemHistory.isEnabled('?itemHistory=0'), 'zero remains an explicit rollback switch');
 ok(ItemHistory.isStaff({ role: 'dm' }) && ItemHistory.isStaff({ role: 'overseer' }) && !ItemHistory.isStaff({ role: 'player' }), 'only campaign staff receive the staff projection');
@@ -20,8 +20,9 @@ const rows = {
   item_instances: { id: 'item_hexblade', display_name: 'The Runed Longsword', identification: 'unidentified', mechanics: {} },
   item_events: [
     { sequence: 2, id: 'b', occurred_at: '2026-06-02T00:00:00Z', event_type: 'assigned' },
-    { sequence: 1, id: 'a', occurred_at: '2026-06-01T00:00:00Z', event_type: 'recovered', moment_id:'moment-a', location_id:'tiersgard', feed_post_id:'12', session_id:'9' }
+    { sequence: 1, id: 'a', occurred_at: '2026-06-01T00:00:00Z', event_type: 'recovered', moment_id:null, location_id:'tiersgard', feed_post_id:null, session_id:'9' }
   ],
+  campaign_moment_item_events: [{ id:'link-a', moment_id:'moment-a', item_event_id:'a' }],
   item_secrets: { item_id: 'item_hexblade', true_name: 'The Hexblade', rarity: 'Rare' },
   characters: [{ key: 'cosmere-ae1a', structural: { name: 'Cosmere Runestar' } }, { key: 'liadan', structural: { name: 'Líadan Luchóg' } }]
 };
@@ -40,10 +41,13 @@ function fakeSb(calls, failures = {}) {
 const staffCalls = [];
 const staffRecord = await ItemHistory.loadItem(fakeSb(staffCalls), 'item_hexblade', true);
 ok(staffCalls.includes('from:item_instances') && staffCalls.includes('from:item_events'), 'reader requests public current truth and history');
+ok(staffCalls.includes('from:campaign_moment_item_events'), 'reader requests additive legacy associations');
 ok(staffCalls.includes('from:item_secrets'), 'staff reader requests the separate secret row');
 ok(staffCalls.includes('from:characters') && staffRecord.characterNames['cosmere-ae1a'] === 'Cosmere Runestar', 'custody keys resolve through character display names');
 ok(staffRecord.secret.true_name === 'The Hexblade', 'staff result retains secret truth');
 ok(staffRecord.events.map(row => row.id).join(',') === 'a,b', 'events are normalized oldest-first');
+ok(staffRecord.events[0].moment_id === 'moment-a' && staffRecord.events[0].moment_link_id === 'link-a', 'legacy association decorates a copy without mutating the source event');
+ok(rows.item_events[1].moment_id === null, 'source append-only event remains unchanged');
 
 const playerCalls = [];
 const playerRecord = await ItemHistory.loadItem(fakeSb(playerCalls), 'item_hexblade', false);
@@ -53,6 +57,8 @@ ok(playerRecord.secret === null && playerRecord.secretError === '', 'player resu
 const partialCalls = [];
 const partial = await ItemHistory.loadItem(fakeSb(partialCalls, { item_secrets: 'staff policy unavailable' }), 'item_hexblade', true);
 ok(partial.item.id === 'item_hexblade' && /staff policy unavailable/.test(partial.secretError), 'a secret read failure narrates without hiding public history');
+const noLinks = await ItemHistory.loadItem(fakeSb([], { campaign_moment_item_events: 'association table unavailable' }), 'item_hexblade', false);
+ok(/association table unavailable/.test(noLinks.linkError) && noLinks.events.length === 2, 'legacy-link failure narrates without hiding item history');
 let publicFailed = false;
 try { await ItemHistory.loadItem(fakeSb([], { item_instances: 'public read denied' }), 'item_hexblade', false); } catch (error) { publicFailed = /public read denied/.test(error.message); }
 ok(publicFailed, 'a public item failure stays loud');
@@ -70,8 +76,9 @@ await ItemHistory.renameItem(managementSb, 'item_hexblade', 'Duskbrand', 'Rename
 await ItemHistory.transferItem(managementSb, 'item_hexblade', 'cosmere-ae1a', 'liadan', 'Entrusted.');
 ok(managementCalls.map(row => row.name).join(',') === 'identify_item,rename_item,transfer_item', 'approved management actions use their narrow RPC boundaries');
 ok(managementCalls[2].payload.p_expected_from_character_key === 'cosmere-ae1a' && managementCalls[2].payload.p_to_character_key === 'liadan', 'transfer sends stale-bearer protection and the real destination key');
-ok(source.includes("from('item_instances')") && source.includes("from('item_events')") && source.includes("from('item_secrets')") && source.includes("from('characters')"), 'reader loads durable truth plus human character names');
+ok(source.includes("from('item_instances')") && source.includes("from('item_events')") && source.includes("from('campaign_moment_item_events')") && source.includes("from('item_secrets')") && source.includes("from('characters')"), 'reader loads durable truth, legacy associations, and human character names');
 ok(source.includes('Oldest first · append-only'), 'dialog labels chronological append-only history');
+ok(source.includes('Campaign connections unavailable:'), 'dialog narrates an unavailable legacy association reader');
 ok(source.includes('data-ih-tab="history" aria-selected="false">History</button>') && !source.includes("'History ' + record.events.length"), 'history tab uses a plain label without an unexplained count');
 ok(source.includes('Rarity unrevealed') && source.includes('Properties unrevealed'), 'unidentified presentation withholds rarity and mechanics');
 ok(source.includes("'<section class=\"tok-ih-panel on\"") && !source.includes('<div class="tok-ih-facts">'), 'overview uses the item name and omits the old three fact blocks');
@@ -79,15 +86,16 @@ ok(source.includes('No attunement required') && source.includes('Requires attune
 ok(source.includes('data-ih-action="identify"') && source.includes('data-ih-action="rename"') && source.includes('data-ih-action="transfer"'), 'staff management exposes identify rename and real transfer actions');
 ok(source.includes('moves the real inventory row and canonical custody together'), 'transfer confirmation narrates its atomic effect');
 ok(source.includes('data-ih-view="player"') && source.includes('tok-ih-player'), 'staff can preview the party projection');
-ok(ItemHistory.eventConnectionsHtml(rows.item_events[1]).includes('world.html?campaignLinks=1&amp;moment=moment-a'), 'linked item event opens the same World moment');
+ok(ItemHistory.eventConnectionsHtml(staffRecord.events[0]).includes('world.html?campaignLinks=1&amp;moment=moment-a'), 'linked item event opens the same World moment');
+ok(ItemHistory.eventConnectionsHtml(staffRecord.events[0]).includes('Legacy link') && ItemHistory.eventConnectionsHtml(staffRecord.events[0]).includes('No Chronicle entry'), 'legacy receipt narrates its honest partial connections');
 ok(ItemHistory.eventConnectionsHtml({ moment_id:'moment-unlocated' }).includes('No location recorded'), 'unlocated item history narrates the unavailable map link');
 ok(source.includes('data-item-history-open') && source.includes("get('item')"), 'a campaign link can reopen the permanent item identity on its current bearer sheet');
 ok(source.includes('@media(max-width:700px)') && source.includes('min-height:48px'), 'mobile bottom sheet retains touch-sized controls');
-ok(sheet.includes('campaign-moments.js?v=cm1') && sheet.includes('item-history.js?v=ih10'), 'full sheet loads cache-stamped campaign and item readers');
+ok(sheet.includes('campaign-moments.js?v=cm2') && sheet.includes('item-history.js?v=ih11'), 'full sheet loads cache-stamped campaign and item readers');
 ok(sheet.includes("root.dataset.itemHistoryActive = new URLSearchParams(location.search).get('itemHistory') === '0' ? '0' : '1'"), 'full sheet promotes item history while retaining a rollback switch');
 ok(sheet.indexOf('ItemHistory.mount') < sheet.indexOf('ItemAdoption.mount'), 'reader claims tracked details before adoption decorates ordinary items');
 ok(!/item-history\.js/.test(readFileSync(new URL('../../sheet-mount.js', import.meta.url), 'utf8')), 'mounted sheet remains untouched');
-ok(harness.includes('../../campaign-moments.js?v=cm1') && harness.includes('../../item-history.js?v=ih10') && harness.includes('window.ItemHistory.mount'), 'browser harness uses the production connected-history modules');
+ok(harness.includes('../../campaign-moments.js?v=cm2') && harness.includes('../../item-history.js?v=ih11') && harness.includes('window.ItemHistory.mount'), 'browser harness uses the production connected-history modules');
 
 console.log(`\nsmoke-item-history-ui: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

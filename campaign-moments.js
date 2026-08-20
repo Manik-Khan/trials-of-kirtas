@@ -10,7 +10,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  var VERSION = 'cm-1';
+  var VERSION = 'cm-2';
   var KINDS = ['journey', 'discovery', 'battle', 'treasure', 'npc'];
 
   function text(value) { return String(value == null ? '' : value).trim(); }
@@ -81,10 +81,12 @@
       ? sb.from('campaign_moment_secrets').select('moment_id,staff_summary,exact_location_id,exact_map_x,exact_map_y')
       : Promise.resolve({ data: [], error: null });
     var itemEventRequest = sb.from('item_events')
-      .select('id,item_id,event_type,moment_id').not('moment_id', 'is', null);
+      .select('id,item_id,event_type,moment_id');
+    var itemLinkRequest = sb.from('campaign_moment_item_events')
+      .select('id,moment_id,item_event_id');
     var itemRequest = sb.from('item_instances')
       .select('id,display_name,current_bearer_key,status');
-    var results = await Promise.all([momentRequest, secretRequest, itemEventRequest, itemRequest]);
+    var results = await Promise.all([momentRequest, secretRequest, itemEventRequest, itemLinkRequest, itemRequest]);
     if (results[0] && results[0].error) {
       if (unavailableError(results[0].error)) return { available: false, moments: [], error: 'Campaign history has not been installed yet.' };
       throw new Error(resultError(results[0], 'Campaign history could not be read.'));
@@ -101,13 +103,19 @@
       });
     }
     var items = {};
-    if (results[3] && !results[3].error) (results[3].data || []).forEach(function (row) { items[text(row.id)] = row; });
+    if (results[4] && !results[4].error) (results[4].data || []).forEach(function (row) { items[text(row.id)] = row; });
+    var linkedMomentByEvent = {};
+    if (results[3] && !results[3].error) (results[3].data || []).forEach(function (row) {
+      linkedMomentByEvent[text(row.item_event_id)] = { id: text(row.id), momentId: text(row.moment_id) };
+    });
     if (results[2] && !results[2].error) (results[2].data || []).forEach(function (row) {
-      var moment = byId[text(row.moment_id)];
+      var legacyLink = linkedMomentByEvent[text(row.id)];
+      var moment = byId[text(row.moment_id) || (legacyLink && legacyLink.momentId)];
       if (!moment) return;
       var item = items[text(row.item_id)] || {};
       moment.items.push({
         eventId: text(row.id), itemId: text(row.item_id), eventType: text(row.event_type),
+        linkId: legacyLink ? legacyLink.id : null,
         name: text(item.display_name) || text(row.item_id), bearerKey: text(item.current_bearer_key) || null,
         status: text(item.status) || null
       });
@@ -117,7 +125,8 @@
       moments: moments,
       error: '',
       itemError: results[2] && results[2].error ? resultError(results[2], 'Item links are unavailable.')
-        : (results[3] && results[3].error ? resultError(results[3], 'Item names are unavailable.') : ''),
+        : (results[3] && results[3].error ? resultError(results[3], 'Legacy item links are unavailable.')
+          : (results[4] && results[4].error ? resultError(results[4], 'Item names are unavailable.') : '')),
       secretError: moments.secretError || ''
     };
   }
@@ -192,7 +201,7 @@
     var item = moment.items && moment.items[0];
     return {
       world: moment.locationId ? queryUrl('world.html', { campaignLinks: 1, moment: moment.id }) : null,
-      chronicle: (moment.feedPostId || moment.sessionId) ? queryUrl('chronicle.html', { campaignLinks: 1, moment: moment.id }) : null,
+      chronicle: moment.feedPostId ? queryUrl('chronicle.html', { campaignLinks: 1, moment: moment.id }) : null,
       item: item && item.bearerKey ? queryUrl('sheet-v2.html', { character: item.bearerKey, campaignLinks: 1, item: item.itemId }) : null,
       encounter: moment.forgeSessionId ? queryUrl('forge/', { session: moment.forgeSessionId })
         : (moment.encounterId ? queryUrl('chronicle.html', { campaignLinks: 1, session: moment.sessionId, encounter: moment.encounterId }) : null),

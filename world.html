@@ -533,7 +533,7 @@
   <script src="nav.js?v=sup5"></script>
 <script src="tooltips.js"></script>
 <script src="living-codex.js?v=lc1"></script>
-<script src="campaign-moments.js?v=cm1"></script>
+<script src="campaign-moments.js?v=cm2"></script>
 <script src="battle.js?v=settings1"></script>
 <script src="feed-bridge.js"></script>
 <script>
@@ -930,6 +930,7 @@ function renderPartyPathHome() {
   const visible = campaignHistory.moments.filter(moment => CampaignMoments.momentMatches(moment, partyPathFilter));
   document.getElementById('panel-body').innerHTML = `
     <p class="party-path-panel-note">A moment stays one fact across World, Chronicle, item history, and battle records. Personal marks are not permanent history.</p>
+    ${campaignHistory.itemError ? `<div class="party-path-missing">Item connections unavailable: ${escapeHtml(campaignHistory.itemError)}</div>` : ''}
     <div class="party-path-filters">${filters.map(filter=>`<button class="party-path-filter${partyPathFilter===filter?' active':''}" onclick="setPartyPathFilter('${filter}')">${filter==='all'?'All':filter}</button>`).join('')}</div>
     <div class="party-path-list">${visible.length ? visible.map(moment=>`<button class="party-path-moment${selectedMomentId===moment.id?' active':''}" onclick="selectCampaignMoment(event,'${escapeHtml(moment.id)}',true)"><small>${escapeHtml(partyPathMeta(moment))}</small><b>${escapeHtml(moment.title)}</b></button>`).join('') : '<div class="panel-desc">No recorded moments use this filter yet.</div>'}</div>`;
   openPanel();
@@ -962,6 +963,8 @@ function selectCampaignMoment(event, id, focus) {
   ];
   const missing = [];
   if (!location) missing.push("No map location was recorded, so Party's Path does not guess a pin.");
+  if (!moment.feedPostId) missing.push('This moment has no linked Chronicle entry.');
+  if (!item) missing.push(campaignHistory.itemError ? `Item connections could not be read: ${campaignHistory.itemError}` : 'No durable item is linked to this moment.');
   if (!moment.encounterId && !moment.forgeSessionId) missing.push('This moment has no linked encounter.');
   document.getElementById('panel-body').innerHTML = `
     <div class="panel-section">Recorded moment</div><div class="panel-desc">${escapeHtml(moment.summary || 'No public summary was recorded.')}</div>
