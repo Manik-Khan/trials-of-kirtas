@@ -9,6 +9,7 @@ durable notable-item identity, staff adoption,
 atomic custody transfer, the field-proven full-sheet item-history bridge, the
 approved Gear/import presentation mock, and the current standalone Loot
 Workshop mock; the first guarded shared campaign-moment / Party's Path reader;
+the first standalone shared Quest Log candidate;
 production Forge Blueprint → Build → Combat,
 implemented local map-import workflow, field-approved portal-owned stair architecture,
 Living Codex discovery/curation and NPC/World projection, approved
@@ -210,19 +211,55 @@ Chronicle feed 449 and `Bridge Ambush (test)`, while Skyblinder exposes only its
 Item History link. World, Chronicle focus, and encounter deep links have no
 overflow or browser logs. The deployed Skyblinder link reaches the correct
 Vesperian sheet but stops at the closed Gear row instead of opening Item
-History. Local `item-history.js` `ih-9` fixes that seam by opening the requested
-permanent identity directly and narrating failure in Gear; the closed-row
-production harness proves it at 1280×720 with no overflow or logs. Its UI gate
-passes **46/46**; the campaign contract remains **49/49** and mock **72/72**.
-The `ih-9` repair and authenticated mobile proof remain undeployed/open.
+History. `item-history.js` `ih-9` fixed that seam by opening the requested
+permanent identity directly and narrating failure in Gear; M deployed it at
+`52d6518`. Authenticated player proof at 1280×720 and 390×844 now opens
+Skyblinder's record while its Gear row remains closed. The mobile two-moment
+World cluster, Chronicle feed 449, and `Bridge Ambush (test)` path also retain
+their exact connection boundaries with no warnings or errors. The Item History
+overlay stays inside the 390px viewport; the full sheet's already-hidden fixed
+rail still inflates raw document `scrollWidth` while `body` clips it. Its UI
+gate passes **46/46**; the campaign contract remains **49/49** and mock
+**72/72**. The separate authenticated staff projection remains an open field
+gate.
 Both applied campaign deltas are now append-only history: correct them only
 through a new delta. Expanded campaign evidence passes **49/49**; the affected runnable item
 gates pass **286/286**, Living Codex passes **11/11**, and the two relevant
 unchanged Forge gates pass **36/36**. The Chronicle and sheet DOM smokes remain
 unable to start because this checkout lacks `jsdom`; authenticated desktop
-browser proof now covers the post-seed World/Chronicle/Encounter path, with the
-Item History repair and mobile matrix still open. Existing item-management and Gear/import
+browser proof now covers the post-seed player World/Chronicle/Encounter/Item
+History path at desktop and mobile, with the staff matrix still open. Existing item-management and Gear/import
 gates remain carried work rather than silently becoming solved.
+
+The next phase remains mock-first. Local
+`_edits/mock-quest-foundation.html` is the first standalone shared Quest Log
+candidate. It keeps shared quest state outside any character's private Journal,
+while letting Journal, Chronicle, World, sessions, NPCs, and campaign moments
+link to the same quest/objective identities. The candidate covers quest giver,
+ordered objectives, public hints, staff-only truth, approximate and confirmed
+map destinations, attached completion evidence, quest completion, and
+promised/hidden/awarded rewards. Its staff composer only previews locally and
+performs no reads, writes, or production wiring. The candidate gate passes
+**51/51**; desktop and 390×844 browser passes cover player/staff lenses,
+author-preview narration, active/completed states, 64px mobile evidence
+targets, no horizontal overflow, and no warnings/errors. M approved that
+interaction and language direction.
+
+M approved that location, language, and interaction direction and authorized
+the first guarded production build. Local `schema_delta_quests.sql` now defines
+public quests, separate staff truth, ordered objectives, append-only
+campaign-moment evidence, and ordered rewards. Deferred database guards require
+completed objectives to have evidence and completed quests to have every
+objective complete. Authenticated clients receive SELECT only; no authoring RPC,
+sample quest, nav entry, World quest projection, or evolving-item effect exists
+in this slice. `quests.js` `q-1`, `quests.css?v=q1`, and
+`quests.html?questLog=1` provide the dedicated guarded reader, with
+`docs/guides/QUEST-PREFLIGHT.sql` as its read-only installation evidence. The
+production contract passes **57/57**. Its real production-reader harness passes
+at 1280×720 and 390×844 with player/staff switching, secret-reward stripping,
+64px evidence links, no horizontal overflow, and no warnings/errors. SQL
+application, deployment, authenticated live reads, and the first real quest
+remain open.
 
 ---
 

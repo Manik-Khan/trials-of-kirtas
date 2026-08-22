@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Quest Log production-reader harness</title>
+  <link rel="stylesheet" href="../../theme.css">
+  <link rel="stylesheet" href="../../quests.css?v=q1">
+</head>
+<body>
+  <main class="q-root" data-quest-root><div class="q-state"><b>Opening Quest Log…</b></div></main>
+  <script src="../../campaign-moments.js?v=cm2"></script>
+  <script src="../../quests.js?v=q1"></script>
+  <script>
+  (function () {
+    var params=new URLSearchParams(location.search),staff=params.get('staff')==='1';
+    var rows={
+      quests:[
+        {id:'quest-drowned-bell',title:'The Drowned Bell',summary:'Find the source before its call reaches Tiersgard.',public_hint:'The entrance lies somewhere near the Barrow Wastes.',status:'active',visibility:'party',giver_id:'sumi',giver_label:'Sumi',destination_location_id:'barrow-wastes',destination_label:'Near the Barrow Wastes',destination_precision:'approximate',offered_at:'2026-08-18T00:00:00Z',completed_at:null,updated_at:'2026-08-20T00:00:00Z'},
+        {id:'quest-toll-road',title:'Clear the Toll Road',summary:'Safe passage was restored.',public_hint:'Completed during Session 12.',status:'completed',visibility:'party',giver_id:'tiersgard-watch',giver_label:'Tiersgard Watch',destination_location_id:'tiersgard-road',destination_label:'East toll road',destination_precision:'confirmed',offered_at:'2026-08-01T00:00:00Z',completed_at:'2026-08-12T00:00:00Z',updated_at:'2026-08-12T00:00:00Z'}
+      ],
+      quest_secrets:[{quest_id:'quest-drowned-bell',staff_truth:'The bell is beneath the Sunken Chapel.',exact_location_id:'sunken-chapel',exact_location_label:'The Sunken Chapel',exact_map_x:11,exact_map_y:29,completion_truth:'Break the three name-seals.',reward_truth:'Sumi pays only if the congregation remains sealed.'}],
+      quest_objectives:[
+        {id:'obj-hear-rumor',quest_id:'quest-drowned-bell',position:1,title:'Learn why the bell is feared',public_hint:'Ask what happened when it last rang.',state:'complete',completed_at:'2026-08-19T00:00:00Z'},
+        {id:'obj-find-chapel',quest_id:'quest-drowned-bell',position:2,title:'Find the Sunken Chapel',public_hint:'Search for a road swallowed by black water.',state:'current',completed_at:null},
+        {id:'obj-clear-road',quest_id:'quest-toll-road',position:1,title:'Drive off the ambushers',public_hint:'Keep the road open.',state:'complete',completed_at:'2026-08-12T00:00:00Z'}
+      ],
+      quest_objective_evidence:[
+        {id:'qe-rumor',objective_id:'obj-hear-rumor',moment_id:'moment-chapel-rumor',note:'The party learned the bell was real.',attached_at:'2026-08-19T00:00:00Z'},
+        {id:'qe-road',objective_id:'obj-clear-road',moment_id:'moment-toll-road',note:'The ambushers were defeated.',attached_at:'2026-08-12T00:00:00Z'}
+      ],
+      quest_rewards:[
+        {id:'qr-sumi',quest_id:'quest-drowned-bell',position:1,kind:'favor',label:"Sumi's favor",detail:'Promised when the bell is silenced.',state:'promised',visibility:'party',awarded_at:null},
+        {id:'qr-secret',quest_id:'quest-drowned-bell',position:2,kind:'access',label:'The chapel key',detail:'Unrevealed.',state:'hidden',visibility:'staff',awarded_at:null},
+        {id:'qr-road',quest_id:'quest-toll-road',position:1,kind:'access',label:'Safe passage through the east gate',detail:'Awarded.',state:'awarded',visibility:'party',awarded_at:'2026-08-12T00:00:00Z'}
+      ],
+      campaign_moments:[
+        {id:'moment-chapel-rumor',kind:'discovery',also:[],title:'A drowned bell under the earth',summary:'The party learned of a ruin.',occurred_at:'2026-08-19T00:00:00Z',session_id:8,location_id:'barrow-wastes',map_precision:'approximate',party_present:false,visibility:'party',journal_page_id:null,feed_post_id:812,encounter_id:null,scene_id:null,forge_session_id:null},
+        {id:'moment-toll-road',kind:'battle',also:[],title:'The toll-road ambush ended',summary:'The road was cleared.',occurred_at:'2026-08-12T00:00:00Z',session_id:12,location_id:'tiersgard-road',map_precision:'confirmed',party_present:true,visibility:'party',journal_page_id:null,feed_post_id:910,encounter_id:'encounter-toll-road-demo',scene_id:null,forge_session_id:null}
+      ],
+      campaign_moment_secrets:[],item_events:[],campaign_moment_item_events:[],item_instances:[]
+    };
+    window.__questHarness={calls:[]};
+    function builder(table){var b={select:function(){return b;},eq:function(){return b;},order:function(){return b;},then:function(resolve,reject){window.__questHarness.calls.push(table);return Promise.resolve({data:rows[table]||[],error:null}).then(resolve,reject);}};return b;}
+    var sb={from:function(table){return builder(table);},channel:function(){return{on:function(){return this;},subscribe:function(){return this;}};},removeChannel:function(){}};
+    window.__questHarness.ready=window.Quests.mount({document:document,root:document.querySelector('[data-quest-root]'),search:location.search||'?questLog=1',profile:{role:staff?'dm':'player'},supabase:sb,campaignMoments:window.CampaignMoments});
+  })();
+  </script>
+</body>
+</html>

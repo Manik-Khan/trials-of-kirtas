@@ -6,22 +6,22 @@ the normal sheet, with `?itemHistory=0` retained as the rollback switch. The
 mounted/rail sheet remains untouched. The next Gear/import presentation and
 Loot Workshop work remain standalone, no-dependency mocks. The first guarded
 campaign-moment reader, schema, and first two real rows are live. The post-seed
-World/Chronicle/Encounter desktop path is field-proven; one local Item History
-deep-link repair and the authenticated mobile/staff matrix remain. No
-production Loot Workshop or Forge runtime wiring is approved.**
+World/Chronicle/Encounter/Item History player path is field-proven at desktop
+and mobile; the authenticated staff matrix remains. The first shared Quest Log
+mock is approved and its first guarded read-only production contract is local,
+pending SQL application and deployment. No production quest authoring, Loot
+Workshop, evolving-item, or Forge runtime wiring is approved.**
 
 This document is the current item-system authority. Read it with `AGENTS.md`
 and `CONTEXT.md` before touching Gear, inventory imports, item SQL, Chronicle
 links, or World-map item projection.
 
-Current synchronized baseline: local `main` and `origin/main` at `03c6b52`
-(`connecting map pathing`). That commit contains the approved mock, guarded
-campaign-moment reader, and read-only field kit built from `893e1d2`; the tree
-was clean at the August 20 field pass. The prior item checkpoint was local
-`bab024a` (`loot workskop`); the original handoff checkpoint was `cc388e1`
-(`items and ownership`). No later dependency change overlaps item, Chronicle,
-World, or map authority. M deploys manually. Codex never pushes and commits
-only when M explicitly asks.
+Current synchronized baseline: local `main` and `origin/main` at `52d6518`
+(`map pathing`). That commit contains the deployed `ih-9` closed-Gear deep-link
+repair built from `e5120a6`; the tree was clean before the standalone quest
+candidate began. No unrelated dependency or SQL change landed between those
+commits. M deploys manually. Codex never pushes and commits only when M
+explicitly asks.
 
 ## 1. Executive verdict
 
@@ -440,11 +440,46 @@ session number into a Chronicle link. Authenticated 1280×720 proof shows the
 two-moment cluster, correct satchel and Skyblinder connection boundaries,
 Chronicle feed 449 focus, and the real `Bridge Ambush (test)` channel with no
 overflow or logs. The deployed Skyblinder link reaches Vesperian's sheet but
-does not open the closed Gear row's history. Local `item-history.js` `ih-9`
-opens the requested permanent item directly and narrates failure in Gear; its
-closed-row production harness has no desktop overflow or logs. Production
-contracts pass **49/49** and **46/46**; the mock remains **72/72**. The repair
-and authenticated mobile/staff matrix remain undeployed/open.
+does not open the closed Gear row's history. `item-history.js` `ih-9` repairs
+that seam by opening the requested permanent item directly and narrating
+failure in Gear; M deployed it at `52d6518`. Authenticated player proof at
+1280×720 and 390×844 opens Skyblinder while its Gear row stays closed. The
+mobile World cluster, Chronicle feed 449, and `Bridge Ambush (test)` connection
+also remain exact and log-free. Production contracts pass **49/49** and
+**46/46**; the connections mock remains **72/72**. The authenticated staff
+matrix remains open.
+
+The roadmap can now advance mock-first while that staff gate remains carried.
+`_edits/mock-quest-foundation.html` is the first standalone shared Quest Log
+candidate. It distinguishes campaign-owned quests from a character's private
+Journal checklist and demonstrates quest giver, ordered objectives, public
+hints, separate staff truth, approximate/confirmed destinations, linked
+completion evidence, completion state, and rewards. Its staff composer is a
+local preview only: it performs no reads, writes, or storage. The structural
+gate passes **51/51**. Desktop and 390×844 browser passes cover player/staff
+lenses, local author preview, active/completed states, 64px mobile evidence
+targets, no overflow, and no warnings/errors. M approved that direction.
+
+M approved the Shared Quest Log's location, language, and interaction and then
+authorized its first guarded production build. `schema_delta_quests.sql`
+defines five additive tables: quests, staff secrets, ordered objectives,
+append-only campaign-moment evidence, and ordered rewards. RLS keeps staff-only
+quests, exact truth, staff rewards, and staff-only evidence identities out of
+the player projection. Deferred guards require a completed objective to have
+campaign evidence and a completed quest to have every objective complete.
+Authenticated clients receive SELECT only; authoring RPCs remain outside the
+first field gate.
+
+`quests.js` `q-1` and `quests.css?v=q1` power the dedicated
+`quests.html?questLog=1` reader. Global navigation is intentionally untouched,
+and no illustrative quest is seeded. The page reuses `CampaignMoments.targets`
+for evidence connections without copying or rewriting the source moment. The
+read-only `docs/guides/QUEST-PREFLIGHT.sql` reports missing, incomplete, unsafe,
+or installed state. Production evidence passes **57/57**; the real reader
+harness passes at 1280×720 and 390×844 with player/staff lenses, defensive
+secret-reward stripping, 64px evidence links, no overflow, and no browser
+warnings/errors. SQL application, deployment, authenticated empty-state reads,
+and the first deliberately reviewed real quest remain open.
 
 ## 6. File ownership map
 
@@ -504,6 +539,20 @@ and authenticated mobile/staff matrix remain undeployed/open.
   Chronicle known-answer gate.
 - `tests/smoke/smoke-campaign-moment-field-kit.mjs` — read-only and fail-closed
   field-kit contract gate.
+- `_edits/mock-quest-foundation.html` — standalone shared Quest Log candidate;
+  illustrative only, with no production reads, writes, or storage.
+- `tests/smoke/smoke-quest-foundation-mock.mjs` — candidate quest identity,
+  audience, objective, evidence, destination, reward, and responsive gate.
+- `schema_delta_quests.sql` — additive read-only-for-clients quest contract;
+  pending live application.
+- `quests.js` / `quests.css` / `quests.html` — guarded dedicated shared Quest
+  Log reader; no global nav entry and no client write path.
+- `tests/fixtures/quests-harness.html` — in-memory production-reader field
+  harness for player/staff, evidence, deep links, desktop, and touch proof.
+- `tests/smoke/smoke-quests.mjs` — schema, RLS, reader, page, guard, and harness
+  known-answer gate.
+- `docs/guides/QUEST-PREFLIGHT.sql` — read-only prerequisite and post-apply
+  policy/privilege/trigger evidence.
 - `netlify/functions/items2.js` — existing importer endpoint; it does not create
   durable item instances automatically.
 
@@ -521,16 +570,18 @@ and authenticated mobile/staff matrix remain undeployed/open.
 - Loot Workshop setup, rolling, bundle editing, attachments, and release are
   mock-only. No authoritative treasure-table dataset or production persistence
   contract has been approved.
-- The first two facts are live-projected through World, Chronicle, and the real
-  encounter channel. Skyblinder's World-to-sheet target is correct, but the
-  local `ih-9` repair must deploy before Item History deep-link promotion.
+- The first two facts are live-projected through World, Chronicle, Item History,
+  and the real encounter channel for the authenticated player seat at desktop
+  and mobile. The separate staff projection remains to field-test.
 - The live schema now settles canonical battle-map identity as one nullable
   typed reference to either `scenes.id` or `forge_sessions.id`; the satchel's
   typed scene row is database-proven, while its client projection remains open.
 - No campaign-moment authoring UI or client write path is approved. Every future
   field row must still be inserted deliberately only after each linked real
   identity is checked.
-- Quests and objective evidence do not exist.
+- The durable quest contract and guarded reader are local only. The migration
+  is not applied, no real quest is seeded, the page is not deployed or in global
+  navigation, and staff authoring RPCs/client writes do not exist.
 - Evolving-item deeds/unlocks do not exist. Manual `transformed` history is only
   a contract capability today.
 
@@ -587,47 +638,49 @@ Identity persists through every awakening, rename, and transfer.
 
 ## 9. Exact next slice for a fresh session
 
-M explicitly advanced the roadmap on August 19 into map history and the
-connections among sections. Both SQL deltas and the first two real rows are
-live. The first client deployment reached `e5120a6`; its final Item History
-deep-link repair and authenticated mobile promotion remain closed.
+The campaign-moment and player projection slice is live through `52d6518`.
+M approved the standalone shared Quest Log and authorized the first guarded
+production reader. Its additive SQL and cache-stamped client are local.
 
 1. Synchronize against `AGENTS.md`, `CONTEXT.md`, this handoff, current `HEAD`,
-   working tree, and changes since `e5120a6`.
+   working tree, and changes since `52d6518`.
 2. Preserve both campaign SQL files as applied history. The saved link-delta
    evidence is `installed_review_two_facts`; it contains both reviewed rows,
    one Skyblinder association, and the source event with `moment_id = null`.
    Use a new delta for any later correction and never update an old item event.
-3. Deploy the cache-stamped `item-history.js` `ih-9` repair with
-   `sheet-v2.html` loading `?v=ih12` and the matching closed-Gear browser
-   harness. No SQL accompanies this repair.
-4. Preserve the two separate facts throughout the field pass: the satchel owns
-   its feed/encounter/scene links and has no item; Skyblinder owns its item-event
-   association and has no feed/Journal/encounter/map link.
-5. Recheck Skyblinder's linked full-sheet Item History as player and staff on
-   desktop and mobile. It must open the requested permanent record while the
-   Gear row begins closed, retain the legacy receipt and World link, omit
-   fabricated Chronicle/Encounter links, narrate failure, and produce no
-   horizontal overflow or browser errors.
-6. Complete the authenticated mobile check for the two-moment World cluster and
-   the satchel's Chronicle/Encounter path. Preserve approximate truth, staff
-   exact truth, clustering, deep links, and narrated missing links.
-7. Preserve Living Codex location identity, nested-parent projection,
-   approximate-versus-confirmed truth, and database-enforced staff secrets.
-   Personal GitHub-backed World marks remain outside permanent history.
-8. Keep the read slice guarded until the authenticated field pass succeeds.
-   Do not add authoring UI, client writes, quests, or evolving-item automation
-   during that proof.
-9. Carry the existing item gates independently: confirm management SQL live
+3. Run `docs/guides/QUEST-PREFLIGHT.sql`; before installation it should report
+   `quest_schema_not_installed`, not fail or mutate data.
+4. Apply `schema_delta_quests.sql` once after the campaign-moment migration,
+   then rerun the preflight. Save the returned
+   `installed_quest_foundation` policy/guard/privilege evidence. The migration
+   seeds no quest and grants authenticated clients no write authority.
+5. Deploy `quests.js`, `quests.css`, `quests.html`, and the production-reader
+   harness with `quests.js?v=q1` / `quests.css?v=q1`. Do not add Quests to
+   global navigation during this field gate.
+6. Exercise `quests.html?questLog=1` and the direct `?quest=` door as player and
+   staff on desktop and mobile. With zero live rows it must narrate **No shared
+   quests yet**; without either guard it must narrate **Quest Log is guarded**.
+   Confirm no overflow or browser warnings/errors.
+7. Preserve the approved ownership boundaries: a quest owns giver,
+   objectives, completion, and rewards; World owns destination projection;
+   campaign moments and Chronicle/session records remain linked evidence rather
+   than being copied into the quest; Journal pages may link but do not own
+   shared quest state.
+8. Select the first real quest only after every giver, destination, objective,
+   evidence moment, and reward is reviewed. Never seed the mock's illustrative
+   IDs. Staff authoring RPCs and client writes are the next separate approval
+   boundary after the empty reader is field-proven.
+9. Carry the authenticated staff campaign-moment projection as an explicit
+   field gate. Preserve the two separate live facts and do not reopen or rewrite
+   either applied campaign delta.
+10. Carry the existing item gates independently: confirm management SQL live
    state; field-test Attune/Release, identify, rename, and transfer; complete
    the approved Gear/import presentation; and keep mounted-sheet rollout as a
    separate boundary.
-10. Preserve the Loot Workshop's approved standalone interaction and 140/140
+11. Preserve the Loot Workshop's approved standalone interaction and 140/140
    smoke. Its licensed data and bundle/roster persistence boundary remain
    separate from campaign-moment production work.
 
-The presentation and guarded read contract are settled: distinct facts, honest
-partial links, no guessed map truth, and typed battle-map identity. The next
-decision follows deployment of the `ih-9` repair and the remaining authenticated
-mobile/staff field pass. Once that gate closes, the roadmap can advance
-mock-first to the quest foundation without reopening the proven two-fact model.
+The first quest slice ends at a field-proven empty guarded reader. The next
+decision is the narrow staff authoring/transition contract and the first real
+quest—not World projection or evolving-item automation.

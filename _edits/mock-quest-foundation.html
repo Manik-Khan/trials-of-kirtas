@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Shared Quest Log — approval mock</title>
+  <style>
+    :root {
+      --night:#07100e; --pine:#0e1c18; --pine-2:#142620; --ink:#ede3ce;
+      --muted:#9b927f; --dim:#6f6a5e; --line:rgba(235,224,198,.15);
+      --gold:#c79a4a; --gold-2:#e5c27c; --teal:#54bcb6; --violet:#ad8bc1;
+      --blue:#79aecd; --red:#cc7766; --green:#77b984;
+    }
+    * { box-sizing:border-box; }
+    html,body { margin:0; min-height:100%; background:var(--night); color:var(--ink); }
+    body { font-family:"EB Garamond",Georgia,serif; background:
+      radial-gradient(circle at 82% -12%,rgba(84,188,182,.13),transparent 32rem),
+      linear-gradient(140deg,#091512,#050b09 72%); }
+    button,input,textarea,select { font:inherit; }
+    button { color:inherit; }
+    button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible {
+      outline:2px solid var(--gold-2); outline-offset:2px;
+    }
+    [hidden] { display:none!important; }
+    .eyebrow,.micro,.status,.filter,.quest-count,.objective-state,.connection small,
+    .field span,.boundary,.reward-state,.staff-label {
+      font-family:"Oswald","Arial Narrow",sans-serif; text-transform:uppercase; letter-spacing:.14em;
+    }
+    .shell { min-height:100vh; display:grid; grid-template-rows:auto auto minmax(0,1fr); }
+    .topbar { min-height:74px; padding:13px 22px; display:flex; align-items:center; gap:18px;
+      border-bottom:1px solid var(--line); background:rgba(5,12,10,.94); }
+    .brand { min-width:270px; }
+    .eyebrow { color:var(--gold); font-size:9px; }
+    h1 { margin:3px 0 0; font:500 25px/1.08 "Playfair Display",Georgia,serif; }
+    .topnote { flex:1; max-width:720px; color:var(--muted); font-size:13px; line-height:1.4; }
+    .audience { display:flex; border:1px solid var(--line); background:#0a1512; }
+    .audience button { min-height:44px; padding:0 14px; border:0; border-left:1px solid var(--line);
+      background:transparent; color:var(--muted); cursor:pointer; font:600 9px "Oswald",sans-serif;
+      letter-spacing:.12em; text-transform:uppercase; }
+    .audience button:first-child { border-left:0; }
+    .audience button[aria-pressed="true"] { background:rgba(199,154,74,.16); color:var(--gold-2); }
+    .contextbar { min-height:54px; padding:0 22px; display:flex; align-items:center; gap:12px;
+      border-bottom:1px solid var(--line); background:#0c1815; }
+    .contextbar strong { font:500 16px "Playfair Display",Georgia,serif; }
+    .boundary { color:var(--dim); font-size:8px; }
+    .contextbar .spacer { flex:1; }
+    .new-quest { min-height:42px; padding:0 14px; border:1px solid rgba(199,154,74,.5);
+      background:rgba(199,154,74,.1); color:var(--gold-2); cursor:pointer; }
+    .workspace { min-height:0; display:grid; grid-template-columns:270px minmax(0,1fr) 326px; }
+    .quest-index { min-height:0; border-right:1px solid var(--line); background:#0a1512; overflow:auto; }
+    .index-head { position:sticky; z-index:2; top:0; padding:16px; border-bottom:1px solid var(--line); background:#0a1512; }
+    .index-head h2 { margin:3px 0 11px; font:500 22px "Playfair Display",Georgia,serif; }
+    .filters { display:flex; gap:5px; }
+    .filter { min-height:40px; padding:0 9px; border:1px solid var(--line); background:transparent;
+      color:var(--muted); font-size:8px; cursor:pointer; }
+    .filter[aria-pressed="true"] { border-color:var(--gold); background:rgba(199,154,74,.12); color:var(--gold-2); }
+    .quest-list { padding:9px; display:flex; flex-direction:column; gap:7px; }
+    .quest-card { width:100%; min-height:92px; padding:11px; border:1px solid var(--line);
+      border-left:3px solid var(--quest-color,var(--gold)); background:#101d19; text-align:left; cursor:pointer; }
+    .quest-card[aria-current="true"] { border-color:rgba(199,154,74,.75); background:rgba(199,154,74,.1); }
+    .quest-card.filtered { display:none; }
+    .quest-card .status { color:var(--quest-color,var(--gold)); font-size:7px; }
+    .quest-card b { display:block; margin-top:5px; font:500 16px/1.12 "Playfair Display",Georgia,serif; }
+    .quest-card p { margin:5px 0 0; color:var(--muted); font-size:12px; line-height:1.25; }
+    .quest-count { float:right; color:var(--dim); font-size:7px; }
+    .quest-view { min-width:0; min-height:0; overflow:auto; padding:20px; }
+    .quest-hero { padding:20px; border:1px solid rgba(199,154,74,.42); background:
+      linear-gradient(120deg,rgba(199,154,74,.08),transparent 55%),#101d19; }
+    .quest-hero-top { display:flex; align-items:flex-start; gap:14px; }
+    .quest-hero h2 { margin:5px 0 0; font:500 34px/1.04 "Playfair Display",Georgia,serif; }
+    .status-pill { flex:none; padding:6px 9px; border:1px solid currentColor; color:var(--gold-2);
+      font:600 8px "Oswald",sans-serif; letter-spacing:.14em; text-transform:uppercase; }
+    .quest-summary { max-width:760px; margin:12px 0 0; color:#c1b8a6; font-size:16px; line-height:1.5; }
+    .quest-meta { display:flex; flex-wrap:wrap; gap:7px; margin-top:15px; }
+    .meta-card { min-width:145px; padding:9px 11px; border:1px solid var(--line); }
+    .meta-card span { display:block; color:var(--dim); font:600 7px "Oswald",sans-serif;
+      text-transform:uppercase; letter-spacing:.13em; }
+    .meta-card b { display:block; margin-top:4px; font:500 15px "Playfair Display",Georgia,serif; }
+    .hint { margin-top:12px; padding:12px 14px; border-left:3px solid var(--teal); background:rgba(84,188,182,.06); }
+    .hint strong { color:#9bd8d3; }
+    .hint p { margin:5px 0 0; color:#b6c8c2; line-height:1.45; }
+    .staff-truth { display:none; margin-top:10px; padding:12px 14px; border:1px solid rgba(173,139,193,.35);
+      background:rgba(173,139,193,.07); }
+    body.staff .staff-truth { display:block; }
+    .staff-label { color:#c8a9d9; font-size:8px; }
+    .staff-truth p { margin:5px 0 0; color:#c5b4ca; line-height:1.45; }
+    .section-head { display:flex; align-items:end; gap:12px; margin:22px 0 10px; }
+    .section-head h3 { margin:0; font:500 24px "Playfair Display",Georgia,serif; }
+    .section-head span { margin-left:auto; color:var(--dim); font-size:12px; }
+    .objectives { position:relative; padding-left:30px; }
+    .objectives:before { content:""; position:absolute; left:10px; top:20px; bottom:20px; width:1px; background:rgba(199,154,74,.42); }
+    .objective { position:relative; width:100%; min-height:88px; margin-bottom:8px; padding:13px 13px 13px 15px;
+      border:1px solid var(--line); background:#101d19; text-align:left; cursor:pointer; }
+    .objective:before { content:""; position:absolute; left:-25px; top:22px; width:10px; height:10px;
+      transform:rotate(45deg); border:1px solid var(--gold); background:#11201b; }
+    .objective.complete:before { background:var(--green); border-color:var(--green); }
+    .objective.current:before { box-shadow:0 0 12px var(--gold); background:var(--gold); }
+    .objective.locked { opacity:.72; }
+    .objective[aria-current="true"] { border-color:var(--gold); background:rgba(199,154,74,.08); }
+    .objective-state { color:var(--dim); font-size:7px; }
+    .objective.complete .objective-state { color:var(--green); }
+    .objective.current .objective-state { color:var(--gold-2); }
+    .objective b { display:block; margin-top:5px; font:500 17px "Playfair Display",Georgia,serif; }
+    .objective p { margin:5px 0 0; color:var(--muted); font-size:13px; line-height:1.35; }
+    .rewards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+    .reward { padding:13px; border:1px solid var(--line); background:#101d19; }
+    .reward-state { color:var(--gold); font-size:7px; }
+    .reward b { display:block; margin-top:5px; font:500 17px "Playfair Display",Georgia,serif; }
+    .reward p { margin:5px 0 0; color:var(--muted); font-size:13px; }
+    .evidence { min-height:0; border-left:1px solid var(--line); background:#0a1512; overflow:auto; }
+    .evidence-head { padding:16px; border-bottom:1px solid var(--line); }
+    .evidence-head h2 { margin:4px 0 0; font:500 23px "Playfair Display",Georgia,serif; }
+    .evidence-head p { margin:7px 0 0; color:var(--muted); font-size:13px; line-height:1.4; }
+    .selected-objective { padding:14px 16px; border-bottom:1px solid var(--line); background:rgba(199,154,74,.06); }
+    .selected-objective b { display:block; font:500 17px "Playfair Display",Georgia,serif; }
+    .selected-objective p { margin:5px 0 0; color:var(--muted); font-size:12px; }
+    .connections { padding:9px; display:flex; flex-direction:column; gap:7px; }
+    .connection { width:100%; min-height:60px; padding:9px 10px; display:grid; grid-template-columns:34px 1fr auto;
+      align-items:center; gap:9px; border:1px solid var(--line); background:#101d19; text-align:left; cursor:pointer; }
+    .connection:disabled { opacity:.62; cursor:not-allowed; }
+    .connection i { width:32px; height:32px; display:grid; place-items:center; border:1px solid rgba(199,154,74,.3);
+      color:var(--gold-2); font-style:normal; }
+    .connection small { display:block; color:var(--dim); font-size:7px; }
+    .connection b { display:block; margin-top:3px; font:500 14px "Playfair Display",Georgia,serif; }
+    .connection em { color:var(--gold); font-style:normal; }
+    .map-preview { position:relative; height:210px; margin:0 9px 9px; overflow:hidden; border:1px solid rgba(199,154,74,.35);
+      background:#b8a777; color:#2e2519; }
+    .map-preview:before { content:""; position:absolute; inset:0; opacity:.35; background:
+      radial-gradient(circle at 20% 25%,#526a48 0 14%,transparent 15%),
+      radial-gradient(circle at 72% 72%,#526a48 0 17%,transparent 18%),
+      linear-gradient(105deg,transparent 45%,rgba(77,122,130,.8) 46% 50%,transparent 51%); }
+    .map-label { position:absolute; left:10px; top:10px; font:600 8px "Oswald",sans-serif; letter-spacing:.12em; text-transform:uppercase; }
+    .approx-region { position:absolute; left:18%; top:35%; width:116px; height:88px; border:2px dashed #6d5273;
+      border-radius:50%; display:grid; place-items:center; color:#5c4264; background:rgba(173,139,193,.18); font-size:28px; }
+    .exact-pin { display:none; position:absolute; left:39%; top:54%; width:20px; height:20px; transform:translate(-50%,-50%) rotate(45deg);
+      border:2px solid #f0d5ff; background:#765486; box-shadow:0 0 13px #765486; }
+    body.staff .exact-pin { display:block; }
+    .map-note { position:absolute; left:10px; right:10px; bottom:9px; padding:7px 8px; background:rgba(232,221,197,.85);
+      color:#3a3022; font-size:11px; }
+    .evidence-note { margin:0 9px 12px; padding:10px; border-left:2px solid var(--red); background:rgba(204,119,102,.07);
+      color:#c8aa9f; font-size:12px; line-height:1.4; }
+    .author-drawer { position:fixed; z-index:20; inset:0; display:flex; justify-content:flex-end; background:rgba(3,8,7,.78); }
+    .author-panel { width:min(560px,100%); height:100%; padding:18px; overflow:auto; border-left:1px solid rgba(199,154,74,.5);
+      background:#0d1916; box-shadow:-24px 0 70px rgba(0,0,0,.5); }
+    .author-head { display:flex; align-items:flex-start; gap:14px; }
+    .author-head h2 { margin:4px 0 0; font:500 28px "Playfair Display",Georgia,serif; }
+    .close-author { margin-left:auto; width:44px; height:44px; border:1px solid var(--line); background:transparent; cursor:pointer; }
+    .author-note { margin:10px 0 16px; color:var(--muted); line-height:1.4; }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .field { display:flex; flex-direction:column; gap:6px; }
+    .field.wide { grid-column:1/-1; }
+    .field span { color:var(--dim); font-size:8px; }
+    .field input,.field textarea,.field select { width:100%; min-height:46px; padding:10px 11px; border:1px solid var(--line);
+      background:#091310; color:var(--ink); }
+    .field textarea { min-height:82px; resize:vertical; }
+    .objective-drafts { grid-column:1/-1; display:flex; flex-direction:column; gap:7px; }
+    .objective-draft { display:grid; grid-template-columns:34px 1fr; gap:8px; align-items:center; }
+    .objective-draft span { width:34px; height:34px; display:grid; place-items:center; border:1px solid var(--line); color:var(--gold); }
+    .objective-draft input { min-height:44px; padding:9px 10px; border:1px solid var(--line); background:#091310; color:var(--ink); }
+    .author-actions { display:flex; align-items:center; gap:9px; margin-top:15px; }
+    .author-actions button { min-height:48px; padding:0 14px; border:1px solid rgba(199,154,74,.5); background:rgba(199,154,74,.1);
+      color:var(--gold-2); cursor:pointer; }
+    .author-status { flex:1; color:var(--muted); font-size:12px; }
+    .draft-preview { margin-top:14px; padding:13px; border:1px dashed rgba(199,154,74,.45); background:#101d19; }
+    .draft-preview h3 { margin:5px 0 0; font:500 20px "Playfair Display",Georgia,serif; }
+    .draft-preview p { margin:6px 0 0; color:var(--muted); }
+    body.player .staff-only { display:none!important; }
+    @media (max-width:1040px) {
+      .workspace { grid-template-columns:240px minmax(0,1fr); }
+      .evidence { grid-column:1/-1; border-left:0; border-top:1px solid var(--line); display:grid;
+        grid-template-columns:minmax(0,1fr) 300px; }
+      .evidence-head,.selected-objective { grid-column:1/2; }
+      .connections { grid-column:1/2; }
+      .map-preview { grid-column:2/3; grid-row:1/4; margin:10px; height:auto; min-height:240px; }
+      .evidence-note { grid-column:1/-1; }
+    }
+    @media (max-width:720px) {
+      .shell { display:block; }
+      .topbar { min-height:0; padding:12px; flex-wrap:wrap; }
+      .brand { min-width:0; flex:1; }.topnote { order:3; flex-basis:100%; }
+      .audience button { min-height:48px; padding:0 11px; }
+      .contextbar { padding:8px 12px; flex-wrap:wrap; }.contextbar .spacer { display:none; }
+      .new-quest { margin-left:auto; min-height:48px; }
+      .workspace { display:flex; flex-direction:column; }
+      .quest-index { border-right:0; border-bottom:1px solid var(--line); overflow:visible; }
+      .index-head { position:static; }.quest-list { flex-direction:row; overflow-x:auto; }
+      .quest-card { flex:0 0 235px; min-height:102px; }
+      .quest-view { padding:12px; overflow:visible; }.quest-hero { padding:15px; }
+      .quest-hero h2 { font-size:29px; }.quest-hero-top { flex-wrap:wrap; }
+      .status-pill { order:-1; }
+      .meta-card { flex:1 1 130px; }
+      .objectives { padding-left:27px; }.objective { min-height:94px; }
+      .rewards { grid-template-columns:1fr; }
+      .evidence { display:block; overflow:visible; }
+      .connection { min-height:64px; }
+      .map-preview { height:230px; margin:0 9px 9px; }
+      .form-grid { grid-template-columns:1fr; }.field.wide { grid-column:auto; }
+      .objective-drafts { grid-column:auto; }
+      .author-panel { border-left:0; }
+    }
+  </style>
+</head>
+<body class="player">
+  <script id="mock-data" type="application/json">
+  {
+    "contract":"tok-quest/v1-candidate",
+    "boundary":"standalone-illustrative-no-reads-no-writes",
+    "quests":[
+      {
+        "id":"quest-drowned-bell",
+        "title":"The Drowned Bell",
+        "status":"active",
+        "visibility":"party",
+        "giverId":"sumi",
+        "giverLabel":"Sumi",
+        "summary":"Sumi believes an old chapel still rings beneath the drowned earth. Find the source before its call reaches Tiersgard.",
+        "publicHint":"The entrance lies somewhere near the Barrow Wastes. The party has not confirmed the exact site.",
+        "secretTruth":"The bell is beneath the Sunken Chapel, not the whole marked region. Its third toll wakes the sealed congregation.",
+        "mapTarget":{"locationId":"barrow-wastes","label":"Near the Barrow Wastes","precision":"approximate"},
+        "secretTarget":{"locationId":"sunken-chapel","label":"The Sunken Chapel","precision":"confirmed"},
+        "objectives":[
+          {"id":"obj-hear-rumor","order":1,"state":"complete","title":"Learn why the bell is feared","hint":"Ask what happened when it last rang.","evidence":[{"momentId":"moment-chapel-rumor","sessionId":"8","feedPostId":"812","label":"A drowned bell under the earth"}]},
+          {"id":"obj-find-chapel","order":2,"state":"current","title":"Find the Sunken Chapel","hint":"Search the Barrow Wastes for a road swallowed by black water.","evidence":[]},
+          {"id":"obj-silence-bell","order":3,"state":"locked","title":"Silence the bell","hint":"The party will learn what that requires after reaching the chapel.","secretRequirement":"Break the three name-seals before the third toll.","evidence":[]}
+        ],
+        "rewards":[
+          {"id":"reward-sumi","kind":"favor","state":"promised","label":"Sumi's favor"},
+          {"id":"reward-gold","kind":"currency","state":"promised","label":"300 gp","secretTruth":"Paid only if the bell is silenced without waking the congregation."}
+        ]
+      },
+      {
+        "id":"quest-missing-caravan",
+        "title":"The Missing Caravan",
+        "status":"active",
+        "visibility":"party",
+        "giverId":"darius",
+        "giverLabel":"Darius",
+        "summary":"The toll-road ambush hid a theft. Follow the ledger hand to the warehouse that received the cargo.",
+        "publicHint":"The missing manifests point back toward Tiersgard's docks.",
+        "secretTruth":"Warehouse nine received the cargo under a false customs seal.",
+        "mapTarget":{"locationId":"tiersgard","label":"Tiersgard docks","precision":"confirmed"},
+        "secretTarget":{"locationId":"warehouse-nine","label":"Warehouse nine","precision":"nested"},
+        "objectives":[
+          {"id":"obj-ledger","order":1,"state":"complete","title":"Match the ledger hand","hint":"Compare the toll-road page with the harbor books.","evidence":[{"momentId":"moment-ledger-hand","sessionId":"13","journalPageId":"session-13-the-docks","label":"The clerk's hand matches"}]},
+          {"id":"obj-warehouse","order":2,"state":"current","title":"Find which warehouse took the cargo","hint":"Three nights of manifests are missing.","evidence":[]}
+        ],
+        "rewards":[{"id":"reward-caravan","kind":"reputation","state":"hidden","label":"The caravan guild's trust","secretTruth":"Revealed only if the cargo is returned."}]
+      },
+      {
+        "id":"quest-toll-road",
+        "title":"Clear the Toll Road",
+        "status":"completed",
+        "visibility":"party",
+        "giverId":"tiersgard-watch",
+        "giverLabel":"Tiersgard Watch",
+        "summary":"The ambushers were broken and safe passage was restored for the next caravan.",
+        "publicHint":"Completed during Session 12.",
+        "secretTruth":"No unresolved staff truth remains.",
+        "mapTarget":{"locationId":"tiersgard-road","label":"East toll road","precision":"confirmed"},
+        "secretTarget":null,
+        "objectives":[
+          {"id":"obj-clear-road","order":1,"state":"complete","title":"Defeat or drive off the ambushers","hint":"Keep the road open.","evidence":[{"momentId":"moment-toll-ambush","sessionId":"12","encounterId":"encounter-toll-road-demo","label":"The toll-road ambush ended"}]}
+        ],
+        "rewards":[{"id":"reward-passage","kind":"access","state":"awarded","label":"Safe passage through the east gate"}]
+      }
+    ]
+  }
+  </script>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="eyebrow">Standalone approval mock · illustrative only</div><h1>Shared Quest Log</h1></div>
+      <div class="topnote">Shared campaign quest, not a character's private Journal checklist. World shows its destination; Chronicle and sessions prove its deeds.</div>
+      <div class="audience" role="group" aria-label="Preview audience">
+        <button type="button" data-audience="player" aria-pressed="true">Player view</button>
+        <button type="button" data-audience="staff" aria-pressed="false">Staff view</button>
+      </div>
+    </header>
+    <div class="contextbar">
+      <strong>Quests</strong><span class="boundary">Dedicated shared section · Journal pages may link here but do not own quest state</span>
+      <span class="spacer"></span><button class="new-quest staff-only" type="button" data-open-author>＋ New quest</button>
+    </div>
+    <div class="workspace">
+      <aside class="quest-index" aria-label="Quest index">
+        <header class="index-head"><div class="eyebrow">Campaign threads</div><h2>Quest Log</h2><div class="filters" role="group" aria-label="Quest filters">
+          <button class="filter" type="button" data-filter="active" aria-pressed="true">Active</button>
+          <button class="filter" type="button" data-filter="completed" aria-pressed="false">Completed</button>
+          <button class="filter" type="button" data-filter="all" aria-pressed="false">All</button>
+        </div></header>
+        <div class="quest-list" data-quest-list></div>
+      </aside>
+      <section class="quest-view" aria-label="Selected quest">
+        <article class="quest-hero">
+          <div class="quest-hero-top"><div><div class="eyebrow" data-quest-kicker></div><h2 data-quest-title></h2></div><span class="status-pill" data-quest-status></span></div>
+          <p class="quest-summary" data-quest-summary></p>
+          <div class="quest-meta"><div class="meta-card"><span>Quest giver</span><b data-quest-giver></b></div><div class="meta-card"><span>Destination</span><b data-quest-place></b></div><div class="meta-card"><span>Progress</span><b data-quest-progress></b></div></div>
+          <div class="hint"><strong>What the party knows</strong><p data-public-hint></p></div>
+          <div class="staff-truth"><div class="staff-label">Behind the screen</div><p data-secret-truth></p></div>
+        </article>
+        <div class="section-head"><h3>Objectives</h3><span>Each completion needs campaign evidence</span></div>
+        <div class="objectives" data-objectives></div>
+        <div class="section-head"><h3>Rewards</h3><span>Promised, hidden, or awarded</span></div>
+        <div class="rewards" data-rewards></div>
+      </section>
+      <aside class="evidence" aria-label="Objective evidence and map target">
+        <header class="evidence-head"><div class="eyebrow">Selected objective</div><h2>Evidence & destination</h2><p>Completion never comes from a checkbox alone. Attach the moment that proves the deed.</p></header>
+        <div class="selected-objective"><b data-selected-objective></b><p data-selected-objective-note></p></div>
+        <div class="connections" data-connections></div>
+        <div class="map-preview" aria-label="Illustrative quest destination map"><span class="map-label">World destination</span><span class="approx-region">?</span><span class="exact-pin" title="Staff-only exact destination"></span><span class="map-note" data-map-note></span></div>
+        <div class="evidence-note" data-evidence-note></div>
+      </aside>
+    </div>
+  </main>
+  <section class="author-drawer staff-only" data-author-drawer hidden aria-label="New quest preview">
+    <div class="author-panel">
+      <header class="author-head"><div><div class="eyebrow">Staff · local preview only</div><h2>Shape a new quest</h2></div><button class="close-author" type="button" data-close-author aria-label="Close">×</button></header>
+      <p class="author-note">Start with what the party can act on. Exact truth, hidden requirements, and unrevealed rewards stay behind the screen.</p>
+      <div class="form-grid">
+        <label class="field wide"><span>What does the party call this quest?</span><input data-draft-title value="A Light Beneath the Mere"></label>
+        <label class="field"><span>Who offers it?</span><select data-draft-giver><option>Sumi</option><option>Darius</option><option>Tiersgard Watch</option></select></label>
+        <label class="field"><span>What does the map show?</span><select data-draft-precision><option>Approximate region</option><option>Confirmed place</option><option>No map destination yet</option></select></label>
+        <label class="field wide"><span>What does the party know?</span><textarea data-draft-public>A pale light has appeared beneath the western mere. Find its source before the next moonrise.</textarea></label>
+        <label class="field wide"><span>What remains behind the screen?</span><textarea data-draft-secret>The light is a sealed waystone. Opening it wakes the watcher bound below.</textarea></label>
+        <div class="objective-drafts"><div class="micro">What must happen?</div><label class="objective-draft"><span>1</span><input data-draft-objective value="Reach the western mere"></label><label class="objective-draft"><span>2</span><input value="Identify the light's source"></label></div>
+        <label class="field"><span>What do they earn?</span><input data-draft-reward value="Sumi's favor"></label>
+        <label class="field"><span>First state</span><select><option>Offered</option><option>Active</option><option>Hidden draft</option></select></label>
+      </div>
+      <div class="author-actions"><button type="button" data-preview-draft>Preview for players</button><span class="author-status" data-author-status>Nothing in this mock is saved.</span></div>
+      <article class="draft-preview"><div class="eyebrow">Party preview</div><h3 data-draft-preview-title>A Light Beneath the Mere</h3><p data-draft-preview-copy>A pale light has appeared beneath the western mere. Find its source before the next moonrise.</p></article>
+    </div>
+  </section>
+  <script>
+  (function () {
+    'use strict';
+    var data=JSON.parse(document.getElementById('mock-data').textContent);
+    var selectedQuestId='quest-drowned-bell',selectedObjectiveId='obj-find-chapel',activeFilter='active',audience='player';
+    var statusMeta={active:{label:'Active',color:'#e5c27c'},completed:{label:'Completed',color:'#77b984'},offered:{label:'Offered',color:'#79aecd'}};
+    function esc(value){return String(value==null?'':value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+    function selectedQuest(){return data.quests.find(function(row){return row.id===selectedQuestId;})||data.quests[0];}
+    function selectedObjective(){var quest=selectedQuest();return quest.objectives.find(function(row){return row.id===selectedObjectiveId;})||quest.objectives[0];}
+    function progressFor(quest){var complete=quest.objectives.filter(function(row){return row.state==='complete';}).length;return{complete:complete,total:quest.objectives.length,label:complete+' of '+quest.objectives.length};}
+    function evidenceFor(objective){return (objective&&objective.evidence||[]).slice();}
+    function partyProjection(quest){return{id:quest.id,title:quest.title,status:quest.status,giverId:quest.giverId,giverLabel:quest.giverLabel,summary:quest.summary,publicHint:quest.publicHint,mapTarget:quest.mapTarget,objectives:quest.objectives.map(function(row){return{id:row.id,order:row.order,state:row.state,title:row.title,hint:row.hint,evidence:evidenceFor(row)};}),rewards:quest.rewards.filter(function(row){return row.state!=='hidden';}).map(function(row){return{id:row.id,kind:row.kind,state:row.state,label:row.label};})};}
+    function renderList(){var host=document.querySelector('[data-quest-list]');host.innerHTML=data.quests.map(function(quest){var meta=statusMeta[quest.status]||statusMeta.active,p=progressFor(quest),filtered=activeFilter!=='all'&&quest.status!==activeFilter;return'<button type="button" class="quest-card'+(filtered?' filtered':'')+'" style="--quest-color:'+meta.color+'" data-quest="'+esc(quest.id)+'" aria-current="'+(quest.id===selectedQuestId)+'"><span class="status">'+meta.label+'</span><span class="quest-count">'+p.label+' objectives</span><b>'+esc(quest.title)+'</b><p>'+esc(quest.giverLabel)+' · '+esc(quest.mapTarget.label)+'</p></button>';}).join('');host.querySelectorAll('[data-quest]').forEach(function(button){button.onclick=function(){selectQuest(button.dataset.quest);};});}
+    function renderQuest(){var quest=selectedQuest(),meta=statusMeta[quest.status]||statusMeta.active,p=progressFor(quest);document.querySelector('[data-quest-kicker]').textContent='Shared campaign quest · '+quest.id;document.querySelector('[data-quest-title]').textContent=quest.title;document.querySelector('[data-quest-status]').textContent=meta.label;document.querySelector('[data-quest-status]').style.color=meta.color;document.querySelector('[data-quest-summary]').textContent=quest.summary;document.querySelector('[data-quest-giver]').textContent=quest.giverLabel;document.querySelector('[data-quest-place]').textContent=quest.mapTarget.label;document.querySelector('[data-quest-progress]').textContent=p.label+' complete';document.querySelector('[data-public-hint]').textContent=quest.publicHint;document.querySelector('[data-secret-truth]').textContent=quest.secretTruth;renderObjectives();renderRewards();renderEvidence();}
+    function renderObjectives(){var quest=selectedQuest(),host=document.querySelector('[data-objectives]');host.innerHTML=quest.objectives.map(function(obj){var label=obj.state==='complete'?'Complete · evidence attached':obj.state==='current'?'Current objective':'Not yet revealed';return'<button type="button" class="objective '+esc(obj.state)+'" data-objective="'+esc(obj.id)+'" aria-current="'+(obj.id===selectedObjectiveId)+'"><span class="objective-state">'+label+'</span><b>'+esc(obj.title)+'</b><p>'+esc(obj.hint)+'</p></button>';}).join('');host.querySelectorAll('[data-objective]').forEach(function(button){button.onclick=function(){selectedObjectiveId=button.dataset.objective;renderObjectives();renderEvidence();};});}
+    function renderRewards(){var quest=selectedQuest(),host=document.querySelector('[data-rewards]');host.innerHTML=quest.rewards.map(function(reward){var hidden=reward.state==='hidden'&&audience!=='staff';return'<article class="reward"><span class="reward-state">'+esc(reward.state)+'</span><b>'+(hidden?'Unrevealed reward':esc(reward.label))+'</b><p>'+(audience==='staff'&&reward.secretTruth?esc(reward.secretTruth):(hidden?'The party has not been promised this yet.':'This reward belongs to the quest, not to an objective checkbox.'))+'</p></article>';}).join('');}
+    function renderEvidence(){var quest=selectedQuest(),obj=selectedObjective(),evidence=evidenceFor(obj),first=evidence[0]||{};document.querySelector('[data-selected-objective]').textContent=obj.title;document.querySelector('[data-selected-objective-note]').textContent=obj.state==='complete'?'Completed with attached campaign evidence.':obj.state==='current'?'Active; no completion evidence has been attached yet.':'Locked until the earlier objective is resolved.';var links=[{key:'world',icon:'⌖',label:'World',enabled:!!quest.mapTarget,title:quest.mapTarget?quest.mapTarget.label:'No destination recorded'},{key:'chronicle',icon:'¶',label:'Chronicle',enabled:!!(first.feedPostId||first.journalPageId),title:first.label||'No Chronicle evidence'},{key:'session',icon:'◈',label:'Session',enabled:!!first.sessionId,title:first.sessionId?'Session '+first.sessionId:'No session evidence'},{key:'giver',icon:'♟',label:'Quest giver',enabled:!!quest.giverId,title:quest.giverLabel}];var host=document.querySelector('[data-connections]');host.innerHTML=links.map(function(link){return'<button type="button" class="connection" data-connection="'+link.key+'" '+(link.enabled?'':'disabled')+'><i>'+link.icon+'</i><span><small>'+link.label+'</small><b>'+esc(link.title)+'</b></span><em>'+(link.enabled?'›':'—')+'</em></button>';}).join('');host.querySelectorAll('[data-connection]').forEach(function(button){button.onclick=function(){document.querySelector('[data-evidence-note]').textContent='Mock navigation · '+button.textContent.trim()+' would open the same quest or evidence identity in that section.';};});document.querySelector('[data-map-note]').textContent=audience==='staff'&&quest.secretTarget?'Party sees '+quest.mapTarget.label+'. Staff exact truth: '+quest.secretTarget.label+'.':quest.mapTarget.precision==='approximate'?'Approximate party knowledge · exact place withheld.':'Confirmed party destination.';document.querySelector('.approx-region').style.display=quest.mapTarget.precision==='approximate'?'grid':'none';document.querySelector('.exact-pin').style.display=audience==='staff'&&quest.secretTarget?'block':'none';document.querySelector('[data-evidence-note]').textContent=evidence.length?evidence.length+' attached moment proves this objective. Evidence is a link; it is never rewritten into the quest.':'No completion evidence is attached. The objective remains '+obj.state+'.';}
+    function selectQuest(id){var quest=data.quests.find(function(row){return row.id===id;});if(!quest)return;selectedQuestId=id;selectedObjectiveId=(quest.objectives.find(function(row){return row.state==='current';})||quest.objectives[0]).id;renderAll();}
+    function setAudience(next){audience=next;document.body.classList.toggle('staff',next==='staff');document.body.classList.toggle('player',next!=='staff');document.querySelectorAll('[data-audience]').forEach(function(button){button.setAttribute('aria-pressed',String(button.dataset.audience===next));});if(next!=='staff')document.querySelector('[data-author-drawer]').hidden=true;renderQuest();}
+    function renderAll(){renderList();renderQuest();document.querySelectorAll('[data-filter]').forEach(function(button){button.setAttribute('aria-pressed',String(button.dataset.filter===activeFilter));});}
+    document.querySelectorAll('[data-audience]').forEach(function(button){button.onclick=function(){setAudience(button.dataset.audience);};});
+    document.querySelectorAll('[data-filter]').forEach(function(button){button.onclick=function(){activeFilter=button.dataset.filter;renderList();document.querySelectorAll('[data-filter]').forEach(function(other){other.setAttribute('aria-pressed',String(other===button));});};});
+    document.querySelector('[data-open-author]').onclick=function(){document.querySelector('[data-author-drawer]').hidden=false;};
+    document.querySelector('[data-close-author]').onclick=function(){document.querySelector('[data-author-drawer]').hidden=true;};
+    document.querySelector('[data-preview-draft]').onclick=function(){document.querySelector('[data-draft-preview-title]').textContent=document.querySelector('[data-draft-title]').value.trim()||'Untitled quest';document.querySelector('[data-draft-preview-copy]').textContent=document.querySelector('[data-draft-public]').value.trim()||'No public hook yet.';document.querySelector('[data-author-status]').textContent='Preview updated locally. Nothing was saved or shared.';};
+    document.addEventListener('keydown',function(event){if(event.key==='Escape')document.querySelector('[data-author-drawer]').hidden=true;});
+    window.QuestFoundationMock={data:data,progressFor:progressFor,evidenceFor:evidenceFor,partyProjection:partyProjection};
+    renderAll();
+  })();
+  </script>
+</body>
+</html>
