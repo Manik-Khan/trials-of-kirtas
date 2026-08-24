@@ -94,6 +94,7 @@ const page = readFileSync(new URL('../../quests.html', import.meta.url), 'utf8')
 const harness = readFileSync(new URL('../fixtures/quests-harness.html', import.meta.url), 'utf8');
 const nav = readFileSync(new URL('../../nav.js', import.meta.url), 'utf8');
 const preflight = readFileSync(new URL('../../docs/guides/QUEST-PREFLIGHT.sql', import.meta.url), 'utf8');
+const privilegeSql = readFileSync(new URL('../../schema_delta_quest_reader_privileges.sql', import.meta.url), 'utf8');
 
 ok(/create table if not exists public\.quests/i.test(sql), 'canonical quest table exists');
 ok(/create table if not exists public\.quest_secrets/i.test(sql), 'staff truth has a separate table');
@@ -117,6 +118,9 @@ ok(preflight.includes("'installed_quest_foundation'") && preflight.includes("'qu
 ok(/has_any_column_privilege/i.test(preflight) && /authenticated_write_grants\s*>\s*0/i.test(preflight), 'preflight rejects inherited, table, or column authenticated write grants across the quest tables');
 ok(/quest_objective_evidence_required/.test(preflight) && /completed_quest_objective_set/.test(preflight) && /quest_evidence_append_only/.test(preflight), 'preflight checks completion, objective-set, and append-only guards');
 ok(!/insert into|update\s+public|delete from|alter table|create table|drop policy|\bgrant\s|\brevoke\s/i.test(preflight), 'preflight remains read-only');
+ok(/revoke all privileges on table public\.quests[\s\S]*?from authenticated;/i.test(privilegeSql), 'additive correction clears authenticated table and column grants');
+ok(/grant select on table public\.quests[\s\S]*?to authenticated;/i.test(privilegeSql), 'additive correction grants back only the guarded reader capability');
+ok(!/\b(insert|update|delete|truncate|references|trigger)\b[\s\S]*?to authenticated/i.test(privilegeSql), 'additive correction restores no authenticated write or structural privilege');
 
 ok(source.includes("sb.from('quests')") && source.includes("sb.from('quest_objectives')") && source.includes("sb.from('quest_objective_evidence')"), 'reader uses the canonical quest tables');
 ok(source.includes("options.staff\n      ? sb.from('quest_secrets')"), 'secret read is conditional on resolved staff authority');
@@ -127,6 +131,7 @@ ok(source.includes('the quest never copies or rewrites them'), 'production UI na
 ok(!/\.insert\s*\(|\.update\s*\(|\.delete\s*\(/.test(source), 'guarded client has no write path');
 ok(css.includes('@media(max-width:720px)') && css.includes('min-height:64px'), 'mobile layout retains touch-sized evidence links');
 ok(page.includes('quests.css?v=q1') && page.includes('quests.js?v=q1') && page.includes('campaign-moments.js?v=cm2'), 'production page loads cache-stamped quest and campaign readers');
+ok(/characters\.js[\s\S]*nav\.js\?v=sup5[\s\S]*battle\.js\?v=settings1/.test(page), 'production page loads battle.js only after its character dependency');
 ok(page.includes('data-quest-root') && page.includes('window.Quests.mount'), 'dedicated page mounts the guarded reader');
 ok(!nav.includes("{ label: 'Quests'"), 'global navigation remains untouched before field promotion');
 const inline = [...page.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/g)].map(match => match[1]).find(block => block.includes('startQuestLog'));

@@ -1,4 +1,4 @@
-# Durable item system handoff — current through 2026-08-20
+# Durable item system handoff — current through 2026-08-23
 
 Status: **identity/schema, staff adoption, and server-side transfer are applied;
 the real full-sheet adoption flow and tracked-item reader are field-visible on
@@ -8,20 +8,21 @@ Loot Workshop work remain standalone, no-dependency mocks. The first guarded
 campaign-moment reader, schema, and first two real rows are live. The post-seed
 World/Chronicle/Encounter/Item History player path is field-proven at desktop
 and mobile; the authenticated staff matrix remains. The first shared Quest Log
-mock is approved and its first guarded read-only production contract is local,
-pending SQL application and deployment. No production quest authoring, Loot
+mock is approved, its SELECT-only foundation is applied, and its guarded reader
+is deployed; one local page dependency correction awaits deployment and the
+staff/mobile field matrix remains. No production quest authoring, Loot
 Workshop, evolving-item, or Forge runtime wiring is approved.**
 
 This document is the current item-system authority. Read it with `AGENTS.md`
 and `CONTEXT.md` before touching Gear, inventory imports, item SQL, Chronicle
 links, or World-map item projection.
 
-Current synchronized baseline: local `main` and `origin/main` at `52d6518`
-(`map pathing`). That commit contains the deployed `ih-9` closed-Gear deep-link
-repair built from `e5120a6`; the tree was clean before the standalone quest
-candidate began. No unrelated dependency or SQL change landed between those
-commits. M deploys manually. Codex never pushes and commits only when M
-explicitly asks.
+Current synchronized baseline: local `main` and `origin/main` at `863aed3`
+(`updating quest structure`). The field correction owns only
+`schema_delta_quest_reader_privileges.sql`, `quests.html`, the focused Quest
+smoke, and these two authority docs. No unrelated project owns or dirties those
+files. M deploys manually. Codex never pushes and commits only when M explicitly
+asks.
 
 ## 1. Executive verdict
 
@@ -475,11 +476,29 @@ first field gate.
 and no illustrative quest is seeded. The page reuses `CampaignMoments.targets`
 for evidence connections without copying or rewriting the source moment. The
 read-only `docs/guides/QUEST-PREFLIGHT.sql` reports missing, incomplete, unsafe,
-or installed state. Production evidence passes **57/57**; the real reader
+or installed state. Production evidence now passes **61/61**; the real reader
 harness passes at 1280×720 and 390×844 with player/staff lenses, defensive
 secret-reward stripping, 64px evidence links, no overflow, and no browser
-warnings/errors. SQL application, deployment, authenticated empty-state reads,
-and the first deliberately reviewed real quest remain open.
+warnings/errors.
+
+M applied `schema_delta_quests.sql` on August 23. Its first post-apply preflight
+correctly rejected five inherited Supabase table grants even though the sampled
+insert/update/delete checks were false. The original migration remains applied
+history. M then applied the additive
+`schema_delta_quest_reader_privileges.sql`, which revokes all authenticated
+table/column privileges and grants back only `SELECT`. The saved preflight now
+returns `installed_quest_foundation`, all five policies, all four guard
+families, `write_grants = 0`, readable quests, and false sampled mutation
+rights. No quest was seeded.
+
+The deployed guarded list and direct `?quest=` door passed for an authenticated
+player at 1280×720 with **No shared quests yet**; the unguarded control passed
+with **Quest Log is guarded**. All three had exact-width layout and zero browser
+logs. The 390×844 empty state also fit exactly, but its first live pass exposed
+one page boot defect: `quests.html` loaded `battle.js` without the declared
+`characters.js` dependency used by every other production caller. The local
+one-line include correction is contract-covered and awaits deployment/retest.
+Staff desktop/mobile and the first reviewed real quest remain open.
 
 ## 6. File ownership map
 
@@ -579,9 +598,10 @@ and the first deliberately reviewed real quest remain open.
 - No campaign-moment authoring UI or client write path is approved. Every future
   field row must still be inserted deliberately only after each linked real
   identity is checked.
-- The durable quest contract and guarded reader are local only. The migration
-  is not applied, no real quest is seeded, the page is not deployed or in global
-  navigation, and staff authoring RPCs/client writes do not exist.
+- The durable quest contract is applied with authenticated clients proven
+  SELECT-only, the guarded page is deployed but its local mobile boot correction
+  still awaits deployment/retest, no real quest is seeded, the page is not in
+  global navigation, and staff authoring RPCs/client writes do not exist.
 - Evolving-item deeds/unlocks do not exist. Manual `transformed` history is only
   a contract capability today.
 
@@ -640,7 +660,8 @@ Identity persists through every awakening, rename, and transfer.
 
 The campaign-moment and player projection slice is live through `52d6518`.
 M approved the standalone shared Quest Log and authorized the first guarded
-production reader. Its additive SQL and cache-stamped client are local.
+production reader. Its schema and SELECT-only correction are applied; its
+cache-stamped reader is deployed, with one local dependency correction pending.
 
 1. Synchronize against `AGENTS.md`, `CONTEXT.md`, this handoff, current `HEAD`,
    working tree, and changes since `52d6518`.
@@ -648,19 +669,19 @@ production reader. Its additive SQL and cache-stamped client are local.
    evidence is `installed_review_two_facts`; it contains both reviewed rows,
    one Skyblinder association, and the source event with `moment_id = null`.
    Use a new delta for any later correction and never update an old item event.
-3. Run `docs/guides/QUEST-PREFLIGHT.sql`; before installation it should report
-   `quest_schema_not_installed`, not fail or mutate data.
-4. Apply `schema_delta_quests.sql` once after the campaign-moment migration,
-   then rerun the preflight. Save the returned
-   `installed_quest_foundation` policy/guard/privilege evidence. The migration
-   seeds no quest and grants authenticated clients no write authority.
-5. Deploy `quests.js`, `quests.css`, `quests.html`, and the production-reader
-   harness with `quests.js?v=q1` / `quests.css?v=q1`. Do not add Quests to
-   global navigation during this field gate.
-6. Exercise `quests.html?questLog=1` and the direct `?quest=` door as player and
-   staff on desktop and mobile. With zero live rows it must narrate **No shared
-   quests yet**; without either guard it must narrate **Quest Log is guarded**.
-   Confirm no overflow or browser warnings/errors.
+3. Preserve `schema_delta_quests.sql` and
+   `schema_delta_quest_reader_privileges.sql` as applied history. The saved
+   preflight evidence is `installed_quest_foundation` with `write_grants = 0`;
+   use a new append-only delta for any later correction.
+4. Deploy the local `quests.html` dependency correction and retain the existing
+   `quests.js?v=q1` / `quests.css?v=q1` stamps. Do not add Quests to global
+   navigation during this field gate.
+5. Repeat `quests.html?questLog=1` and the direct `?quest=` door as player and
+   staff at 1280×720 and 390×844. With zero live rows they must narrate **No
+   shared quests yet**; without either guard the page must narrate **Quest Log
+   is guarded**. Confirm exact-width layout and zero browser warnings/errors.
+6. Carry the separate authenticated staff campaign-moment projection as an
+   explicit field gate; do not reopen or rewrite either applied campaign delta.
 7. Preserve the approved ownership boundaries: a quest owns giver,
    objectives, completion, and rewards; World owns destination projection;
    campaign moments and Chronicle/session records remain linked evidence rather
@@ -670,14 +691,11 @@ production reader. Its additive SQL and cache-stamped client are local.
    evidence moment, and reward is reviewed. Never seed the mock's illustrative
    IDs. Staff authoring RPCs and client writes are the next separate approval
    boundary after the empty reader is field-proven.
-9. Carry the authenticated staff campaign-moment projection as an explicit
-   field gate. Preserve the two separate live facts and do not reopen or rewrite
-   either applied campaign delta.
-10. Carry the existing item gates independently: confirm management SQL live
+9. Carry the existing item gates independently: confirm management SQL live
    state; field-test Attune/Release, identify, rename, and transfer; complete
    the approved Gear/import presentation; and keep mounted-sheet rollout as a
    separate boundary.
-11. Preserve the Loot Workshop's approved standalone interaction and 140/140
+10. Preserve the Loot Workshop's approved standalone interaction and 140/140
    smoke. Its licensed data and bundle/roster persistence boundary remain
    separate from campaign-moment production work.
 

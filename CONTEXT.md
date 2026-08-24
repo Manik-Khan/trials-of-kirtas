@@ -4,7 +4,8 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **August 20, 2026 (the approved guarded focused Level Up staging flow;
+Updated: **August 23, 2026 (the applied SELECT-only guarded Quest foundation;
+the approved guarded focused Level Up staging flow;
 durable notable-item identity, staff adoption,
 atomic custody transfer, the field-proven full-sheet item-history bridge, the
 approved Gear/import presentation mock, and the current standalone Loot
@@ -255,11 +256,27 @@ sample quest, nav entry, World quest projection, or evolving-item effect exists
 in this slice. `quests.js` `q-1`, `quests.css?v=q1`, and
 `quests.html?questLog=1` provide the dedicated guarded reader, with
 `docs/guides/QUEST-PREFLIGHT.sql` as its read-only installation evidence. The
-production contract passes **57/57**. Its real production-reader harness passes
+production contract now passes **61/61**. Its real production-reader harness passes
 at 1280×720 and 390×844 with player/staff switching, secret-reward stripping,
 64px evidence links, no horizontal overflow, and no warnings/errors. SQL
-application, deployment, authenticated live reads, and the first real quest
-remain open.
+application and the first authenticated player desktop read passed on August
+23. The first post-apply preflight caught inherited Supabase table privileges;
+the separately applied append-only
+`schema_delta_quest_reader_privileges.sql` revoked every authenticated table
+and column privilege and restored only `SELECT`. The saved evidence is
+`installed_quest_foundation` with five policies, all four guard families,
+`write_grants = 0`, readable quests, and no checked insert/update/delete path.
+No quest was seeded.
+
+The live guarded list and direct `?quest=` door now narrate **No shared quests
+yet** at 1280×720; the unguarded page narrates **Quest Log is guarded**. All
+three have exact-width layout and no browser logs. The 390×844 empty state also
+has exact-width layout, but its first live pass exposed that `quests.html`
+loaded `battle.js` without its declared `characters.js` dependency. The local
+one-line page correction is contract-covered but not yet deployed. Remaining
+gates are deploy/retest that mobile boot with zero logs, exercise player and
+staff at both viewports, carry the separate staff campaign-moment projection,
+and deliberately review the first real quest before any authoring RPC exists.
 
 ---
 
