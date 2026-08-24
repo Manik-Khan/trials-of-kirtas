@@ -268,15 +268,18 @@ and column privilege and restored only `SELECT`. The saved evidence is
 `write_grants = 0`, readable quests, and no checked insert/update/delete path.
 No quest was seeded.
 
-The live guarded list and direct `?quest=` door now narrate **No shared quests
-yet** at 1280×720; the unguarded page narrates **Quest Log is guarded**. All
-three have exact-width layout and no browser logs. The 390×844 empty state also
-has exact-width layout, but its first live pass exposed that `quests.html`
-loaded `battle.js` without its declared `characters.js` dependency. The local
-one-line page correction is contract-covered but not yet deployed. Remaining
-gates are deploy/retest that mobile boot with zero logs, exercise player and
-staff at both viewports, carry the separate staff campaign-moment projection,
-and deliberately review the first real quest before any authoring RPC exists.
+The first live mobile pass exposed that `quests.html` loaded `battle.js`
+without its declared `characters.js` dependency. The one-line correction
+reached live commit `07762c4`. Post-deploy authenticated player proof now covers
+the guarded list, direct `?quest=` door, and unguarded control at 1280×720 and
+390×844: the guarded doors narrate **No shared quests yet**, the control
+narrates **Quest Log is guarded**, every document is exact-width, and browser
+warnings/errors are zero. M separately confirmed the guarded empty state from
+an authenticated Overseer seat. That closes the first empty-reader field gate.
+The separate staff campaign-moment projection remains carried work. The next
+Quest decision is the narrow staff authoring/transition contract and the first
+deliberately reviewed real quest—not World projection or evolving-item
+automation.
 
 ---
 

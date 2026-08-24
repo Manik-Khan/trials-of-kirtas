@@ -9,8 +9,7 @@ campaign-moment reader, schema, and first two real rows are live. The post-seed
 World/Chronicle/Encounter/Item History player path is field-proven at desktop
 and mobile; the authenticated staff matrix remains. The first shared Quest Log
 mock is approved, its SELECT-only foundation is applied, and its guarded reader
-is deployed; one local page dependency correction awaits deployment and the
-staff/mobile field matrix remains. No production quest authoring, Loot
+is deployed and field-proven empty for player and Overseer seats. No production quest authoring, Loot
 Workshop, evolving-item, or Forge runtime wiring is approved.**
 
 This document is the current item-system authority. Read it with `AGENTS.md`
@@ -491,14 +490,16 @@ returns `installed_quest_foundation`, all five policies, all four guard
 families, `write_grants = 0`, readable quests, and false sampled mutation
 rights. No quest was seeded.
 
-The deployed guarded list and direct `?quest=` door passed for an authenticated
-player at 1280×720 with **No shared quests yet**; the unguarded control passed
-with **Quest Log is guarded**. All three had exact-width layout and zero browser
-logs. The 390×844 empty state also fit exactly, but its first live pass exposed
-one page boot defect: `quests.html` loaded `battle.js` without the declared
-`characters.js` dependency used by every other production caller. The local
-one-line include correction is contract-covered and awaits deployment/retest.
-Staff desktop/mobile and the first reviewed real quest remain open.
+The first 390×844 pass exposed one page boot defect: `quests.html` loaded
+`battle.js` without the declared `characters.js` dependency used by every other
+production caller. The one-line include correction reached live commit
+`07762c4`. Post-deploy authenticated player proof covers the guarded list,
+direct `?quest=` door, and unguarded control at 1280×720 and 390×844. The
+guarded doors narrate **No shared quests yet**, the control narrates **Quest Log
+is guarded**, every document is exact-width, and browser warnings/errors are
+zero. M separately confirmed the guarded empty state from an authenticated
+Overseer seat. The first empty-reader field gate is complete; the first
+reviewed real quest and its separately approved authoring boundary remain open.
 
 ## 6. File ownership map
 
@@ -599,9 +600,9 @@ Staff desktop/mobile and the first reviewed real quest remain open.
   field row must still be inserted deliberately only after each linked real
   identity is checked.
 - The durable quest contract is applied with authenticated clients proven
-  SELECT-only, the guarded page is deployed but its local mobile boot correction
-  still awaits deployment/retest, no real quest is seeded, the page is not in
-  global navigation, and staff authoring RPCs/client writes do not exist.
+  SELECT-only, and the guarded empty reader is field-proven for player and
+  Overseer seats. No real quest is seeded, the page is not in global navigation,
+  and staff authoring RPCs/client writes do not exist.
 - Evolving-item deeds/unlocks do not exist. Manual `transformed` history is only
   a contract capability today.
 
@@ -661,7 +662,7 @@ Identity persists through every awakening, rename, and transfer.
 The campaign-moment and player projection slice is live through `52d6518`.
 M approved the standalone shared Quest Log and authorized the first guarded
 production reader. Its schema and SELECT-only correction are applied; its
-cache-stamped reader is deployed, with one local dependency correction pending.
+cache-stamped empty reader is field-proven at live commit `07762c4`.
 
 1. Synchronize against `AGENTS.md`, `CONTEXT.md`, this handoff, current `HEAD`,
    working tree, and changes since `52d6518`.
@@ -673,13 +674,13 @@ cache-stamped reader is deployed, with one local dependency correction pending.
    `schema_delta_quest_reader_privileges.sql` as applied history. The saved
    preflight evidence is `installed_quest_foundation` with `write_grants = 0`;
    use a new append-only delta for any later correction.
-4. Deploy the local `quests.html` dependency correction and retain the existing
-   `quests.js?v=q1` / `quests.css?v=q1` stamps. Do not add Quests to global
-   navigation during this field gate.
-5. Repeat `quests.html?questLog=1` and the direct `?quest=` door as player and
-   staff at 1280×720 and 390×844. With zero live rows they must narrate **No
-   shared quests yet**; without either guard the page must narrate **Quest Log
-   is guarded**. Confirm exact-width layout and zero browser warnings/errors.
+4. Preserve the passed guarded-reader boundary: `quests.js?v=q1` /
+   `quests.css?v=q1`, no global navigation entry, no seed quest, and no
+   authenticated client write path.
+5. Before production authoring, review the first real quest's giver,
+   destination, ordered objectives, evidence moments, and rewards. Design the
+   narrow staff authoring/transition contract separately; never seed the mock's
+   illustrative IDs.
 6. Carry the separate authenticated staff campaign-moment projection as an
    explicit field gate; do not reopen or rewrite either applied campaign delta.
 7. Preserve the approved ownership boundaries: a quest owns giver,
