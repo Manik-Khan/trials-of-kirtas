@@ -8,7 +8,7 @@ function ok(condition, label) {
   else { failed += 1; console.log('  FAIL: ' + label); }
 }
 
-ok(Quests.VERSION === 'q-1', 'reader exposes the q-1 guarded contract');
+ok(Quests.VERSION === 'q-2', 'reader exposes the q-2 guarded contract');
 ok(Quests.isEnabled('?questLog=1') && Quests.isEnabled('?quest=quest-a'), 'guard accepts explicit list and deep-link doors');
 ok(!Quests.isEnabled(''), 'Quest Log remains guarded by default');
 ok(Quests.isStaff({ role:'dm' }) && Quests.isStaff({ role:'overseer' }) && !Quests.isStaff({ role:'player' }), 'staff projection is role-gated');
@@ -127,16 +127,18 @@ ok(source.includes("options.staff\n      ? sb.from('quest_secrets')"), 'secret r
 ok(source.includes('partyProjection(quest)') && source.includes("reward.visibility === 'party'"), 'staff player-preview strips secret rewards');
 ok(source.includes('campaignApi.targets(moment)'), 'objective evidence reuses campaign connection targets');
 ok(source.includes('No completion evidence is attached.'), 'missing evidence narrates why an objective remains incomplete');
+ok(source.includes('QuestFeedCapture.descriptionHTML(value)') && source.includes('view.attachTooltips(root)'), 'Quest Log renders safe linked descriptions and binds their hover cards');
 ok(source.includes('the quest never copies or rewrites them'), 'production UI narrates evidence ownership');
 ok(!/\.insert\s*\(|\.update\s*\(|\.delete\s*\(/.test(source), 'guarded client has no write path');
 ok(css.includes('@media(max-width:720px)') && css.includes('min-height:64px'), 'mobile layout retains touch-sized evidence links');
-ok(page.includes('quests.css?v=q1') && page.includes('quests.js?v=q1') && page.includes('campaign-moments.js?v=cm2'), 'production page loads cache-stamped quest and campaign readers');
-ok(/characters\.js[\s\S]*nav\.js\?v=sup6[\s\S]*battle\.js\?v=settings1/.test(page), 'production page loads battle.js only after its character dependency');
+ok(page.includes('quests.css?v=q2') && page.includes('quests.js?v=q2') && page.includes('campaign-moments.js?v=cm2'), 'production page loads cache-stamped quest and campaign readers');
+ok(page.includes('quest-feed-capture.js?v=qfc3') && page.includes('tooltips.css?v=qt1') && page.includes('tooltips.js'), 'Quest Log loads the rich-description and tooltip dependencies');
+ok(/characters\.js[\s\S]*nav\.js\?v=sup7[\s\S]*battle\.js\?v=settings1/.test(page), 'production page loads battle.js only after its character dependency');
 ok(page.includes('data-quest-root') && page.includes('window.Quests.mount'), 'dedicated page mounts the guarded reader');
 ok(!nav.includes("{ label: 'Quests'"), 'global navigation remains untouched before field promotion');
 const inline = [...page.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/g)].map(match => match[1]).find(block => block.includes('startQuestLog'));
 try { new Function(inline); ok(true, 'production page boot script parses'); } catch (error) { ok(false, 'production page boot script parses: ' + error.message); }
-ok(harness.includes('../../quests.js?v=q1') && harness.includes('../../campaign-moments.js?v=cm2') && harness.includes('window.Quests.mount'), 'browser harness uses production readers');
+ok(harness.includes('../../quests.js?v=q2') && harness.includes('../../quest-feed-capture.js?v=qfc3') && harness.includes('../../campaign-moments.js?v=cm2') && harness.includes('window.Quests.mount'), 'browser harness uses production readers');
 
 console.log(`\nsmoke-quests: ${passed}/${passed + failed} passed${failed ? `  (${failed} FAILED)` : ''}`);
 process.exit(failed ? 1 : 0);

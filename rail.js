@@ -41,7 +41,7 @@
 
   var LS_KEY = 'tok.rail.v1';
   var RAIL_W = 384;
-  var RAIL_ASSET_V = 'quest1';
+  var RAIL_ASSET_V = 'quest2';
 
   function readPreferences() {
     return (window.TokPreferences && window.TokPreferences.get) ? window.TokPreferences.get() : {};
@@ -60,6 +60,7 @@
     linkOnce('tok-rail-fonts-pre2', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' });
     linkOnce('tok-rail-fonts', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,600&family=EB+Garamond:ital@0;1&family=Oswald:wght@300;400;500;600&display=swap' });
     linkOnce('tok-rail-css', { rel: 'stylesheet', href: 'rail.css?v=' + RAIL_ASSET_V });
+    linkOnce('tok-tooltip-css', { rel: 'stylesheet', href: 'tooltips.css?v=qt1' });
     // Characters roster tab — registers itself against the seam on tok-rail:ready.
     // Loaded non-blocking (boot doesn't wait on it); it handles either load order.
     if (!window.__tokCharactersTab && !document.querySelector('script[src*="characters-tab.js"]')) {
@@ -85,7 +86,7 @@
     function ensureQuest() {
       if (window.QuestFeedCapture) { ensureFeed(); return; }
       var q = document.createElement('script');
-      q.src = 'quest-feed-capture.js?v=qfc2';
+      q.src = 'quest-feed-capture.js?v=qfc3';
       q.onload = ensureFeed;
       q.onerror = function () { console.warn('[rail] quest capture helper failed to load — /quest disabled'); ensureFeed(); };
       document.head.appendChild(q);
@@ -492,7 +493,7 @@
             + '<div class="tr-quest-head"><div><div class="k" data-rail="questkicker">Quest capture · 1 of 4</div><h2 id="tr-quest-title" data-rail="questheading">What happened?</h2></div><button type="button" class="tr-quest-x" data-rail="questclose" aria-label="Close quest capture">×</button></div>'
             + '<div class="tr-quest-progress" data-rail="questprogress"><span></span><span></span><span></span><span></span></div>'
             + '<div class="tr-quest-body">'
-              + '<div class="tr-quest-step" data-quest-step="0"><label>Description<textarea data-rail="questdescription" rows="5" maxlength="5000" placeholder="The moment that made this a quest…"></textarea></label><p class="tr-quest-note">This becomes the quest description. The Feed entry remains the full story.</p></div>'
+              + '<div class="tr-quest-step" data-quest-step="0"><label>Description<div class="tr-quest-description-host" data-rail="questdescriptionhost"><textarea data-rail="questdescription" rows="5" maxlength="5000" placeholder="The moment that made this a quest…"></textarea></div></label><p class="tr-quest-note" data-rail="questdescriptionnote">Type @ to link a person or place. The Feed entry remains the full story.</p></div>'
               + '<div class="tr-quest-step" data-quest-step="1" hidden><label>Quest Giver <em>optional</em><select data-rail="questgiver"><option value="">No quest giver</option></select></label><label>Location <em>optional</em><select data-rail="questlocation"><option value="">No location yet</option></select></label><p class="tr-quest-note">These connect to the same people and places used across the world.</p></div>'
               + '<div class="tr-quest-step" data-quest-step="2" hidden><label>Objective<textarea data-rail="questobjective" rows="3" maxlength="500" placeholder="What needs to be done?"></textarea></label><label>Quest title <em>optional</em><input data-rail="questtitle" maxlength="160" placeholder="Uses the objective if blank"></label></div>'
               + '<div class="tr-quest-step" data-quest-step="3" hidden><div class="tr-quest-preview"><div class="k">Quest begun</div><h3 data-rail="questpreviewtitle">Untitled quest</h3><p class="objective" data-rail="questpreviewobjective"></p><p data-rail="questpreviewdescription"></p><dl data-rail="questpreviewlinks"></dl><small data-rail="questpreviewsource"></small></div></div>'
@@ -780,6 +781,7 @@
       var SURF = null;
       var questVeil = root.querySelector('[data-rail="questveil"]');
       var questState = null;
+      var questDescriptionSurface = null;
       var QUEST_STEPS = ['What happened?', 'Who and where?', 'What needs doing?', 'Share'];
 
       function questEl(name) { return root.querySelector('[data-rail="' + name + '"]'); }
@@ -805,9 +807,15 @@
         var giver = (MC.pool.npcs || []).find(function (item) { return String(item.id) === String(giverId); });
         var place = (MC.pool.locations || []).find(function (item) { return String(item.id) === String(locationId); });
         var objective = questEl('questobjective').value.trim();
+        var descriptionText = questDescriptionSurface
+          ? questDescriptionSurface.text().trim()
+          : questEl('questdescription').value.trim();
+        var description = questDescriptionSurface
+          ? questDescriptionSurface.encoded()
+          : window.QuestFeedCapture.encodeDescription(questEl('questdescription').value);
         return {
           title: window.QuestFeedCapture.questTitle(questEl('questtitle').value, objective),
-          description: questEl('questdescription').value.trim(), objective: objective,
+          description: description, descriptionText: descriptionText, objective: objective,
           giverId: giver ? giver.id : null, giverLabel: giver ? giver.label : null,
           locationId: place ? place.id : null, locationLabel: place ? place.label : null,
         };
@@ -817,14 +825,17 @@
         var details = questDetails();
         questEl('questpreviewtitle').textContent = details.title || 'Untitled quest';
         questEl('questpreviewobjective').textContent = details.objective;
-        questEl('questpreviewdescription').textContent = details.description;
+        questEl('questpreviewdescription').innerHTML = window.QuestFeedCapture.descriptionHTML(details.description);
         var links = questEl('questpreviewlinks'); links.innerHTML = '';
-        [['Quest Giver', details.giverLabel], ['Location', details.locationLabel]].forEach(function (pair) {
+        [['Quest Giver', details.giverLabel, details.giverId, 'npc'], ['Location', details.locationLabel, details.locationId, 'location']].forEach(function (pair) {
           if (!pair[1]) return;
           var dt = document.createElement('dt'); dt.textContent = pair[0];
-          var dd = document.createElement('dd'); dd.textContent = pair[1]; links.appendChild(dt); links.appendChild(dd);
+          var dd = document.createElement('dd'); dd.textContent = pair[1];
+          dd.className = pair[3] + '-link'; dd.setAttribute('data-' + pair[3], pair[2]); dd.tabIndex = 0;
+          links.appendChild(dt); links.appendChild(dd);
         });
         questEl('questpreviewsource').textContent = 'Begun from this Session ' + (CTX.session || '—') + ' Feed entry · visible to the party';
+        if (window.attachTooltips) { try { window.attachTooltips(questEl('questpreviewdescription').parentNode); } catch (e) {} }
       }
       function renderQuestCapture() {
         var step = questState ? questState.step : 0;
@@ -838,17 +849,21 @@
         questEl('questnext').disabled = !!questState.busy;
         questEl('questclose').disabled = !!questState.busy;
         updateQuestPreview();
-        var focus = [questEl('questdescription'), questEl('questgiver'), questEl('questobjective'), null][step];
+        var focus = [questDescriptionSurface ? questDescriptionSurface.el : questEl('questdescription'), questEl('questgiver'), questEl('questobjective'), null][step];
         if (focus) setTimeout(function () { focus.focus(); }, 0);
       }
       function openQuestCapture(seed) {
         if (!QUEST_CAPTURE_ENABLED) return;
         if (!questState) {
           questState = { step: 0, requestId: window.QuestFeedCapture.requestId(window.crypto), sourceFeedPostId: null, busy: false };
-          questEl('questdescription').value = seed || '';
+          if (questDescriptionSurface) questDescriptionSurface.setText(seed || '');
+          else questEl('questdescription').value = seed || '';
           questEl('questgiver').value = ''; questEl('questlocation').value = '';
           questEl('questobjective').value = ''; questEl('questtitle').value = '';
-        } else if (!questEl('questdescription').value.trim() && seed) questEl('questdescription').value = seed;
+        } else if (!(questDescriptionSurface ? questDescriptionSurface.text() : questEl('questdescription').value).trim() && seed) {
+          if (questDescriptionSurface) questDescriptionSurface.setText(seed);
+          else questEl('questdescription').value = seed;
+        }
         questEl('questerror').textContent = '';
         questVeil.classList.add('on');
         populateQuestSelects();
@@ -879,7 +894,7 @@
         var newEntities = MC.newEntities.splice(0);
         return loadContext().then(function (c) {
           var body = SURF && SURF.body().trim();
-          if (!body) body = esc(details.description);
+          if (!body) body = window.QuestFeedCapture.descriptionHTML(details.description);
           return SB.from('feed').insert({
             actor_key: actor.key, actor_name: actor.name, channel: 'chronicle', kind: 'message', hidden: false,
             encounter_id: c.encId, session: c.session, body: body,
@@ -893,7 +908,8 @@
       }
       function submitQuestCapture() {
         var details = questDetails(), errorEl = questEl('questerror');
-        if (!details.description) { errorEl.textContent = 'Add the moment that made this a quest.'; return; }
+        if (!details.descriptionText) { errorEl.textContent = 'Add the moment that made this a quest.'; return; }
+        if (details.description.length > 5000) { errorEl.textContent = 'This description is a little too long. Shorten it before beginning the quest.'; return; }
         if (!details.objective) { errorEl.textContent = 'Add one clear thing that needs to be done.'; return; }
         questState.busy = true; errorEl.textContent = ''; renderQuestCapture();
         var source = questState.sourceFeedPostId ? Promise.resolve(questState.sourceFeedPostId) : insertQuestSource(details);
@@ -923,7 +939,8 @@
           return;
         }
         var details = questDetails();
-        if (questState.step === 0 && !details.description) { errorEl.textContent = 'Add the moment that made this a quest.'; return; }
+        if (questState.step === 0 && !details.descriptionText) { errorEl.textContent = 'Add the moment that made this a quest.'; return; }
+        if (questState.step === 0 && details.description.length > 5000) { errorEl.textContent = 'This description is a little too long. Shorten it before continuing.'; return; }
         if (questState.step === 2 && !details.objective) { errorEl.textContent = 'Add one clear thing that needs to be done.'; return; }
         if (questState.step < 3) { questState.step += 1; renderQuestCapture(); return; }
         submitQuestCapture();
@@ -1012,6 +1029,32 @@
       // canon (tooltips.js via ensureCanon) + entities + journal pages; the
       // [[ picker gets two tabs: My notes (your seat) / All (party-readable).
       var MC = { mod: null, mine: [], all: [], mySlugs: {}, pool: { characters: [], npcs: [], locations: [] }, newEntities: [], loaded: false, loading: false };
+      function mountQuestDescription(mod) {
+        if (questDescriptionSurface) return;
+        MC.mod = mod;
+        var fallback = questEl('questdescription');
+        var hostEl = questEl('questdescriptionhost');
+        var composer = mod.createComposer(hostEl, {
+          placeholder: 'The moment that made this a quest… Type @ to link a person or place.',
+          pool: function () { return { characters: [], npcs: MC.pool.npcs, locations: MC.pool.locations }; },
+          onNewEntity: function (item) {
+            if (!MC.newEntities.some(function (e) { return e.id === item.id && e.type === item.type; })) {
+              MC.newEntities.push({ id: item.id, type: item.type, label: item.label });
+            }
+          },
+        });
+        var initial = fallback.value;
+        fallback.hidden = true;
+        questDescriptionSurface = {
+          text: function () { return window.QuestFeedCapture.descriptionText(composer.getDoc()); },
+          encoded: function () { return window.QuestFeedCapture.encodeDescription(composer.getDoc()); },
+          setText: function (text) { composer.clear(); composer.el.textContent = text || ''; updateQuestPreview(); },
+          el: composer.el,
+        };
+        if (initial) questDescriptionSurface.setText(initial);
+        composer.el.addEventListener('input', updateQuestPreview);
+        composer.el.addEventListener('focus', function () { loadMentionData(composer.el); }, true);
+      }
       function seatName(key) {
         if (!key) return 'Narrator';
         return (typeof CHARACTERS !== 'undefined' && CHARACTERS[key] && CHARACTERS[key].name) || key;
@@ -1052,7 +1095,8 @@
         mountFallbackInput();
       } else {
       setTimeout(function () { if (!SURF) mountFallbackInput(); }, 1500);
-      import('./mention-composer.js?v=mc4').then(function (mod) {
+      import('./mention-composer.js?v=mc5').then(function (mod) {
+        mountQuestDescription(mod);
         if (SURF) { console.warn('[rail] mention-composer arrived after fallback — keeping the input'); return; }
         MC.mod = mod;
         var composer = mod.createComposer(host, {
@@ -1095,6 +1139,7 @@
         composer.el.addEventListener('focus', function () { loadMentionData(composer.el); }, true);
       }).catch(function (e) {
         console.warn('[rail] mention-composer unavailable — plain input fallback:', e && e.message);
+        questEl('questdescriptionnote').textContent = 'Linked names are unavailable right now; you can still write the quest. The Feed entry remains the full story.';
         if (!SURF) mountFallbackInput();
       });
       }
@@ -1122,7 +1167,7 @@
         return words.length > 6 ? t + '…' : t;
       }
       function sendRowToJournal(row) {
-        Promise.all([import('./mention-composer.js?v=mc4'), import('./journal-capture.js?v=jc4')]).then(function (mods) {
+        Promise.all([import('./mention-composer.js?v=mc5'), import('./journal-capture.js?v=jc4')]).then(function (mods) {
           var mc = mods[0], jc = mods[1];
           if (!MC.mod) MC.mod = mc;
           var ensureSlugs = MC.loaded ? Promise.resolve()

@@ -13,6 +13,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { CHRONICLE } from './data/chronicleSample.js'
 import { buildBook, buildFights, fightsBySession, facetCounts, filterBookEntries, indexActive } from './data/bookModel.js'
 import { buildQuestStarts, chaptersWithQuestSessions, mergeStoryTimeline, questStartsBySession } from './data/questModel.js'
+import { descriptionHTML } from './data/questDescription.js'
 import { chaptersToVolumes, flattenVolumeEntries, nextOpen, keyOpen } from './shelf/shelfModel.js'
 import { seatColor } from './comments/accents.js'
 import RecordsModeSwitch from './RecordsModeSwitch.jsx'
@@ -95,6 +96,10 @@ function FightRoll({ r, accents }) {
 
 export function QuestStartBlock({ q }) {
   const [open, setOpen] = useState(false)
+  const detailsRef = useRef(null)
+  useEffect(() => {
+    if (open && detailsRef.current && window.attachTooltips) window.attachTooltips(detailsRef.current)
+  }, [open, q.description])
   return (
     <div className="sh-quest-start" id={`quest-${q.id}`}>
       <div className="sh-quest-lead">Quest begun</div>
@@ -105,12 +110,12 @@ export function QuestStartBlock({ q }) {
         <span className="sh-quest-objective">{q.objective}</span>
       </button>
       {open && (
-        <div className="sh-quest-details">
-          <p>{q.description}</p>
+        <div className="sh-quest-details" ref={detailsRef}>
+          <p dangerouslySetInnerHTML={{ __html: descriptionHTML(q.description) }} />
           {(q.giverLabel || q.locationLabel) && (
             <dl>
-              {q.giverLabel && <><dt>Quest Giver</dt><dd>{q.giverLabel}</dd></>}
-              {q.locationLabel && <><dt>Location</dt><dd>{q.locationLabel}</dd></>}
+              {q.giverLabel && <><dt>Quest Giver</dt><dd className="npc-link" data-npc={q.giverId} tabIndex="0">{q.giverLabel}</dd></>}
+              {q.locationLabel && <><dt>Location</dt><dd className="location-link" data-location={q.locationId} tabIndex="0">{q.locationLabel}</dd></>}
             </dl>
           )}
           <a href={`quests.html?questLog=1&quest=${encodeURIComponent(q.questId)}`}>Open in Quest Hub →</a>

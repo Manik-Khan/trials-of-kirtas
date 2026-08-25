@@ -194,8 +194,13 @@ export function docToHTML(doc) {
     if (n.type === 'tokMention') {
       const a = n.attrs || {};
       const typeAttr = a.resolved ? a.type : (a.type + '-unresolved');
+      const tooltipAttr = a.resolved && a.type === 'npc'
+        ? ' data-npc="' + esc(a.id) + '" tabindex="0"'
+        : a.resolved && a.type === 'location'
+          ? ' data-location="' + esc(a.id) + '" tabindex="0"'
+          : '';
       return '<span data-mention-type="' + esc(typeAttr) + '" data-mention-key="' + esc(a.id) +
-             '" class="' + mentionClass(a) + '">@' + esc(a.label != null ? a.label : a.id) + '</span>';
+             '" class="' + mentionClass(a) + '"' + tooltipAttr + '>@' + esc(a.label != null ? a.label : a.id) + '</span>';
     }
     if (n.type === 'pageLink') {
       const a = n.attrs || {};
@@ -250,6 +255,9 @@ function makeChip(doc, item) {
     span.setAttribute('data-mention-key', item.id);
     span.className = mentionClass(item);
     span.textContent = '@' + item.label;
+    if (item.resolved && item.type === 'npc') span.setAttribute('data-npc', item.id);
+    if (item.resolved && item.type === 'location') span.setAttribute('data-location', item.id);
+    if (item.resolved && (item.type === 'npc' || item.type === 'location')) span.tabIndex = 0;
   }
   return span;
 }
@@ -403,6 +411,9 @@ export function createComposer(host, opts) {
     const r2 = doc.createRange(); r2.setStartAfter(space); r2.collapse(true);
     sWin.removeAllRanges(); sWin.addRange(r2);
     if (item.resolved === false && item.type !== 'page' && opts.onNewEntity) opts.onNewEntity(item);
+    if (doc.defaultView.attachTooltips) {
+      try { doc.defaultView.attachTooltips(ed); } catch (_) {}
+    }
     closePick();
   }
 

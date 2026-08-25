@@ -57,7 +57,7 @@ const stampedPages = [
   'npcs.html', 'party.html', 'radio.html', 'shards.html', 'sheet-v2.html', 'world.html',
 ]
 t('every production nav include carries the new cache stamp',
-  stampedPages.every(p => read(p).includes('nav.js?v=sup6')))
+  stampedPages.every(p => read(p).includes('nav.js?v=sup7')))
 
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)

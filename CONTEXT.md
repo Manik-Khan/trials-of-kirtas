@@ -436,6 +436,41 @@ The remaining field gate is M's push followed by one reviewed signed-in quest
 from the normal site-wide rail on desktop and mobile; confirm the public Feed
 source and resulting **Quest begun** receipt. No query flag is required.
 
+The first live right-rail creation pass exposed the next writing gap: Quest
+Description was still a plain textarea, so it could not use the site's existing
+`@` NPC/location links or Living Codex tooltips. M approved the resulting
+`tok-quest-capture/v4-candidate` on August 25, including normal sentence-case
+description prose. The local production slice now replaces that textarea with
+the shared rich composer: `@` searches only NPCs and locations, known selections
+retain stable tooltip identities, and unresolved play-created entities continue
+through the existing curation seam. Context mentions remain separate from the
+optional primary Quest Giver and Location fields.
+
+Rich quest prose stays in the existing `quests.summary` text column through the
+versioned `tok-quest-rich-v1:` envelope; the allowlisted codec preserves only
+paragraph text, hard breaks, and NPC/location mention nodes, escapes rendered
+prose, and keeps every legacy plain-text quest readable. No SQL changed. The
+same safe renderer now powers the rail Share preview/source fallback, guarded
+Quest Log, Journal capture preview, and expanded Chronicle **Quest begun**
+receipt; all rebind the existing hover/focus tooltips. Cache stamps advance to
+`rail.js?v=quest2`, `mention-composer.js?v=mc5`,
+`quest-feed-capture.js?v=qfc3`, `quests.js/css?v=q2`, and `nav.js?v=sup7`; the
+Journal bundle is rebuilt.
+
+Focused gates pass **28/28** for the quest helper, **83/83** for the approved
+mock, **63/63** for the Quest Log, **44/44** for authoring SQL, **49/49** for the
+real shared composer, **86/86** for the rail, **22/22** for rail docking,
+**20/20** for rail settings, **22/22** for the Journal records workspace,
+**65/65** for the Chronicle shelf, **89/89** for Journal, and **25/25** for the
+book/quest timeline; the Vite production build passes. The repository-wide
+sheet mount gate remains **49/50** on both this tree and untouched baseline
+`e2673fa7dd28` because its pre-existing manual-proficiency-label assertion
+fails. The remaining quest field gate is M's push followed by a signed-in
+desktop/mobile replay: type `@` inside rail Quest Description, select one known
+NPC and location, verify both hover cards in capture and the expanded Chronicle
+receipt, then confirm the same linked prose in Quest Log. No query flag or SQL
+is required.
+
 The approved standalone connection proof is
 `_edits/mock-quest-hub-world-rail.html`, contract
 `tok-quest-hub-projections/v1-candidate`. It keeps one canonical quest identity

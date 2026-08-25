@@ -10,7 +10,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  var VERSION = 'q-1';
+  var VERSION = 'q-2';
   var STATUSES = ['offered', 'active', 'completed', 'failed', 'archived'];
   var OBJECTIVE_STATES = ['locked', 'current', 'complete', 'failed'];
   var STATUS_ORDER = { active: 0, offered: 1, completed: 2, failed: 3, archived: 4 };
@@ -313,6 +313,15 @@
       var messages = [state.result.secretError, state.result.objectiveError, state.result.evidenceError, state.result.rewardError].filter(Boolean);
       return messages.length ? '<div class="q-notice">' + messages.map(esc).join(' ') + '</div>' : '';
     }
+    function descriptionHtml(value) {
+      return view && view.QuestFeedCapture && typeof view.QuestFeedCapture.descriptionHTML === 'function'
+        ? view.QuestFeedCapture.descriptionHTML(value)
+        : esc(value || 'No public summary recorded.');
+    }
+    function entityHtml(label, id, type, fallback) {
+      if (!label || !id) return '<b>' + esc(label || fallback) + '</b>';
+      return '<b class="' + type + '-link" data-' + type + '="' + esc(id) + '" tabindex="0">' + esc(label) + '</b>';
+    }
     function render() {
       if (!state.result || !state.result.quests.length) {
         root.innerHTML = '<div class="q-state"><b>No shared quests yet</b><p>No campaign quest has been published to the party.</p></div>';
@@ -322,9 +331,12 @@
       root.innerHTML = '<div class="q-app"><header class="q-head"><div><span>Guarded shared campaign reader</span><h1>Quest Log</h1><p>Shared campaign state—not a character\'s private Journal checklist.</p></div>' +
         (staff ? '<div class="q-audience" role="group" aria-label="Preview audience"><button type="button" data-audience="player" aria-pressed="' + (state.audience === 'player') + '">Player view</button><button type="button" data-audience="staff" aria-pressed="' + (state.audience === 'staff') + '">Staff view</button></div>' : '') + '</header>' +
         noticesHtml() + '<div class="q-workspace"><aside class="q-index"><header><span>Campaign threads</span><h2>Quests</h2><div class="q-filters"><button data-filter="active" aria-pressed="' + (state.filter === 'active') + '">Active</button><button data-filter="completed" aria-pressed="' + (state.filter === 'completed') + '">Completed</button><button data-filter="all" aria-pressed="' + (state.filter === 'all') + '">All</button></div></header><div class="q-list">' + questListHtml() + '</div></aside>' +
-        '<main class="q-main"><section class="q-hero"><div class="q-hero-line"><div><span>Shared quest · ' + esc(quest.id) + '</span><h2>' + esc(quest.title) + '</h2></div><b class="q-pill">' + esc(statusLabel(quest.status)) + '</b></div><p class="q-summary">' + esc(quest.summary || 'No public summary recorded.') + '</p><div class="q-meta"><div><span>Quest giver</span><b>' + esc(quest.giverLabel || 'Not recorded') + '</b></div><div><span>Destination</span><b>' + esc(quest.destinationLabel || 'No map destination') + '</b><small>' + esc(quest.destinationPrecision) + '</small></div><div><span>Progress</span><b>' + progress.label + ' complete</b></div></div><blockquote><b>What the party knows</b><p>' + esc(quest.publicHint || 'No public hint recorded.') + '</p></blockquote>' + staffTruthHtml(quest) + '</section>' +
+        '<main class="q-main"><section class="q-hero"><div class="q-hero-line"><div><span>Shared quest · ' + esc(quest.id) + '</span><h2>' + esc(quest.title) + '</h2></div><b class="q-pill">' + esc(statusLabel(quest.status)) + '</b></div><p class="q-summary">' + descriptionHtml(quest.summary || 'No public summary recorded.') + '</p><div class="q-meta"><div><span>Quest giver</span>' + entityHtml(quest.giverLabel, quest.giverId, 'npc', 'Not recorded') + '</div><div><span>Destination</span>' + entityHtml(quest.destinationLabel, quest.destinationLocationId, 'location', 'No map destination') + '<small>' + esc(quest.destinationPrecision) + '</small></div><div><span>Progress</span><b>' + progress.label + ' complete</b></div></div><blockquote><b>What the party knows</b><p>' + esc(quest.publicHint || 'No public hint recorded.') + '</p></blockquote>' + staffTruthHtml(quest) + '</section>' +
         '<div class="q-section-head"><h3>Objectives</h3><span>Completion requires attached campaign evidence</span></div><div class="q-objectives">' + objectivesHtml(quest) + '</div><div class="q-section-head"><h3>Rewards</h3><span>Promised, hidden, or awarded</span></div><div class="q-rewards">' + rewardsHtml(quest) + '</div></main>' +
         '<aside class="q-side"><header><span>Selected objective</span><h2>Evidence</h2><p>Campaign moments prove completed deeds; the quest never copies or rewrites them.</p></header><div class="q-selected"><b>' + esc(objective ? objective.title : 'No objective selected') + '</b><p>' + esc(objective ? objectiveLabel(objective.state) : '') + '</p></div><section class="q-destination"><span>World destination</span><b>' + esc(quest.destinationLabel || 'No destination recorded') + '</b><p>' + (quest.destinationPrecision === 'approximate' ? '? Approximate party knowledge; exact truth remains separate.' : quest.destinationPrecision === 'confirmed' ? 'Confirmed party destination.' : 'World has no quest destination to project.') + '</p></section><div class="q-evidence-list">' + evidenceHtml(objective) + '</div></aside></div></div>';
+      if (view && typeof view.attachTooltips === 'function') {
+        try { view.attachTooltips(root); } catch (_) {}
+      }
     }
     function onClick(event) {
       var button = event.target && event.target.closest ? event.target.closest('button,[data-quest],[data-objective]') : null;

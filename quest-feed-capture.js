@@ -6,6 +6,95 @@
   if (root) root.QuestFeedCapture = api;
 })(typeof window !== 'undefined' ? window : globalThis, function questFeedCaptureFactory() {
   const COMMAND = 'quest';
+  const DESCRIPTION_PREFIX = 'tok-quest-rich-v1:';
+
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function textParagraph(value) {
+    return { type: 'paragraph', content: value ? [{ type: 'text', text: String(value) }] : [] };
+  }
+
+  function normalizeInline(node) {
+    if (!node || typeof node !== 'object') return null;
+    if (node.type === 'text') {
+      const text = String(node.text || '');
+      return text ? { type: 'text', text } : null;
+    }
+    if (node.type === 'hardBreak') return { type: 'hardBreak' };
+    if (node.type !== 'tokMention') return null;
+    const attrs = node.attrs || {};
+    const type = attrs.type === 'npc' || attrs.type === 'location' ? attrs.type : '';
+    const label = String(attrs.label || '').trim();
+    if (!type || !label) return null;
+    return {
+      type: 'tokMention',
+      attrs: {
+        type,
+        key: String(attrs.key || attrs.id || '').trim(),
+        label,
+        resolved: Boolean(attrs.resolved),
+      },
+    };
+  }
+
+  function normalizeDoc(value) {
+    const source = value && typeof value === 'object' && value.type === 'doc' ? value : null;
+    const paragraphs = (source?.content || [])
+      .filter(node => node && node.type === 'paragraph')
+      .map(node => ({
+        type: 'paragraph',
+        content: (node.content || []).map(normalizeInline).filter(Boolean),
+      }));
+    return { type: 'doc', content: paragraphs.length ? paragraphs : [textParagraph('')] };
+  }
+
+  function descriptionDoc(value) {
+    if (value && typeof value === 'object') return normalizeDoc(value);
+    const raw = String(value || '');
+    if (raw.startsWith(DESCRIPTION_PREFIX)) {
+      try { return normalizeDoc(JSON.parse(raw.slice(DESCRIPTION_PREFIX.length))); }
+      catch (_) { return { type: 'doc', content: [textParagraph(raw)] }; }
+    }
+    return {
+      type: 'doc',
+      content: raw.split(/\r?\n/).map(textParagraph),
+    };
+  }
+
+  function encodeDescription(value) {
+    return DESCRIPTION_PREFIX + JSON.stringify(descriptionDoc(value));
+  }
+
+  function descriptionText(value) {
+    return descriptionDoc(value).content.map(paragraph => (
+      (paragraph.content || []).map(node => (
+        node.type === 'tokMention' ? `@${node.attrs.label}` : node.type === 'hardBreak' ? '\n' : node.text
+      )).join('')
+    )).join('\n');
+  }
+
+  function descriptionHTML(value) {
+    return descriptionDoc(value).content.map(paragraph => (
+      (paragraph.content || []).map(node => {
+        if (node.type === 'text') return esc(node.text);
+        if (node.type === 'hardBreak') return '<br>';
+        const attrs = node.attrs || {};
+        const label = `@${attrs.label}`;
+        if (!attrs.resolved || !attrs.key) {
+          return `<span class="quest-description-mention is-unresolved" title="Mention not linked">${esc(label)}</span>`;
+        }
+        const data = attrs.type === 'npc' ? 'data-npc' : 'data-location';
+        return `<span class="quest-description-mention ${attrs.type}-link" ${data}="${esc(attrs.key)}" tabindex="0">${esc(label)}</span>`;
+      }).join('')
+    )).join('<br>');
+  }
 
   function isEnabled(search) {
     return new URLSearchParams(String(search || '')).get('questCapture') === '1';
@@ -73,5 +162,18 @@
     };
   }
 
-  return { isEnabled, isRailEnabled, commandQuery, descriptionSeed, questTitle, selectedEntity, requestId, rpcPayload };
+  return {
+    isEnabled,
+    isRailEnabled,
+    commandQuery,
+    descriptionSeed,
+    questTitle,
+    selectedEntity,
+    requestId,
+    rpcPayload,
+    descriptionDoc,
+    encodeDescription,
+    descriptionText,
+    descriptionHTML,
+  };
 });

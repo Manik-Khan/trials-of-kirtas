@@ -1,23 +1,53 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { EditorContent, useEditor } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
 import { questTitle } from './data/questModel.js'
+import { descriptionDoc, descriptionHTML, descriptionText, encodeDescription } from './data/questDescription.js'
+import { TokMention } from './editor/MentionExtension.js'
+import { makeEntitySuggestion } from './editor/suggestion.js'
 
 const STEPS = ['What happened?', 'Who and where?', 'What needs doing?', 'Share']
 
 export default function QuestCaptureDialog({ open, initialDescription = '', npcs = [], locations = [], sourceLabel = '', onClose, onSubmit }) {
   const [step, setStep] = useState(0)
-  const [description, setDescription] = useState('')
+  const [descriptionRevision, setDescriptionRevision] = useState(0)
   const [giverId, setGiverId] = useState('')
   const [locationId, setLocationId] = useState('')
   const [objective, setObjective] = useState('')
   const [title, setTitle] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const previewRef = useRef(null)
+  const suggestion = useMemo(() => makeEntitySuggestion({ includeCharacters: false }), [])
+  const editor = useEditor({
+    extensions: [StarterKit.configure({
+      blockquote: false, bulletList: false, codeBlock: false, heading: false,
+      horizontalRule: false, orderedList: false, listItem: false,
+    }), TokMention.configure({ suggestion })],
+    content: descriptionDoc(initialDescription),
+    editorProps: { attributes: { class: 'j-quest-editor', 'aria-label': 'Quest description' } },
+    onUpdate: () => setDescriptionRevision(value => value + 1),
+  }, [suggestion])
 
   useEffect(() => {
     if (!open) return
-    setStep(0); setDescription(initialDescription); setGiverId(''); setLocationId('')
+    setStep(0); setGiverId(''); setLocationId('')
     setObjective(''); setTitle(''); setBusy(false); setError('')
-  }, [open, initialDescription])
+    editor?.commands.setContent(descriptionDoc(initialDescription), { emitUpdate: false })
+    setDescriptionRevision(value => value + 1)
+  }, [open, initialDescription, editor])
+
+  useEffect(() => {
+    if (!open || step !== 0 || !editor) return
+    const focus = setTimeout(() => editor.commands.focus('end'), 0)
+    return () => clearTimeout(focus)
+  }, [open, step, editor])
+
+  useEffect(() => {
+    if (!open || !window.attachTooltips) return
+    const root = step === 0 ? editor?.view.dom : previewRef.current
+    if (root) window.attachTooltips(root)
+  }, [open, step, descriptionRevision, editor])
 
   useEffect(() => {
     if (!open) return
@@ -29,14 +59,16 @@ export default function QuestCaptureDialog({ open, initialDescription = '', npcs
   const giver = useMemo(() => npcs.find(n => n.id === giverId) || null, [npcs, giverId])
   const location = useMemo(() => locations.find(n => n.id === locationId) || null, [locations, locationId])
   const finalTitle = questTitle(title, objective)
-  const canContinue = step === 0 ? !!description.trim() : step === 2 ? !!objective.trim() : true
+  const description = encodeDescription(editor?.getJSON() || descriptionDoc(initialDescription))
+  const readableDescription = descriptionText(description).trim()
+  const canContinue = step === 0 ? !!readableDescription && description.length <= 5000 : step === 2 ? !!objective.trim() : true
 
   const share = async () => {
-    if (!description.trim() || !objective.trim() || busy) return
+    if (!readableDescription || description.length > 5000 || !objective.trim() || busy) return
     setBusy(true); setError('')
     try {
       await onSubmit({
-        title: finalTitle, description: description.trim(), objective: objective.trim(),
+        title: finalTitle, description, objective: objective.trim(),
         giverId: giver?.id || null, giverLabel: giver?.label || null,
         locationId: location?.id || null, locationLabel: location?.label || null,
       })
@@ -64,9 +96,10 @@ export default function QuestCaptureDialog({ open, initialDescription = '', npcs
         {step === 0 && (
           <label className="j-quest-field">
             <span>Description</span>
-            <textarea autoFocus rows="6" value={description} maxLength="5000"
-              placeholder="The moment that made this a quest…" onChange={e => setDescription(e.target.value)} />
-            <small>This stays with the quest; your Journal page remains the full story.</small>
+            <div className="j-quest-editor-wrap">
+              <EditorContent editor={editor} />
+            </div>
+            <small>{description.length > 5000 ? 'This description is a little too long. Shorten it before continuing.' : 'Type @ to link a person or place. Your Journal page remains the full story.'}</small>
           </label>
         )}
         {step === 1 && (
@@ -103,14 +136,14 @@ export default function QuestCaptureDialog({ open, initialDescription = '', npcs
           </div>
         )}
         {step === 3 && (
-          <div className="j-quest-preview">
+          <div className="j-quest-preview" ref={previewRef}>
             <span className="j-quest-kicker">Quest begun</span>
             <h3>{finalTitle}</h3>
             <p className="j-quest-objective">{objective}</p>
-            <p>{description}</p>
+            <p dangerouslySetInnerHTML={{ __html: descriptionHTML(description) }} />
             {(giver || location) && <dl>
-              {giver && <><dt>Quest Giver</dt><dd>{giver.label}</dd></>}
-              {location && <><dt>Location</dt><dd>{location.label}</dd></>}
+              {giver && <><dt>Quest Giver</dt><dd className="npc-link" data-npc={giver.id} tabIndex="0">{giver.label}</dd></>}
+              {location && <><dt>Location</dt><dd className="location-link" data-location={location.id} tabIndex="0">{location.label}</dd></>}
             </dl>}
             <small>Begun from {sourceLabel || 'this Journal page'} · visible to the party</small>
           </div>

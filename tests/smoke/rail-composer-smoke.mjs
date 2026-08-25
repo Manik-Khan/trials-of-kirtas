@@ -41,6 +41,8 @@ const ALL = MINE.concat([
   { id: 'houses-of-the-capital', type: 'page', label: 'Houses of the Capital', hint: 'Narrator' },
 ]);
 const host = document.getElementById('host');
+let tooltipBinds = 0;
+dom.window.attachTooltips = () => { tooltipBinds++ };
 const createdEntities = [];
 const questCaptures = [];
 const pool = mc.buildPool(
@@ -126,6 +128,8 @@ ok(pick.querySelector('.mc-pick-badge').textContent === 'NPC', 'known NPC row na
 pressEnter();
 ok(sends === 0, 'picker-open Enter did not send');
 ok(!!ed.querySelector('[data-mention-key="general-darius"]'), 'picker-open Enter inserted the chip');
+ok(ed.querySelector('[data-mention-key="general-darius"]').getAttribute('data-npc') === 'general-darius', 'known NPC chip carries the established tooltip identity');
+ok(ed.querySelector('[data-mention-key="general-darius"]').tabIndex === 0 && tooltipBinds > 0, 'known NPC chip is keyboard-focusable and rebinds hover cards');
 ok(pick.style.display === 'none', 'picker closed after insert');
 
 // player character search → rose character chip, never an NPC
@@ -167,6 +171,7 @@ const body = mc.docToFeedBody(doc2);
 ok(!/^<p>/.test(body) && !/<\/p>$/.test(body), 'feed body drops the <p> wrapper');
 ok(body.includes('<br>'), 'paragraph break becomes <br>');
 ok(/data-mention-key="tiersgard"/.test(body) && /location-link/.test(body), 'chip span survives with the locked class');
+ok(/data-location="tiersgard"/.test(body) && /tabindex="0"/.test(body), 'serialized location chip retains the tooltip and keyboard contract');
 ok(body.includes('We ride for') && body.includes('Bring the letter'), 'both lines present');
 
 // ── the capture round-trip (feed body → journal page pieces) ────────

@@ -65,10 +65,16 @@ export const TokMention = Mention.extend({
   renderHTML({ node, HTMLAttributes }) {
     const a = node.attrs
     const typeAttr = a.resolved ? a.type : `${a.type}-unresolved`
+    const tooltipAttributes = a.resolved && a.type === 'npc'
+      ? { 'data-npc': a.id, tabindex: '0' }
+      : a.resolved && a.type === 'location'
+        ? { 'data-location': a.id, tabindex: '0' }
+        : {}
     return [
       'span',
       {
         ...HTMLAttributes,
+        ...tooltipAttributes,
         'data-mention-type': typeAttr,
         'data-mention-key': a.id,
         class: mentionClass(a),

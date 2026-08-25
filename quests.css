@@ -46,7 +46,7 @@ body { background:var(--ink); color:var(--parchment); font-family:var(--font-bod
 .q-hero-line>div { flex:1; }
 .q-hero h2 { margin:5px 0 0; color:var(--parchment); font:500 clamp(29px,3vw,38px)/1.04 var(--font-display,"Playfair Display",Georgia,serif); }
 .q-pill { flex:none; padding:6px 9px; border:1px solid currentColor; color:var(--gold-light); font:600 8px var(--font-title,"Oswald",sans-serif); letter-spacing:.14em; text-transform:uppercase; }
-.q-summary { max-width:760px; margin:12px 0 0; color:var(--look-card-text,var(--parchment2)); font-size:16px; line-height:1.5; }
+.q-summary { max-width:760px; margin:12px 0 0; color:var(--look-card-text,var(--parchment2)); font-size:16px; line-height:1.5; text-transform:none; }
 .q-meta { display:flex; flex-wrap:wrap; gap:7px; margin-top:15px; }
 .q-meta>div { min-width:145px; flex:1; padding:9px 11px; border:1px solid var(--look-border-soft,rgba(235,224,198,.15)); }
 .q-meta span { display:block; color:var(--muted); font-size:7px; }

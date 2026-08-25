@@ -22,6 +22,29 @@ ok(QuestFeedCapture.descriptionSeed('First beat\nThe skeleton held a note.\n/que
 ok(QuestFeedCapture.questTitle('', 'Find the bell.') === 'Find the bell', 'objective supplies an omitted title')
 ok(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(QuestFeedCapture.requestId(null)), 'fallback request identity is a v4 UUID')
 
+const richDescription = QuestFeedCapture.encodeDescription({
+  type: 'doc',
+  content: [{ type: 'paragraph', content: [
+    { type: 'text', text: 'Soldiers from ' },
+    { type: 'tokMention', attrs: { type: 'location', key: 'barrow-wastes', label: 'Barrow Wastes', resolved: true } },
+    { type: 'text', text: ' follow' },
+    { type: 'hardBreak' },
+    { type: 'tokMention', attrs: { type: 'npc', key: 'old-nan', label: 'Old Nan', resolved: true } },
+    { type: 'text', text: '.' },
+  ] }],
+})
+ok(richDescription.startsWith('tok-quest-rich-v1:'), 'rich descriptions use a versioned text-safe envelope')
+ok(QuestFeedCapture.descriptionText(richDescription) === 'Soldiers from @Barrow Wastes follow\n@Old Nan.', 'rich descriptions retain readable mention prose and line breaks')
+ok(QuestFeedCapture.descriptionHTML(richDescription).includes('follow<br>'), 'rich descriptions safely retain an intentional hard break')
+ok(QuestFeedCapture.descriptionHTML(richDescription).includes('class="quest-description-mention location-link" data-location="barrow-wastes"'), 'location mentions render through the established tooltip contract')
+ok(QuestFeedCapture.descriptionHTML(richDescription).includes('class="quest-description-mention npc-link" data-npc="old-nan"'), 'NPC mentions render through the established tooltip contract')
+ok(QuestFeedCapture.descriptionHTML('Plain <legacy> quest').includes('Plain &lt;legacy&gt; quest'), 'legacy quest prose stays readable and escaped')
+const unsafeDescription = QuestFeedCapture.encodeDescription({ type: 'doc', content: [{ type: 'paragraph', content: [
+  { type: 'text', text: '<img src=x onerror=alert(1)>' },
+  { type: 'tokMention', attrs: { type: 'character', key: 'bad', label: 'Nope', resolved: true } },
+] }] })
+ok(!QuestFeedCapture.descriptionHTML(unsafeDescription).includes('<img') && !QuestFeedCapture.descriptionHTML(unsafeDescription).includes('@Nope'), 'description renderer strips unsupported nodes and escapes prose')
+
 const payload = QuestFeedCapture.rpcPayload({
   requestId: '11111111-1111-4111-8111-111111111111',
   title: 'The Bell Beneath', description: 'A bell rings below.', objective: 'Find the bell',
@@ -32,7 +55,7 @@ ok(payload.p_origin === 'chronicle' && payload.p_source_feed_post_id === 77, 'RP
 ok(payload.p_giver_label === 'Old Nan' && payload.p_location_label === 'Barrow Wastes', 'RPC payload keeps plain giver and location labels')
 ok(payload.p_source_journal_page_id === null, 'Feed origin invents no Journal source')
 
-ok(page.includes('quest-feed-capture.js?v=qfc2'), 'Chronicle loads the stamped capture helper')
+ok(page.includes('quest-feed-capture.js?v=qfc3'), 'Chronicle loads the stamped capture helper')
 ok(page.includes('Begin a quest<span class="inline-dropdown-hint">'), 'partial command has a visible person-facing suggestion')
 ok(/source === 'user' && maybeOpenQuestCapture\(\)/.test(page), 'final command opens directly while typing')
 ok(/getText\(\)\.trim\(\)\.toLowerCase\(\) === '\/quest'/.test(page), 'Submit Entry catches an exact command as fallback')

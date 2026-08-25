@@ -12,12 +12,12 @@ import { entityStore } from '../data/entityStore.js'
 import { buildItems, resolveMentionInsert } from './match.js'
 import { prepareSuggestionPopup } from './popupTheme.js'
 
-export function makeEntitySuggestion({ onCreateEntity } = {}) {
+export function makeEntitySuggestion({ onCreateEntity, includeCharacters = true } = {}) {
   return {
   char: '@',
   allowSpaces: true, // multi-word queries: "@Lord Rey…"
 
-  items: ({ query }) => buildItems(query, entityStore.characters(), entityStore.npcs(), entityStore.locations(), entityStore.aliases()),
+  items: ({ query }) => buildItems(query, includeCharacters ? entityStore.characters() : [], entityStore.npcs(), entityStore.locations(), entityStore.aliases()),
 
   // Choosing "new NPC / new location" creates the candidate right away.
   // It stays visibly unresolved until staff confirms it. Characters are
