@@ -1016,6 +1016,45 @@
     .section-dialog-toast { position: fixed; z-index: 650; left: 50%; bottom: 24px; transform: translate(-50%,16px); padding: 0.6rem 0.9rem; border: 1px solid rgba(112,170,135,0.45); background: #17251f; color: #a8d4b8; opacity: 0; pointer-events: none; transition: opacity 0.16s, transform 0.16s; font-family: var(--font-title); font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; white-space: nowrap; }
     .section-dialog-toast.show { opacity: 1; transform: translate(-50%,0); }
 
+    /* ── Guarded in-game quest capture ── */
+    .quest-capture-backdrop { position: fixed; inset: 0; z-index: 640; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(3,6,5,0.78); backdrop-filter: blur(5px); }
+    .quest-capture-backdrop.hidden { display: none; }
+    .quest-capture-dialog { width: min(540px,100%); max-height: calc(100vh - 40px); overflow-y: auto; background: var(--section-bg); border: 1px solid var(--gold-dim); box-shadow: 0 26px 80px rgba(0,0,0,0.78); }
+    .quest-capture-head { display: flex; justify-content: space-between; gap: 1rem; padding: 1.5rem 1.65rem 1.1rem; }
+    .quest-capture-kicker { color: var(--gold); font-family: var(--font-title); font-size: 0.7rem; letter-spacing: 0.23em; text-transform: uppercase; }
+    .quest-capture-title { margin: 0.42rem 0 0; color: var(--parchment); font-family: var(--font-display); font-size: 1.55rem; font-weight: 400; }
+    .quest-capture-close { align-self: flex-start; border: 0; background: none; color: var(--muted); font-size: 1.45rem; cursor: pointer; }
+    .quest-capture-close:hover { color: var(--aged); }
+    .quest-capture-close:disabled { opacity: 0.4; cursor: wait; }
+    .quest-capture-progress { display: grid; grid-template-columns: repeat(4,1fr); gap: 5px; padding: 0 1.65rem 1.1rem; border-bottom: 1px solid rgba(184,149,42,0.16); }
+    .quest-capture-progress span { height: 2px; background: rgba(184,149,42,0.18); }
+    .quest-capture-progress span.is-on { background: var(--gold); }
+    .quest-capture-body { padding: 1.25rem 1.65rem 1.4rem; }
+    .quest-capture-step.hidden { display: none; }
+    .quest-capture-field { display: block; margin-top: 1rem; }
+    .quest-capture-field:first-child { margin-top: 0; }
+    .quest-capture-field > span { display: block; color: var(--gold); font-family: var(--font-title); font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; }
+    .quest-capture-field em { color: var(--muted); font-family: var(--font-body); font-size: 0.74rem; letter-spacing: 0; text-transform: none; }
+    .quest-capture-field textarea, .quest-capture-field input, .quest-capture-field select { width: 100%; margin-top: 0.48rem; padding: 0.7rem 0.75rem; border: 1px solid var(--gold-dim); border-radius: 0; outline: none; background: rgba(0,0,0,0.22); color: var(--parchment); font-family: var(--font-body); font-size: 0.95rem; }
+    .quest-capture-field textarea { resize: vertical; line-height: 1.55; }
+    .quest-capture-field textarea:focus, .quest-capture-field input:focus, .quest-capture-field select:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(184,149,42,0.09); }
+    .quest-capture-field small, .quest-capture-note { display: block; margin-top: 0.4rem; color: var(--muted); font-size: 0.75rem; font-style: italic; line-height: 1.45; }
+    .quest-capture-preview { padding: 1rem; border: 1px solid rgba(184,149,42,0.2); background: rgba(0,0,0,0.18); }
+    .quest-capture-preview h3 { margin: 0.45rem 0 0; color: var(--parchment); font-family: var(--font-display); font-size: 1.3rem; font-weight: 400; }
+    .quest-capture-preview p { margin: 0.65rem 0 0; color: var(--aged); line-height: 1.5; }
+    .quest-capture-preview .objective { color: var(--parchment2); font-weight: 600; }
+    .quest-capture-preview dl { display: grid; grid-template-columns: auto 1fr; gap: 0.3rem 0.7rem; margin: 0.9rem 0 0; }
+    .quest-capture-preview dt { color: var(--muted); font-family: var(--font-title); font-size: 0.68rem; letter-spacing: 0.13em; text-transform: uppercase; }
+    .quest-capture-preview dd { margin: 0; color: var(--aged); }
+    .quest-capture-source { display: block; margin-top: 0.9rem; color: var(--muted); font-size: 0.72rem; font-style: italic; }
+    .quest-capture-error { min-height: 1rem; margin: 0.75rem 0 0; color: #e07b6d; font-size: 0.78rem; line-height: 1.4; }
+    .quest-capture-actions { display: flex; justify-content: flex-end; gap: 0.55rem; margin-top: 1.15rem; }
+    .quest-capture-btn { min-width: 116px; padding: 0.6rem 0.8rem; border: 1px solid var(--gold-dim); background: transparent; color: var(--muted); font-family: var(--font-title); font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; }
+    .quest-capture-btn:hover { border-color: var(--gold); color: var(--aged); }
+    .quest-capture-btn.primary { border-color: var(--gold); background: rgba(184,149,42,0.12); color: var(--gold-light); }
+    .quest-capture-btn.primary:hover { background: rgba(184,149,42,0.22); }
+    .quest-capture-btn:disabled { opacity: 0.5; cursor: wait; }
+
     /* ── Session prompt modal ── */
     .session-prompt-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 400; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
     .session-prompt-backdrop.hidden { display: none; }
@@ -1080,6 +1119,13 @@
       .section-dialog-actions { flex-direction: column-reverse; }
       .section-dialog-btn { width: 100%; }
       .section-dialog-toast { bottom: 16px; max-width: calc(100vw - 32px); white-space: normal; text-align: center; }
+      .quest-capture-backdrop { padding: 12px; }
+      .quest-capture-dialog { max-height: calc(100vh - 24px); }
+      .quest-capture-head { padding: 1.25rem 1.2rem 0.95rem; }
+      .quest-capture-progress { padding: 0 1.2rem 0.95rem; }
+      .quest-capture-body { padding: 1.05rem 1.2rem 1.2rem; }
+      .quest-capture-actions { flex-direction: column-reverse; }
+      .quest-capture-btn { width: 100%; min-height: 44px; }
     }
     /* ════ Server browser (Phase 3A): channel tree, combat pane, search ════ */
     .sv-scope { display: flex; gap: 4px; padding: 0 1.1rem 0.5rem; }
@@ -1272,6 +1318,65 @@
 </div>
 <div class="section-dialog-toast" id="section-dialog-toast" role="status">Section added · visible in the book outline</div>
 
+<!-- Guarded /quest capture for the Chronicle Feed composer -->
+<div class="quest-capture-backdrop hidden" id="quest-capture" onclick="closeQuestCaptureFromBackdrop(event)">
+  <section class="quest-capture-dialog" role="dialog" aria-modal="true" aria-labelledby="quest-capture-title">
+    <header class="quest-capture-head">
+      <div>
+        <div class="quest-capture-kicker" id="quest-capture-kicker">Quest capture · 1 of 4</div>
+        <h2 class="quest-capture-title" id="quest-capture-title">What happened?</h2>
+      </div>
+      <button type="button" class="quest-capture-close" id="quest-capture-close" onclick="closeQuestCapture()" aria-label="Close quest capture">×</button>
+    </header>
+    <div class="quest-capture-progress" id="quest-capture-progress" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    <div class="quest-capture-body">
+      <div class="quest-capture-step" data-quest-step="0">
+        <label class="quest-capture-field">
+          <span>Description</span>
+          <textarea id="quest-description" rows="6" maxlength="5000" placeholder="The moment that made this a quest…" oninput="updateQuestCapturePreview()"></textarea>
+          <small>This becomes the quest description. The Chronicle entry remains the full story.</small>
+        </label>
+      </div>
+      <div class="quest-capture-step hidden" data-quest-step="1">
+        <label class="quest-capture-field">
+          <span>Quest Giver <em>optional</em></span>
+          <select id="quest-giver" onchange="updateQuestCapturePreview()"><option value="">No quest giver</option></select>
+        </label>
+        <label class="quest-capture-field">
+          <span>Location <em>optional</em></span>
+          <select id="quest-location" onchange="updateQuestCapturePreview()"><option value="">No location yet</option></select>
+        </label>
+        <p class="quest-capture-note">These connect the quest to the same people and places used across the world.</p>
+      </div>
+      <div class="quest-capture-step hidden" data-quest-step="2">
+        <label class="quest-capture-field">
+          <span>Objective</span>
+          <textarea id="quest-objective" rows="4" maxlength="500" placeholder="What needs to be done?" oninput="updateQuestCapturePreview()"></textarea>
+        </label>
+        <label class="quest-capture-field">
+          <span>Quest title <em>optional</em></span>
+          <input id="quest-title" maxlength="160" placeholder="We’ll use the objective if this is blank" oninput="updateQuestCapturePreview()">
+        </label>
+      </div>
+      <div class="quest-capture-step hidden" data-quest-step="3">
+        <div class="quest-capture-preview">
+          <span class="quest-capture-kicker">Quest begun</span>
+          <h3 id="quest-preview-title">Untitled quest</h3>
+          <p class="objective" id="quest-preview-objective"></p>
+          <p id="quest-preview-description"></p>
+          <dl id="quest-preview-links"></dl>
+          <small class="quest-capture-source" id="quest-preview-source"></small>
+        </div>
+      </div>
+      <p class="quest-capture-error" id="quest-capture-error" role="alert"></p>
+      <footer class="quest-capture-actions">
+        <button type="button" class="quest-capture-btn" id="quest-capture-back" onclick="moveQuestCapture(-1)">Cancel</button>
+        <button type="button" class="quest-capture-btn primary" id="quest-capture-next" onclick="moveQuestCapture(1)">Continue</button>
+      </footer>
+    </div>
+  </section>
+</div>
+
 <!-- Inline dropdown (@ and #) -->
 <div class="inline-dropdown" id="inline-dropdown"></div>
 
@@ -1411,6 +1516,7 @@
 <script src="battle.js?v=settings1"></script>
 <script src="feed-bridge.js"></script>
 <script src="feed-render.js"></script>
+<script src="quest-feed-capture.js?v=qfc1"></script>
 <script>
 // ══════════════════════════════════════════════════════════
 // CONFIG
@@ -1581,9 +1687,11 @@ let drawerOpen      = false;
 let quill           = null;
 let editingEntryId  = null;
 let pendingSessionPromptFingerprint = null;
+const QUEST_CAPTURE_ENABLED = !!(window.QuestFeedCapture && QuestFeedCapture.isEnabled(location.search));
+let questCaptureState = null;
 
 // Inline dropdown state
-let inlineMode      = null; // 'mention' | 'tag'
+let inlineMode      = null; // 'mention' | 'tag' | 'quest'
 let inlineQuery     = '';
 let inlineRawQuery  = '';
 let inlineFocusIdx  = 0;
@@ -1729,12 +1837,167 @@ function clearDraft() {
 }
 
 // ══════════════════════════════════════════════════════════
+// GUARDED /QUEST CAPTURE
+// ══════════════════════════════════════════════════════════
+const QUEST_CAPTURE_STEPS = ['What happened?', 'Who and where?', 'What needs doing?', 'Share'];
+
+function maybeOpenQuestCapture() {
+  if (!QUEST_CAPTURE_ENABLED || !quill || editingEntryId) return false;
+  const sel = quill.getSelection();
+  if (!sel) return false;
+  const before = quill.getText(0, sel.index);
+  const command = QuestFeedCapture.commandQuery(before, before.length);
+  if (!command || !command.exact) return false;
+  const seed = QuestFeedCapture.descriptionSeed(before, command.index);
+  quill.deleteText(command.index, command.length, 'silent');
+  quill.setSelection(command.index, 0, 'silent');
+  hideInlineDropdown();
+  saveDraft();
+  openQuestCapture(seed);
+  return true;
+}
+
+function populateQuestEntitySelect(id, items, blankLabel) {
+  const select = document.getElementById(id);
+  const selected = select.value;
+  const seen = new Set();
+  const options = (items || []).filter(item => {
+    const key = String(item.key || '').trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a,b) => String(a.name).localeCompare(String(b.name)));
+  select.replaceChildren(new Option(blankLabel, ''));
+  options.forEach(item => select.add(new Option(item.name, item.key)));
+  if (options.some(item => String(item.key) === selected)) select.value = selected;
+}
+
+function openQuestCapture(seed = '') {
+  if (!QUEST_CAPTURE_ENABLED) return;
+  if (editingEntryId) {
+    setDrawerStatus('Finish editing this entry before beginning a quest.', 'error');
+    return;
+  }
+  if (!questCaptureState) {
+    questCaptureState = {
+      step: 0,
+      requestId: QuestFeedCapture.requestId(window.crypto),
+      sourceFeedPostId: null,
+      busy: false,
+    };
+    document.getElementById('quest-description').value = seed || '';
+    document.getElementById('quest-giver').value = '';
+    document.getElementById('quest-location').value = '';
+    document.getElementById('quest-objective').value = '';
+    document.getElementById('quest-title').value = '';
+  } else if (!document.getElementById('quest-description').value.trim() && seed) {
+    document.getElementById('quest-description').value = seed;
+  }
+  populateQuestEntitySelect('quest-giver', getKnownNPCs(), 'No quest giver');
+  populateQuestEntitySelect('quest-location', getKnownLocations(), 'No location yet');
+  document.getElementById('quest-capture-error').textContent = '';
+  document.getElementById('quest-capture').classList.remove('hidden');
+  renderQuestCapture();
+}
+
+function closeQuestCapture() {
+  if (questCaptureState && questCaptureState.busy) return;
+  document.getElementById('quest-capture').classList.add('hidden');
+  if (quill) setTimeout(() => quill.focus(), 20);
+}
+
+function closeQuestCaptureFromBackdrop(event) {
+  if (event.target === event.currentTarget) closeQuestCapture();
+}
+
+function questCaptureDetails() {
+  const giverId = document.getElementById('quest-giver').value;
+  const locationId = document.getElementById('quest-location').value;
+  const giver = QuestFeedCapture.selectedEntity(getKnownNPCs(), giverId);
+  const place = QuestFeedCapture.selectedEntity(getKnownLocations(), locationId);
+  const objective = document.getElementById('quest-objective').value.trim();
+  return {
+    title: QuestFeedCapture.questTitle(document.getElementById('quest-title').value, objective),
+    description: document.getElementById('quest-description').value.trim(),
+    objective,
+    giverId: giver ? giver.key : null,
+    giverLabel: giver ? giver.name : null,
+    locationId: place ? place.key : null,
+    locationLabel: place ? place.name : null,
+  };
+}
+
+function updateQuestCapturePreview() {
+  if (!questCaptureState) return;
+  const details = questCaptureDetails();
+  document.getElementById('quest-preview-title').textContent = details.title || 'Untitled quest';
+  document.getElementById('quest-preview-objective').textContent = details.objective;
+  document.getElementById('quest-preview-description').textContent = details.description;
+  const links = document.getElementById('quest-preview-links');
+  links.replaceChildren();
+  [['Quest Giver', details.giverLabel], ['Location', details.locationLabel]].forEach(([label, value]) => {
+    if (!value) return;
+    const dt = document.createElement('dt'); dt.textContent = label;
+    const dd = document.createElement('dd'); dd.textContent = value;
+    links.append(dt, dd);
+  });
+  const session = document.getElementById('d-session').value || currentSession;
+  document.getElementById('quest-preview-source').textContent = `Begun from this Session ${session} Chronicle entry · visible to the party`;
+}
+
+function renderQuestCapture() {
+  const step = questCaptureState ? questCaptureState.step : 0;
+  document.getElementById('quest-capture-kicker').textContent = `Quest capture · ${step + 1} of ${QUEST_CAPTURE_STEPS.length}`;
+  document.getElementById('quest-capture-title').textContent = QUEST_CAPTURE_STEPS[step];
+  document.querySelectorAll('[data-quest-step]').forEach(el => el.classList.toggle('hidden', Number(el.dataset.questStep) !== step));
+  document.querySelectorAll('#quest-capture-progress span').forEach((el,i) => el.classList.toggle('is-on', i <= step));
+  const back = document.getElementById('quest-capture-back');
+  const next = document.getElementById('quest-capture-next');
+  back.textContent = step ? 'Back' : 'Cancel';
+  next.textContent = step === 3 ? 'Begin quest' : 'Continue';
+  back.disabled = !!questCaptureState?.busy;
+  next.disabled = !!questCaptureState?.busy;
+  document.getElementById('quest-capture-close').disabled = !!questCaptureState?.busy;
+  updateQuestCapturePreview();
+  const focusId = ['quest-description','quest-giver','quest-objective',null][step];
+  if (focusId) setTimeout(() => document.getElementById(focusId)?.focus(), 20);
+}
+
+async function moveQuestCapture(direction) {
+  if (!questCaptureState || questCaptureState.busy) return;
+  const error = document.getElementById('quest-capture-error');
+  error.textContent = '';
+  if (direction < 0) {
+    if (questCaptureState.step === 0) closeQuestCapture();
+    else { questCaptureState.step -= 1; renderQuestCapture(); }
+    return;
+  }
+  const details = questCaptureDetails();
+  if (questCaptureState.step === 0 && !details.description) {
+    error.textContent = 'Add the moment that made this a quest.';
+    return;
+  }
+  if (questCaptureState.step === 2 && !details.objective) {
+    error.textContent = 'Add one clear thing that needs to be done.';
+    return;
+  }
+  if (questCaptureState.step < 3) {
+    questCaptureState.step += 1;
+    renderQuestCapture();
+    return;
+  }
+  await submitQuestCapture(details);
+}
+
+// ══════════════════════════════════════════════════════════
 // QUILL INIT
 // ══════════════════════════════════════════════════════════
 function initQuill() {
   quill = new Quill('#quill-editor', {
     theme: 'snow',
-    placeholder: 'Write what happened… Use @ to mention characters, NPCs, or locations; # to add tags',
+    placeholder: QUEST_CAPTURE_ENABLED
+      ? 'Write what happened… Type /quest to begin a quest; use @ for people and places'
+      : 'Write what happened… Use @ to mention characters, NPCs, or locations; # to add tags',
     modules: {
       toolbar: [
         ['bold','italic','strike'],
@@ -1761,6 +2024,7 @@ function initQuill() {
   // Save draft on change
   quill.on('text-change', (delta, old, source) => {
     saveDraft();
+    if (source === 'user' && maybeOpenQuestCapture()) return;
     handleInlineInput();
 
     // If the current format still has a mention color active after typing,
@@ -1793,8 +2057,17 @@ function handleInlineInput() {
   const sel = quill.getSelection();
   if (!sel) return;
   const text = quill.getText(0, sel.index);
+  const questQuery = QUEST_CAPTURE_ENABLED ? QuestFeedCapture.commandQuery(text, text.length) : null;
   const atIdx   = text.lastIndexOf('@');
   const hashIdx = text.lastIndexOf('#');
+
+  if (questQuery && !questQuery.exact) {
+    inlineMode = 'quest';
+    inlineQuery = questQuery.query;
+    inlineRange = { index: questQuery.index, length: questQuery.length };
+    showInlineDropdown();
+    return;
+  }
 
   // Check if last character typed is a terminator while in mention mode
   const lastChar = text.slice(-1);
@@ -1879,7 +2152,10 @@ function showInlineDropdown() {
   const dd = document.getElementById('inline-dropdown');
   inlineFocusIdx = 0;
 
-  if (inlineMode === 'mention') {
+  if (inlineMode === 'quest') {
+    dd.innerHTML = `<div class="inline-dropdown-section">Chronicle action</div>
+      <div class="inline-dropdown-item" onclick="chooseQuestCapture()"><span class="inline-dropdown-icon">◇</span><span class="inline-dropdown-name">Begin a quest<span class="inline-dropdown-hint">Capture this moment without leaving the game</span></span><span class="inline-dropdown-type location">/quest</span></div>`;
+  } else if (inlineMode === 'mention') {
     const chars = getKnownCharacters().filter(n=>n.name.toLowerCase().includes(inlineQuery)||n.key.includes(inlineQuery));
     const npcs  = getKnownNPCs().filter(n=>n.name.toLowerCase().includes(inlineQuery)||n.key.includes(inlineQuery));
     const locs  = getKnownLocations().filter(l=>l.name.toLowerCase().includes(inlineQuery)||l.key.includes(inlineQuery));
@@ -2066,6 +2342,18 @@ function insertTag(tag) {
   quill.deleteText(inlineRange.index, inlineRange.length);
   quill.insertText(inlineRange.index, `#${tag} `, { 'color': 'var(--gold)', 'bold': false });
   hideInlineDropdown();
+}
+
+function chooseQuestCapture() {
+  if (!inlineRange || !quill) return;
+  const text = quill.getText();
+  const seed = QuestFeedCapture.descriptionSeed(text, inlineRange.index);
+  const at = inlineRange.index;
+  quill.deleteText(at, inlineRange.length, 'silent');
+  quill.setSelection(at, 0, 'silent');
+  hideInlineDropdown();
+  saveDraft();
+  openQuestCapture(seed);
 }
 
 function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
@@ -3169,9 +3457,7 @@ async function deleteEntry(id) {
 // ══════════════════════════════════════════════════════════
 // SUBMIT
 // ══════════════════════════════════════════════════════════
-async function submitEntry() {
-  if (!currentIdentity) { openModal(); return; }
-
+function prepareChronicleComposer(fallbackText = '') {
   // Apply mentionMap to any spans that weren't tagged by the DOM tagger
   // (catches cases where Quill re-rendered before the setTimeout ran)
   if (quill) {
@@ -3186,11 +3472,13 @@ async function submitEntry() {
   }
 
   const sessionNum = parseInt(document.getElementById('d-session').value);
-  const rawHTML    = quill ? quill.root.innerHTML : '';
+  let rawHTML      = quill ? quill.root.innerHTML : '';
+  let plainText    = quill ? quill.getText().trim() : '';
+  if (!plainText && fallbackText) {
+    plainText = fallbackText.trim();
+    rawHTML = `<p>${inlineEsc(plainText).replace(/\n/g, '<br>')}</p>`;
+  }
   const text       = rawHTML.replace(/<p><br><\/p>/g,'').trim();
-
-  if (!sessionNum && sessionNum !== 0) { setDrawerStatus('Please enter a session number.','error'); return; }
-  if (!text || text === '<p></p>') { setDrawerStatus('Please write something before submitting.','error'); return; }
 
   // Extract #hashtags — always lowercase for consistent filtering
   const tagMatches = rawHTML.match(/#([a-zA-Z][a-zA-Z0-9_-]*)/g)||[];
@@ -3222,6 +3510,75 @@ async function submitEntry() {
     ...(location && { location }),
   };
   const actorKey = currentIdentity.playerId === 'dm' ? null : currentIdentity.playerId;
+  return { sessionNum, text, plainText, cleanHTML, tags, meta, actorKey };
+}
+
+async function submitQuestCapture(details) {
+  if (!currentIdentity) { closeQuestCapture(); openModal(); return; }
+  const prepared = prepareChronicleComposer(details.description);
+  const errorEl = document.getElementById('quest-capture-error');
+  if (!prepared.sessionNum && prepared.sessionNum !== 0) { errorEl.textContent = 'Choose a Chronicle session first.'; return; }
+  if (!prepared.text || prepared.text === '<p></p>') { errorEl.textContent = 'The Chronicle entry needs a story moment.'; return; }
+
+  questCaptureState.busy = true;
+  renderQuestCapture();
+  document.getElementById('quest-capture-next').textContent = 'Sharing…';
+  errorEl.textContent = '';
+  try {
+    if (!SB) throw new Error('The signed-in game connection is unavailable.');
+    if (!questCaptureState.sourceFeedPostId) {
+      const { data, error } = await SB.from('feed')
+        .insert({ channel: 'chronicle', kind: 'message', session: prepared.sessionNum,
+                  actor_key: prepared.actorKey, actor_name: currentIdentity.name,
+                  body: prepared.cleanHTML, tags: prepared.tags.length ? prepared.tags : null, meta: prepared.meta })
+        .select().single();
+      if (error) throw new Error(`Chronicle entry: ${error.message}`);
+      questCaptureState.sourceFeedPostId = data.id;
+      if (!allEntries.some(entry => entry._rowId === data.id)) allEntries = [rowToEntry(data), ...allEntries];
+      renderSidebar();
+      renderEntries();
+    }
+
+    const { data, error } = await SB.rpc('create_quest', QuestFeedCapture.rpcPayload({
+      ...details,
+      requestId: questCaptureState.requestId,
+      sourceFeedPostId: questCaptureState.sourceFeedPostId,
+    }));
+    if (error) throw new Error(`Quest: ${error.message}`);
+    const questId = data?.quest?.id || null;
+    const questName = details.title;
+    questCaptureState = null;
+    document.getElementById('quest-capture').classList.add('hidden');
+    clearDraft();
+    setDrawerStatus(`Quest begun — ${questName}`, 'success');
+    if (questId) {
+      const status = document.getElementById('drawer-status');
+      status.innerHTML = `Quest begun — <a href="quests.html?questLog=1&quest=${encodeURIComponent(questId)}">${inlineEsc(questName)}</a>`;
+    }
+  } catch(e) {
+    const sourceSaved = !!questCaptureState.sourceFeedPostId;
+    errorEl.textContent = `${sourceSaved ? 'The Chronicle entry was saved, but the quest did not begin. ' : ''}${e.message} Your details are still here; try again.`;
+    questCaptureState.busy = false;
+    renderQuestCapture();
+  }
+}
+
+async function submitEntry() {
+  if (!currentIdentity) { openModal(); return; }
+  if (QUEST_CAPTURE_ENABLED && !editingEntryId && quill && quill.getText().trim().toLowerCase() === '/quest') {
+    const command = QuestFeedCapture.commandQuery(quill.getText(), quill.getText().trimEnd().length);
+    if (command) {
+      quill.deleteText(command.index, command.length, 'silent');
+      saveDraft();
+      openQuestCapture('');
+      return;
+    }
+  }
+
+  const prepared = prepareChronicleComposer();
+  const { sessionNum, text, cleanHTML, tags, meta, actorKey } = prepared;
+  if (!sessionNum && sessionNum !== 0) { setDrawerStatus('Please enter a session number.','error'); return; }
+  if (!text || text === '<p></p>') { setDrawerStatus('Please write something before submitting.','error'); return; }
 
   setDrawerStatus('Submitting…','loading');
   document.getElementById('drawer-submit').disabled = true;

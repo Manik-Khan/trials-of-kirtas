@@ -380,6 +380,35 @@ deployed desktop/mobile Chronicle confirmation remain the field gates before
 removing the flag. Quest Hub authoring, World, rail, `@quest`, completion, and
 navigation runtime remain outside this slice.
 
+The next live field report clarified that the tested **Feed** at
+`chronicle.html` is a separate Quill composer, not the TipTap Journal surface
+above. Six literal `/quest` Feed cards proved that the deployed Feed submission
+path treated the command as ordinary Chronicle prose; those real rows remain
+untouched. The earlier Journal correction therefore did not solve the surface
+the player was using.
+
+The local Feed correction is now also behind `?questCapture=1`. Partial `/quest`
+typing opens one visible **Begin a quest** suggestion, the final `t` removes the
+command and opens section 1 directly, and the ordinary **Submit Entry** path
+catches an exact `/quest` as a fallback instead of creating another literal
+card. The approved four sections reuse the Feed's Living Codex NPC/location
+identities and plain labels. Sharing first saves the originating Chronicle
+prose, retains that real feed identity, and then calls only the installed
+`create_quest(...)` RPC; a failed or lost RPC response leaves the entered quest
+details and source identity available for a no-duplicate retry. No SQL changed.
+
+The new pure/Feed gate passes **20/20**; `quest-feed-capture.js`, its smoke, and
+the Chronicle inline script pass syntax checks. The existing authoring SQL and
+Quest reader gates remain **44/44** and **61/61**. A local interaction pass with
+the real Feed capture helper plus the production Chronicle markup/styles proves
+the visible suggestion, exact-command handoff, seeded description, and readable
+section-1 dialog at desktop and 390×844. The older jsdom-based Chronicle patch
+smoke could not start because this checkout has no `jsdom` dependency. The
+remaining field gate is the deployed signed-in path at
+`chronicle.html?questCapture=1`: create one reviewed real Chronicle-origin quest,
+confirm its source entry and immediately anchored **Quest begun** receipt, then
+repeat the interaction on mobile before removing the flag.
+
 The approved standalone connection proof is
 `_edits/mock-quest-hub-world-rail.html`, contract
 `tok-quest-hub-projections/v1-candidate`. It keeps one canonical quest identity
