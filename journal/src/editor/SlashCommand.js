@@ -10,6 +10,8 @@ import Suggestion from '@tiptap/suggestion'
 import { ReactRenderer } from '@tiptap/react'
 import { computePosition, flip, shift, offset } from '@floating-ui/dom'
 import { SlashList } from './SlashList.jsx'
+import { isQuestCaptureQuery } from '../data/questModel.js'
+import { prepareSuggestionPopup } from './popupTheme.js'
 
 // A command clears its own trigger text first, then acts. `chain` arrives
 // already focused and with the "/query" range deleted.
@@ -86,11 +88,30 @@ export const SlashCommand = Extension.create({
         render: () => {
           let component
           let popupEl
+          let questTriggered = false
+
+          const clearPopup = () => {
+            popupEl?.remove()
+            component?.destroy()
+            component = null
+            popupEl = null
+          }
+
+          // `/quest` is an action, not merely a menu search. Run as soon as
+          // the final `t` lands; selecting the menu row remains a fallback.
+          const runExactQuest = props => {
+            if (!this.options.onQuest || questTriggered || !isQuestCaptureQuery(props.query)) return false
+            questTriggered = true
+            clearPopup()
+            queueMicrotask(() => props.command(questCommand(this.options.onQuest)))
+            return true
+          }
 
           const place = clientRect => {
             if (!popupEl || !clientRect) return
             computePosition({ getBoundingClientRect: clientRect }, popupEl, {
               placement: 'bottom-start',
+              strategy: 'fixed',
               middleware: [offset(6), flip(), shift({ padding: 8 })],
             }).then(({ x, y }) => {
               Object.assign(popupEl.style, { left: `${x}px`, top: `${y}px` })
@@ -99,23 +120,26 @@ export const SlashCommand = Extension.create({
 
           return {
             onStart: props => {
+              if (runExactQuest(props)) return
               component = new ReactRenderer(SlashList, { props, editor: props.editor })
               popupEl = document.createElement('div')
               popupEl.className = 'jm-popup'
+              prepareSuggestionPopup(popupEl, props.editor)
               popupEl.appendChild(component.element)
               document.body.appendChild(popupEl)
               place(props.clientRect)
             },
-            onUpdate: props => { component?.updateProps(props); place(props.clientRect) },
+            onUpdate: props => {
+              if (runExactQuest(props)) return
+              component?.updateProps(props); place(props.clientRect)
+            },
             onKeyDown: props => {
               if (props.event.key === 'Escape') { popupEl?.remove(); return true }
               return component?.ref?.onKeyDown(props) ?? false
             },
             onExit: () => {
-              popupEl?.remove()
-              component?.destroy()
-              component = null
-              popupEl = null
+              clearPopup()
+              questTriggered = false
             },
           }
         },

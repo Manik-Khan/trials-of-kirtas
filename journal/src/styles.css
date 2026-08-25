@@ -922,7 +922,7 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
 .tok-callout p:last-child { margin-bottom: 0; }
 
 /* ── suggestion popup ── */
-.jm-popup { position: absolute; top: 0; left: 0; z-index: 1000; }
+.jm-popup { position: fixed; top: 0; left: 0; z-index: 1000; }
 .jm-dropdown {
   min-width: 260px; max-width: 340px;
   background: var(--sh-paper);

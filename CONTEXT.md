@@ -357,8 +357,20 @@ starts. Quest-load failure narrates itself without blanking Chronicle prose.
 With the flag absent, `/quest`, quest reads, quest realtime, and milestones all
 remain off.
 
-The Journal Vite build passes. Focused pure/adapter gates pass **24/24** and
-**86/86**; the unchanged shelf gate passes **65/65**, records workspace passes
+The first deployed typing pass exposed one interaction mismatch: `/quest`
+filtered the slash menu but still required selecting **Begin a quest**. The
+local correction now executes the capture immediately when the final `t` is
+typed, removes `/quest` from the prose, and retains menu selection as a
+fallback. The real TipTap editor reproduction opens section 1 directly with no
+browser warnings/errors. The same field report exposed that body-portalled
+suggestion menus lost the Journal's page-local ink/paper tokens and could be
+effectively invisible. The shared popup seam now carries those tokens across
+the portal and uses fixed viewport positioning; real-editor proof shows the
+`/que` menu on paper with readable ink, then `/quest` hands directly into
+capture. The correction also covers the existing `@` and `[[` menus.
+
+The Journal Vite build passes. Focused pure/adapter gates pass **25/25** and
+**89/89**; the unchanged shelf gate passes **65/65**, records workspace passes
 **22/22**, the production Quest reader passes **61/61**, and the four existing
 Quest SQL/mock gates pass **232/232**. Local production-component browser proof
 at 1280×720 and 390×844 covers all four capture sections, the expanded

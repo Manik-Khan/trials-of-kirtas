@@ -1,6 +1,6 @@
 // smoke-book.mjs — the book model: feed rows → chapters. Pure, no DOM.
 import { buildBook, rowToBookEntry, facetCounts, entryMatches } from './src/data/bookModel.js'
-import { buildQuestStarts, chaptersWithQuestSessions, mergeStoryTimeline, questCaptureEnabled, questTitle, questStartsBySession } from './src/data/questModel.js'
+import { buildQuestStarts, chaptersWithQuestSessions, isQuestCaptureQuery, mergeStoryTimeline, questCaptureEnabled, questTitle, questStartsBySession } from './src/data/questModel.js'
 let pass = 0, fail = 0
 const t = (n, c) => { c ? (pass++, console.log('  ✓ ' + n)) : (fail++, console.log('  ✗ ' + n)) }
 const R = (o) => ({ channel: 'chronicle', kind: 'message', hidden: false, meta: {}, ...o })
@@ -75,6 +75,7 @@ const questStarts = buildQuestStarts({
   ],
 })
 t('quest flag is explicit and off by default', !questCaptureEnabled('?view=both') && questCaptureEnabled('?view=both&questCapture=1'))
+t('/quest exact query triggers regardless of case, but partial searches do not', isQuestCaptureQuery('quest') && isQuestCaptureQuery('QUEST') && !isQuestCaptureQuery('ques'))
 t('optional quest title falls back to the objective', questTitle('', 'Deliver the letter.') === 'Deliver the letter')
 t('quest starts join canonical quest + first objective detail', questStarts[0].title === 'The Bell Beneath' && questStarts[0].objective === 'Find the bell' && questStarts[0].giverLabel === 'Old Nan')
 t('quest starts group by Chronicle session', questStartsBySession(questStarts)[4][0].questId === 'q1')

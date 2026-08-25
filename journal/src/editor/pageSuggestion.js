@@ -4,6 +4,7 @@
 import { ReactRenderer } from '@tiptap/react'
 import { computePosition, flip, shift, offset } from '@floating-ui/dom'
 import { MentionList } from './MentionList.jsx'
+import { prepareSuggestionPopup } from './popupTheme.js'
 
 import { buildPageItems } from './pagelink-core.js'
 export { resolvePageLinkClick } from './pagelink-core.js'
@@ -42,6 +43,7 @@ export function makePageSuggestion({ vault, onCreatePage } = {}) {
         if (!popupEl || !clientRect) return
         computePosition({ getBoundingClientRect: clientRect }, popupEl, {
           placement: 'bottom-start',
+          strategy: 'fixed',
           middleware: [offset(6), flip(), shift({ padding: 8 })],
         }).then(({ x, y }) => Object.assign(popupEl.style, { left: `${x}px`, top: `${y}px` }))
       }
@@ -51,6 +53,7 @@ export function makePageSuggestion({ vault, onCreatePage } = {}) {
           component = new ReactRenderer(MentionList, { props, editor: props.editor })
           popupEl = document.createElement('div')
           popupEl.className = 'jm-popup'
+          prepareSuggestionPopup(popupEl, props.editor)
           popupEl.appendChild(component.element)
           document.body.appendChild(popupEl)
           place(props.clientRect)
@@ -68,5 +71,4 @@ export function makePageSuggestion({ vault, onCreatePage } = {}) {
     },
   }
 }
-
 

@@ -5,6 +5,10 @@ export function questCaptureEnabled(search = '') {
   return new URLSearchParams(search).get('questCapture') === '1'
 }
 
+export function isQuestCaptureQuery(query) {
+  return String(query || '').trim().toLowerCase() === 'quest'
+}
+
 export function questTitle(title, objective) {
   const named = String(title || '').trim()
   if (named) return named

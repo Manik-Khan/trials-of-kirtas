@@ -210,6 +210,12 @@ ed4.destroy()
 const slashSource = fs.readFileSync(new URL('./src/editor/SlashCommand.js', import.meta.url), 'utf8')
 t('/quest is configured as a TipTap slash action', slashSource.includes("label: 'Begin a quest'") && slashSource.includes("keys: 'quest begin start capture"))
 t('/quest stays absent unless App supplies the flagged callback', slashSource.includes('const commands = onQuest ? [questCommand(onQuest), ...COMMANDS] : COMMANDS'))
+t('typing the exact /quest query executes without requiring menu selection', slashSource.includes('queueMicrotask(() => props.command(questCommand(this.options.onQuest)))'))
+const popupThemeSource = fs.readFileSync(new URL('./src/editor/popupTheme.js', import.meta.url), 'utf8')
+t('body-portalled suggestion menus inherit the Journal reading tokens', popupThemeSource.includes("'--sh-paper'") && popupThemeSource.includes("'--sh-ink-soft'"))
+t('slash, @, and [[ menus all use the visible fixed-position popup seam',
+  ['SlashCommand.js', 'suggestion.js', 'pageSuggestion.js'].every(file =>
+    fs.readFileSync(new URL(`./src/editor/${file}`, import.meta.url), 'utf8').includes('prepareSuggestionPopup(popupEl, props.editor)')))
 
 
 // ── 7. supabase adapter against a stub client ──
