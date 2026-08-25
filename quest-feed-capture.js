@@ -11,6 +11,10 @@
     return new URLSearchParams(String(search || '')).get('questCapture') === '1';
   }
 
+  function isRailEnabled(search) {
+    return new URLSearchParams(String(search || '')).get('questCapture') !== '0';
+  }
+
   function commandQuery(text, cursor) {
     const before = String(text || '').slice(0, Number(cursor) || 0);
     const match = before.match(/(?:^|\s)\/([a-z]*)$/i);
@@ -69,5 +73,5 @@
     };
   }
 
-  return { isEnabled, commandQuery, descriptionSeed, questTitle, selectedEntity, requestId, rpcPayload };
+  return { isEnabled, isRailEnabled, commandQuery, descriptionSeed, questTitle, selectedEntity, requestId, rpcPayload };
 });

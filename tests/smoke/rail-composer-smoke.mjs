@@ -42,6 +42,7 @@ const ALL = MINE.concat([
 ]);
 const host = document.getElementById('host');
 const createdEntities = [];
+const questCaptures = [];
 const pool = mc.buildPool(
   { npcs: { chonkalius: { name: 'Chonkalius' }, 'general-darius': { name: 'General Darius' } }, locations: {} },
   [],
@@ -54,6 +55,7 @@ const composer = mc.createComposer(host, {
   pool: () => pool,
   pageTabs: () => [ { id: 'mine', label: 'My notes', items: MINE }, { id: 'all', label: 'All', items: ALL } ],
   onNewEntity: item => createdEntities.push(item),
+  onQuest: event => questCaptures.push(event),
 });
 const ed = composer.el;
 const pick = host.querySelector('.mc-pick');
@@ -71,6 +73,16 @@ function type(text) {
   ed.dispatchEvent(new dom.window.Event('input', { bubbles: false }));
   return t;
 }
+
+// /quest uses the same visible picker, then executes immediately on the final t.
+type('The skeleton held a note. /que');
+ok(pick.style.display !== 'none' && pick.textContent.includes('Begin a quest'), '/que shows the quest action in the rail picker');
+type('The skeleton held a note. /ques');
+ok(questCaptures.length === 0 && pick.style.display !== 'none', 'the partial command stays a suggestion through the final keystroke');
+type('The skeleton held a note. /quest');
+await Promise.resolve();
+ok(questCaptures.length === 1 && questCaptures[0].seed === 'The skeleton held a note.', 'exact /quest opens directly with the current prose seed');
+ok(ed.textContent.trim() === 'The skeleton held a note.', 'exact /quest removes only the command from the Feed prose');
 
 // [[ with no query → tab strip + my-notes items
 type('see [[');

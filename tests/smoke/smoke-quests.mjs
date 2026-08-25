@@ -131,7 +131,7 @@ ok(source.includes('the quest never copies or rewrites them'), 'production UI na
 ok(!/\.insert\s*\(|\.update\s*\(|\.delete\s*\(/.test(source), 'guarded client has no write path');
 ok(css.includes('@media(max-width:720px)') && css.includes('min-height:64px'), 'mobile layout retains touch-sized evidence links');
 ok(page.includes('quests.css?v=q1') && page.includes('quests.js?v=q1') && page.includes('campaign-moments.js?v=cm2'), 'production page loads cache-stamped quest and campaign readers');
-ok(/characters\.js[\s\S]*nav\.js\?v=sup5[\s\S]*battle\.js\?v=settings1/.test(page), 'production page loads battle.js only after its character dependency');
+ok(/characters\.js[\s\S]*nav\.js\?v=sup6[\s\S]*battle\.js\?v=settings1/.test(page), 'production page loads battle.js only after its character dependency');
 ok(page.includes('data-quest-root') && page.includes('window.Quests.mount'), 'dedicated page mounts the guarded reader');
 ok(!nav.includes("{ label: 'Quests'"), 'global navigation remains untouched before field promotion');
 const inline = [...page.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/g)].map(match => match[1]).find(block => block.includes('startQuestLog'));

@@ -542,7 +542,7 @@ function mountRail() {
   if (document.getElementById('tok-rail-js')) return;   // inject once
   const s = document.createElement('script');
   s.id = 'tok-rail-js';
-  s.src = 'rail.js?v=alerts1';
+  s.src = 'rail.js?v=quest1';
   s.defer = true;
   document.body.appendChild(s);
 }

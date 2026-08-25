@@ -23,6 +23,7 @@ const ok = (cond, label) => { if (cond) pass++; else { fail++; console.log('  FA
 
 const FEED_RENDER_SRC = readFileSync('./feed-render.js', 'utf8');
 const RAIL_SETTINGS_SRC = readFileSync('./rail-settings.js', 'utf8');
+const QUEST_CAPTURE_SRC = readFileSync('./quest-feed-capture.js', 'utf8');
 const RAIL_SRC = readFileSync('./rail.js', 'utf8');
 
 const CHARACTERS = {
@@ -47,7 +48,7 @@ function makeSb(state) {
     const b = {
       _t: table, _op: 'select', _row: null,
       select() { return b; }, eq(key, value) { b._eq = [key, value]; return b; }, neq() { return b; },
-      order() { return b; }, limit() { return b; }, maybeSingle() { return b; },
+      order() { return b; }, limit() { return b; }, maybeSingle() { return b; }, single() { b._single = true; return b; },
       insert(row) { b._op = 'insert'; b._row = row; return b; },
       delete() { b._op = 'delete'; return b; },
       then(res, rej) { return Promise.resolve(result(b)).then(res, rej); },
@@ -57,7 +58,9 @@ function makeSb(state) {
   function result(b) {
     if (b._op === 'insert') {
       if (state.nextInsertError) { const message = state.nextInsertError; state.nextInsertError = null; return { data: null, error: { message } }; }
-      state.inserts.push(b._row); return { data: null, error: null };
+      const stored = b._single ? { id: 101 + state.inserts.length, created_at: '2026-08-25T04:00:00Z', author_id: 'u-cos', ...b._row } : b._row;
+      state.inserts.push(stored);
+      return { data: b._single ? stored : null, error: null };
     }
     if (b._op === 'delete') { state.deletes.push(true); return { data: null, error: null }; }
     if (b._t === 'campaign') return { data: { current_session: 14 }, error: null };
@@ -69,6 +72,7 @@ function makeSb(state) {
   }
   return {
     from(t) { return builder(t); },
+    rpc(name, payload) { state.rpcs.push({ name, payload }); return Promise.resolve({ data: { ok: true, quest: { id: 'quest-test' } }, error: null }); },
     channel() {
       const ch = {
         on(type, filter, callback) { state.handlers.push({ type, filter, callback }); return ch; },
@@ -86,7 +90,7 @@ async function makeRail({ role, characterKey, withBattle = true, preferences = n
   window.Math.random = () => 0.5; Math.random = () => 0.5;
   window.CHARACTERS = CHARACTERS;
   const state = {
-    inserts: [], deletes: [], feedRows: feedRows(), nextInsertError: null, handlers: [], notifications: [], permissionRequests: 0,
+    inserts: [], deletes: [], rpcs: [], feedRows: feedRows(), nextInsertError: null, handlers: [], notifications: [], permissionRequests: 0,
     encounter: { id: 'enc1', name: 'The Sunken Vault', status: 'active', round: 1, active_combatant_id: 'comb-ves' },
     combatants: [
       { id: 'comb-cos', source_key: 'cosmere', name: 'Cosmere', side: 'party' },
@@ -107,6 +111,7 @@ async function makeRail({ role, characterKey, withBattle = true, preferences = n
   window.eval(FEED_RENDER_SRC);   // window.FeedRender
   if (preferences) window.localStorage.setItem('tok.preferences.v1', JSON.stringify(preferences));
   window.eval(RAIL_SETTINGS_SRC); // window.TokPreferences + Settings rider
+  window.eval(QUEST_CAPTURE_SRC); // window.QuestFeedCapture
   let readyFired = false;
   window.document.addEventListener('tok-rail:ready', () => { readyFired = true; });
   window.eval(RAIL_SRC);          // boots; awaits __tok.ready internally
@@ -179,6 +184,27 @@ async function makeRail({ role, characterKey, withBattle = true, preferences = n
   ok(msg && msg.channel === 'chronicle' && msg.kind === 'message', 'B: plain text → chronicle/message');
   ok(msg && msg.actor_name === 'Dungeon Master' && msg.actor_key === null, 'B: DM posts with no actor_key');
   ok(msg && msg.session === 14 && msg.encounter_id === 'enc1', 'B: insert stamped with session + active encounter');
+
+  // /quest belongs to the universal Feed composer, not only the Journal/Chronicle page.
+  inp.value = '/quest';
+  inp.dispatchEvent(new document.defaultView.Event('input', { bubbles: true }));
+  const questVeil = rail.querySelector('[data-rail="questveil"]');
+  ok(questVeil.classList.contains('on'), 'B: exact /quest opens the contained rail capture immediately');
+  ok(!state.inserts.some(r => r.body === '/quest'), 'B: /quest never posts as dormant Feed prose');
+  rail.querySelector('[data-rail="questdescription"]').value = 'A skeleton held a bottle with a note.';
+  rail.querySelector('[data-rail="questnext"]').click(); // who and where
+  rail.querySelector('[data-rail="questnext"]').click(); // objective
+  rail.querySelector('[data-rail="questobjective"]').value = 'Deliver the note to its intended recipient';
+  rail.querySelector('[data-rail="questtitle"]').value = 'The Last Letter';
+  rail.querySelector('[data-rail="questnext"]').click(); // share
+  rail.querySelector('[data-rail="questnext"]').click(); // begin
+  await settle();
+  const questSource = state.inserts.find(r => r.channel === 'chronicle' && /skeleton held/.test(r.body || ''));
+  const questRpc = state.rpcs.find(r => r.name === 'create_quest');
+  ok(!!questSource && questSource.hidden === false, 'B: quest capture saves one party-visible Chronicle source row');
+  ok(!!questRpc && questRpc.payload.p_source_feed_post_id === questSource.id, 'B: create_quest receives the real Feed source identity');
+  ok(questRpc && questRpc.payload.p_title === 'The Last Letter' && questRpc.payload.p_origin === 'chronicle', 'B: rail sends the approved title and Chronicle origin through the narrow RPC');
+  ok(!questVeil.classList.contains('on'), 'B: successful quest creation closes and narrates in the rail');
 
   // a /roll posts a roll row to combat
   inp.value = '/roll 1d20+5';

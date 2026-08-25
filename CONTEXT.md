@@ -409,6 +409,33 @@ remaining field gate is the deployed signed-in path at
 confirm its source entry and immediately anchored **Quest begun** receipt, then
 repeat the interaction on mobile before removing the flag.
 
+M's next field report clarified the final surface mismatch: live commit
+`e0ed30f` corrected the dedicated Chronicle page, but the universal site-wide
+right rail still knew only `/roll`, `@`, and `[[`. Therefore `/quest` in that
+rail remained ordinary dormant text. The right-rail correction is now local and
+enabled by default on every authenticated page; `?questCapture=0` is its explicit
+rollback switch. Partial `/quest` opens the shared **Begin a quest** suggestion,
+and the exact command removes only `/quest`, preserves the surrounding Feed
+story, and opens the approved four-section capture inside the rail. The plain
+input fallback has the same exact-command guard, so neither composer path can
+post a literal `/quest` card.
+
+Sharing first creates one party-visible Chronicle Feed source row with the real
+session, encounter, and author identity, then passes that row to the installed
+`create_quest(...)` RPC. The retained request UUID and source ID make a failed or
+lost RPC response safely retryable without duplicating the story. NPC and
+location choices come from the rail's existing Living Codex pool, and all
+authenticated campaign members use the same path. No SQL changed. Focused gates
+pass **85/85** for the production rail, **46/46** for the real shared composer,
+**21/21** for the quest helper, **22/22** for rail docking, **20/20** for rail
+settings, and **22/22** for the Journal records workspace. A local browser pass
+with the actual `rail.js` and `mention-composer.js` proves `/que` discovery,
+exact-command handoff, seeded prose, all four sections, Old Nan and Barrow Wastes
+connections, the final preview, exact 390×844 containment, and no quest write.
+The remaining field gate is M's push followed by one reviewed signed-in quest
+from the normal site-wide rail on desktop and mobile; confirm the public Feed
+source and resulting **Quest begun** receipt. No query flag is required.
+
 The approved standalone connection proof is
 `_edits/mock-quest-hub-world-rail.html`, contract
 `tok-quest-hub-projections/v1-candidate`. It keeps one canonical quest identity

@@ -263,6 +263,7 @@ function makeChip(doc, item) {
                         (e.g. My notes / All). Wins over pageItems when
                         present; tabs are click-switched in the picker.
      onNewEntity(item)  — optional: an unresolved @ was chip-inserted
+     onQuest({ seed })  — optional: /quest action (exact typing opens now)
    }) → { el, getDoc, getRefs, isEmpty, clear, focus }                   */
 export function createComposer(host, opts) {
   opts = opts || {};
@@ -280,7 +281,7 @@ export function createComposer(host, opts) {
   wrap.appendChild(ed); wrap.appendChild(pick);
   host.appendChild(wrap);
 
-  let items = [], sel = 0, trig = null;   // trig = {kind:'@'|'[[', node, start}
+  let items = [], sel = 0, trig = null;   // trig = {kind:'@'|'[['|'/', node, start}
 
   /* find an open trigger in the text node before the caret */
   function findTrigger() {
@@ -294,6 +295,10 @@ export function createComposer(host, opts) {
     if (m) return { kind: '[[', node: r.startContainer, start: r.startOffset - m[0].length, query: m[1] };
     m = text.match(/(^|[\s\u00a0(])@([\w' \-\u00c0-\u024f]{0,40})$/);
     if (m) return { kind: '@', node: r.startContainer, start: r.startOffset - m[0].length + m[1].length, query: m[2] };
+    if (opts.onQuest) {
+      m = text.match(/(^|[\s\u00a0(])\/([a-z]{0,20})$/i);
+      if (m) return { kind: '/', node: r.startContainer, start: r.startOffset - m[0].length + m[1].length, query: m[2] };
+    }
     return null;
   }
 
@@ -307,6 +312,12 @@ export function createComposer(host, opts) {
       if (!items.length) html += '<div class="mc-pick-none">no matching pages</div>';
     }
     items.forEach((it, i) => {
+      if (it.type === 'command') {
+        html += '<div class="mc-pick-item command' + (i === sel ? ' sel' : '') + '" data-i="' + i + '">' +
+                '<span class="mc-pick-icon">◇</span><span class="nm">' + esc(it.label) +
+                '<span class="ht">' + esc(it.hint) + '</span></span><span class="mc-pick-badge">/quest</span></div>';
+        return;
+      }
       if (it.type === 'page') {
         if (it.section !== lastSec) { lastSec = it.section; html += '<div class="mc-pick-sec">' + esc(it.section) + '</div>'; }
         html += '<div class="mc-pick-item' + (i === sel ? ' sel' : '') + '" data-i="' + i + '">' +
@@ -331,10 +342,31 @@ export function createComposer(host, opts) {
   }
   function closePick() { trig = null; items = []; curTabs = null; pick.style.display = 'none'; }
 
+  function executeQuest() {
+    if (!trig || trig.kind !== '/' || !opts.onQuest) return;
+    const node = trig.node;
+    const before = node.nodeValue.slice(0, trig.start);
+    const seed = before.split(/\r?\n/).map(s => s.trim()).filter(Boolean).pop() || '';
+    const sWin = doc.defaultView.getSelection();
+    const to = sWin && sWin.rangeCount ? sWin.getRangeAt(0).startOffset : node.nodeValue.length;
+    const range = doc.createRange();
+    range.setStart(node, trig.start); range.setEnd(node, Math.min(to, node.nodeValue.length));
+    range.deleteContents();
+    closePick();
+    queueMicrotask(() => opts.onQuest({ seed }));
+  }
+
   function refresh() {
     trig = findTrigger();
     if (!trig) { closePick(); return; }
-    if (trig.kind === '[[') {
+    if (trig.kind === '/') {
+      const q = trig.query.toLowerCase();
+      if (q === 'quest') { executeQuest(); return; }
+      curTabs = null;
+      items = 'quest'.startsWith(q)
+        ? [{ type: 'command', label: 'Begin a quest', hint: 'Capture this moment without leaving the game' }]
+        : [];
+    } else if (trig.kind === '[[') {
       const q = trig.query.toLowerCase().trim();
       let pages;
       if (opts.pageTabs) {
@@ -357,6 +389,7 @@ export function createComposer(host, opts) {
 
   function insertChip(item) {
     if (!trig) return;
+    if (item && item.type === 'command') { executeQuest(); return; }
     const node = trig.node, from = trig.start;
     const sWin = doc.defaultView.getSelection();
     const to = sWin && sWin.rangeCount ? sWin.getRangeAt(0).startOffset : node.nodeValue.length;

@@ -13,6 +13,7 @@ function ok(condition, label) {
 }
 
 ok(!QuestFeedCapture.isEnabled('') && QuestFeedCapture.isEnabled('?questCapture=1'), 'capture remains behind its explicit field flag')
+ok(QuestFeedCapture.isRailEnabled('') && !QuestFeedCapture.isRailEnabled('?questCapture=0'), 'right-rail capture is live by default with an explicit rollback door')
 ok(QuestFeedCapture.commandQuery('/que', 4)?.query === 'que', 'partial /quest opens the suggestion seam')
 ok(QuestFeedCapture.commandQuery('Found the note\n/quest', 21)?.exact === true, 'exact /quest is detected at the cursor')
 ok(QuestFeedCapture.commandQuery('do/quest', 8) === null, 'slash command requires a word boundary')
@@ -31,7 +32,7 @@ ok(payload.p_origin === 'chronicle' && payload.p_source_feed_post_id === 77, 'RP
 ok(payload.p_giver_label === 'Old Nan' && payload.p_location_label === 'Barrow Wastes', 'RPC payload keeps plain giver and location labels')
 ok(payload.p_source_journal_page_id === null, 'Feed origin invents no Journal source')
 
-ok(page.includes('quest-feed-capture.js?v=qfc1'), 'Chronicle loads the stamped capture helper')
+ok(page.includes('quest-feed-capture.js?v=qfc2'), 'Chronicle loads the stamped capture helper')
 ok(page.includes('Begin a quest<span class="inline-dropdown-hint">'), 'partial command has a visible person-facing suggestion')
 ok(/source === 'user' && maybeOpenQuestCapture\(\)/.test(page), 'final command opens directly while typing')
 ok(/getText\(\)\.trim\(\)\.toLowerCase\(\) === '\/quest'/.test(page), 'Submit Entry catches an exact command as fallback')

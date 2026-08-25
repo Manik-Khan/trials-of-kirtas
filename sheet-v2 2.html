@@ -183,7 +183,7 @@ body::after{
 
 <div id="sheet-root"></div>
 
-<script src="nav.js?v=sup5"></script>
+<script src="nav.js?v=sup6"></script>
 <script src="dice-engine.js"></script>
 <script src="armor-ac.js?v=um1"></script>
 <script src="equip-slots.js"></script>
@@ -194,7 +194,7 @@ body::after{
 <script src="soul-shards-data.js?v=ves1"></script>
 <script type="module">
   import { mountSheet } from './sheet-mount.js?v=src12';
-  import { mountJournalCapture } from './journal-capture.js?v=jc3';
+  import { mountJournalCapture } from './journal-capture.js?v=jc4';
   var key = new URLSearchParams(location.search).get('character') || 'cosmere';
   var root = document.getElementById('sheet-root');
   var mounted = mountSheet(root, key);
