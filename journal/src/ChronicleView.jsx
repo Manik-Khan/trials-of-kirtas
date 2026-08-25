@@ -12,6 +12,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { CHRONICLE } from './data/chronicleSample.js'
 import { buildBook, buildFights, fightsBySession, facetCounts, filterBookEntries, indexActive } from './data/bookModel.js'
+import { buildQuestStarts, chaptersWithQuestSessions, mergeStoryTimeline, questStartsBySession } from './data/questModel.js'
 import { chaptersToVolumes, flattenVolumeEntries, nextOpen, keyOpen } from './shelf/shelfModel.js'
 import { seatColor } from './comments/accents.js'
 import RecordsModeSwitch from './RecordsModeSwitch.jsx'
@@ -74,15 +75,6 @@ function PanelEntry({ e, accents }) {
   )
 }
 
-// merge a session's prose entries with its fights, in narrative time order,
-// so a fight appears at the moment it broke out.
-function mergeTimeline(entries, fights) {
-  const items = (entries || []).map(e => ({ t: e.at, k: 'entry', e }))
-  ;(fights || []).forEach(f => items.push({ t: f.startAt, k: 'fight', f }))
-  items.sort((a, b) => a.t - b.t)
-  return items
-}
-
 function FightRoll({ r, accents }) {
   const nameColor = r.side === 'party' ? seatColor(r.seat, accents) : r.side === 'enemy' ? '#b06a5a' : 'var(--sh-accent)'
   const ring = r.side === 'party' ? '#4a6aa0' : r.side === 'enemy' ? '#a05a6a' : 'var(--sh-accent)'
@@ -97,6 +89,33 @@ function FightRoll({ r, accents }) {
         <div className="feed-meta"><span className="feed-name" style={{ color: nameColor }}>{r.name}</span> · roll · {fmtTime(r.at)}</div>
         <div className="feed-text" dangerouslySetInnerHTML={{ __html: r.body }} />
       </div>
+    </div>
+  )
+}
+
+export function QuestStartBlock({ q }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="sh-quest-start" id={`quest-${q.id}`}>
+      <div className="sh-quest-lead">Quest begun</div>
+      <button type="button" className={`sh-quest-head${open ? ' is-open' : ''}`}
+        aria-expanded={open} onClick={() => setOpen(value => !value)}>
+        <span className="sh-quest-caret">▶</span>
+        <span className="sh-quest-title">{q.title}</span>
+        <span className="sh-quest-objective">{q.objective}</span>
+      </button>
+      {open && (
+        <div className="sh-quest-details">
+          <p>{q.description}</p>
+          {(q.giverLabel || q.locationLabel) && (
+            <dl>
+              {q.giverLabel && <><dt>Quest Giver</dt><dd>{q.giverLabel}</dd></>}
+              {q.locationLabel && <><dt>Location</dt><dd>{q.locationLabel}</dd></>}
+            </dl>
+          )}
+          <a href={`quests.html?questLog=1&quest=${encodeURIComponent(q.questId)}`}>Open in Quest Hub →</a>
+        </div>
+      )}
     </div>
   )
 }
@@ -258,11 +277,13 @@ function IndexOverlay({ open, fs, facets, seatNames, volumes, results, accents, 
 // keystrokes typed into a field belong to the field, not the shelf
 const inField = t => !!(t && (t.closest && t.closest('input, textarea, select, [contenteditable="true"]')))
 
-export default function ChronicleView({ live = false, store = null, accents = {}, isStaff = false, recordsMode = 'chronicle', onRecordsModeChange = () => {} }) {
+export default function ChronicleView({ live = false, store = null, accents = {}, isStaff = false, questCapture = false, recordsMode = 'chronicle', onRecordsModeChange = () => {} }) {
   const [rows, setRows] = useState(null)
   const [combatRows, setCombatRows] = useState([])   // channel:'combat' feed rows
   const [encMap, setEncMap] = useState({})           // encounter id → name
   const [titles, setTitles] = useState({})       // canonical session → title
+  const [questStarts, setQuestStarts] = useState([])
+  const [questErr, setQuestErr] = useState(null)
   const [err, setErr] = useState(null)
   const [openIdx, setOpenIdx] = useState(null)
   const [peek, setPeek] = useState(null)         // {i, x, y} | null
@@ -289,6 +310,15 @@ export default function ChronicleView({ live = false, store = null, accents = {}
     return () => { stale = true }
   }, [live, store])
 
+  useEffect(() => {
+    if (!questCapture || !live || !store?.loadQuestStarts) return
+    let stale = false
+    store.loadQuestStarts()
+      .then(payload => { if (!stale) { setQuestStarts(buildQuestStarts(payload)); setQuestErr(null) } })
+      .catch(e => { if (!stale) setQuestErr(e.message) })
+    return () => { stale = true }
+  }, [questCapture, live, store])
+
   // live: fold realtime changes into the book — chronicle prose AND combat
   // rolls emerge at the table (edits/deletes reflect) with no refresh. Additive;
   // when not live this never runs, so the load-once path is untouched.
@@ -305,21 +335,33 @@ export default function ChronicleView({ live = false, store = null, accents = {}
       onUpdate: row => setRows(cur => (cur ? upsert(cur, row) : cur)),
       onCombatInsert: row => setCombatRows(cur => upsert(cur || [], row)),
       onCombatUpdate: row => setCombatRows(cur => upsert(cur || [], row)),
+      onQuestStart: questCapture && store.loadQuestStarts
+        ? () => store.loadQuestStarts()
+          .then(payload => { setQuestStarts(buildQuestStarts(payload)); setQuestErr(null) })
+          .catch(e => setQuestErr(e.message))
+        : null,
       onDelete: id => {
         setRows(cur => (cur ? cur.filter(r => r.id !== id) : cur))
         setCombatRows(cur => (cur ? cur.filter(r => r.id !== id) : cur))
       },
     })
     return unsub
-  }, [live, store])
+  }, [live, store, questCapture])
 
   const chapters = useMemo(
-    () => (live && rows ? buildBook(rows) : (live ? [] : CHRONICLE)),
-    [live, rows],
+    () => chaptersWithQuestSessions(
+      live && rows ? buildBook(rows) : (live ? [] : CHRONICLE),
+      questCapture ? questStarts : [],
+    ),
+    [live, rows, questCapture, questStarts],
   )
   const fightsBySess = useMemo(
     () => (live ? fightsBySession(buildFights(combatRows, encMap)) : {}),
     [live, combatRows, encMap],
+  )
+  const questStartsBySess = useMemo(
+    () => (questCapture ? questStartsBySession(questStarts) : {}),
+    [questCapture, questStarts],
   )
   const volumes = useMemo(() => chaptersToVolumes(chapters, titles), [chapters, titles])
 
@@ -497,6 +539,7 @@ export default function ChronicleView({ live = false, store = null, accents = {}
 
   return (
     <div className="sh-book">
+      {questErr && <div className="sh-quest-warning" role="status">Quest milestones could not load ({questErr}). The Chronicle itself is still available.</div>}
       <div className="sh-shelf" ref={shelfRef} onMouseLeave={() => setPeek(null)}>
         <IndexOverlay
           open={ixOpen} fs={fs} facets={facets} seatNames={seatNames}
@@ -571,14 +614,14 @@ export default function ChronicleView({ live = false, store = null, accents = {}
                   </header>
 
                   {(() => {
-                    const marks = mergeTimeline(vol.entries, fightsBySess[vol.session])
-                      .filter(it => it.k === 'fight' || it.e.kind === 'section')
+                    const marks = mergeStoryTimeline(vol.entries, fightsBySess[vol.session], questStartsBySess[vol.session])
+                      .filter(it => it.k === 'fight' || it.k === 'quest' || it.e.kind === 'section')
                     if (marks.length < 2) return null
                     return (
                       <nav className="sh-outline" aria-label="In this session">
                         {marks.map((it, oi) => {
-                          const id = it.k === 'fight' ? `fight-${it.f.id}` : `sec-${it.e.id}`
-                          const label = it.k === 'fight' ? `⚔ ${it.f.encounter}` : it.e.section
+                          const id = it.k === 'fight' ? `fight-${it.f.id}` : it.k === 'quest' ? `quest-${it.q.id}` : `sec-${it.e.id}`
+                          const label = it.k === 'fight' ? `⚔ ${it.f.encounter}` : it.k === 'quest' ? `✦ ${it.q.title}` : it.e.section
                           return (
                             <button key={oi} type="button" className={`sh-ol-item${it.k === 'fight' ? ' is-fight' : ''}`}
                               onClick={() => scrollToId(i, id)}>{label}</button>
@@ -589,8 +632,9 @@ export default function ChronicleView({ live = false, store = null, accents = {}
                   })()}
 
                   <div className="sh-p-entries" onClick={bodyClick}>
-                    {mergeTimeline(vol.entries, fightsBySess[vol.session]).map(it => {
+                    {mergeStoryTimeline(vol.entries, fightsBySess[vol.session], questStartsBySess[vol.session]).map(it => {
                       if (it.k === 'fight') return <FightBlock key={`fight-${it.f.id}`} f={it.f} accents={accents} />
+                      if (it.k === 'quest') return <QuestStartBlock key={`quest-${it.q.id}`} q={it.q} />
                       if (it.e.kind === 'section') return <h3 className="sh-section" id={`sec-${it.e.id}`} key={it.e.id}>{it.e.section}</h3>
                       return <PanelEntry key={it.e.id} e={it.e} accents={accents} />
                     })}

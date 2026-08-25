@@ -38,16 +38,27 @@ export const COMMANDS = [
   { section: 'Lists', icon: '☑', label: 'Task list', keys: 'task todo check checkbox', run: c => c.toggleTaskList().run() },
 ]
 
-export function slashItems(query) {
+const questCommand = onQuest => ({
+  section: 'Capture', icon: '✦', label: 'Begin a quest', hint: 'from this moment',
+  keys: 'quest begin start capture hook objective',
+  run: chain => { chain.run(); onQuest() },
+})
+
+export function slashItems(query, onQuest = null) {
+  const commands = onQuest ? [questCommand(onQuest), ...COMMANDS] : COMMANDS
   const q = String(query || '').trim().toLowerCase()
-  if (!q) return COMMANDS
-  return COMMANDS.filter(c =>
+  if (!q) return commands
+  return commands.filter(c =>
     c.label.toLowerCase().includes(q) || c.keys.split(/\s+/).some(k => k.startsWith(q)),
   )
 }
 
 export const SlashCommand = Extension.create({
   name: 'slashCommand',
+
+  addOptions() {
+    return { onQuest: null }
+  },
 
   addProseMirrorPlugins() {
     return [
@@ -64,7 +75,7 @@ export const SlashCommand = Extension.create({
           return text === '' || /\s$/.test(text) || range.from === $from.start()
         },
 
-        items: ({ query }) => slashItems(query),
+        items: ({ query }) => slashItems(query, this.options.onQuest),
 
         command: ({ editor, range, props }) => {
           // delete the "/query" text, then let the item act on the clean chain

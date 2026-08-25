@@ -3,6 +3,7 @@
 // 2. Headless TipTap: TokMention round-trips HTML → doc → HTML with
 //    atomic typed attrs, and extractRefs sees the nodes.
 import { JSDOM } from 'jsdom'
+import fs from 'node:fs'
 
 const dom = new JSDOM('<!doctype html><body><div id="m"></div></body>', { url: 'http://localhost/' })
 global.window = dom.window
@@ -206,6 +207,10 @@ t('baked chronicle entry carries a callout', CHRONICLE[1].entries.some(e => e.ht
 t('baked vault page carries a callout', vault.get('the-missing-caravan').html.includes('data-callout="warning"'))
 ed4.destroy()
 
+const slashSource = fs.readFileSync(new URL('./src/editor/SlashCommand.js', import.meta.url), 'utf8')
+t('/quest is configured as a TipTap slash action', slashSource.includes("label: 'Begin a quest'") && slashSource.includes("keys: 'quest begin start capture"))
+t('/quest stays absent unless App supplies the flagged callback', slashSource.includes('const commands = onQuest ? [questCommand(onQuest), ...COMMANDS] : COMMANDS'))
+
 
 // ── 7. supabase adapter against a stub client ──
 const { makeJournalStore } = await import('./src/data/supabase-adapter.js')
@@ -233,7 +238,14 @@ function stubSB(cans = {}) {
     }
     return chain
   }
-  return { from: mk, ops }
+  return {
+    from: mk,
+    rpc: (name, payload) => {
+      ops.push({ table: 'rpc', op: name, payload })
+      return Promise.resolve((cans.rpc && cans.rpc[name]) || { data: null, error: null })
+    },
+    ops,
+  }
 }
 
 // loadPages: character journal filters by eq; Narrator by is-null
@@ -270,8 +282,27 @@ function stubSB(cans = {}) {
   ])
   const [del, ins] = sb.ops
   t('replaceRefs deletes then inserts', del.op === 'delete' && ins.op === 'insert' && ins.payload.length === 2)
-  t('replaceRefs maps kinds (entity carries ref_type, page does not)',
+t('replaceRefs maps kinds (entity carries ref_type, page does not)',
     ins.payload[0].ref_type === 'npc' && ins.payload[1].ref_type === null && ins.payload[1].kind === 'page')
+}
+
+// Quest creation stays behind the one retry-safe SECURITY DEFINER RPC.
+{
+  const sb = stubSB({ rpc: { create_quest: { data: { ok: true, quest: { id: 'quest-r1' } }, error: null } } })
+  const store = makeJournalStore({ sb, uid: 'u1', characterKey: 'liadan' })
+  const made = await store.createQuest({
+    requestId: '11111111-1111-4111-8111-111111111111',
+    title: 'The Bell Beneath', description: 'A bell rings below.', objective: 'Find the bell',
+    giverId: 'old-nan', giverLabel: 'Old Nan', locationId: 'barrow-wastes', locationLabel: 'Barrow Wastes',
+    origin: 'journal', sourceJournalPageId: '22222222-2222-4222-8222-222222222222',
+  })
+  const rpc = sb.ops.find(o => o.op === 'create_quest')
+  t('createQuest calls only the installed RPC and returns its receipt', made.ok === true && rpc.table === 'rpc')
+  t('createQuest preserves retry identity and Journal source',
+    rpc.payload.p_request_id === '11111111-1111-4111-8111-111111111111' &&
+    rpc.payload.p_origin === 'journal' && rpc.payload.p_source_journal_page_id === '22222222-2222-4222-8222-222222222222')
+  t('createQuest sends plain giver/location labels without @',
+    rpc.payload.p_giver_label === 'Old Nan' && rpc.payload.p_location_label === 'Barrow Wastes')
 }
 
 // addPage slugs the title; shareToChronicle inserts a chronicle feed row + marks the page

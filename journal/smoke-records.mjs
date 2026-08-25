@@ -21,6 +21,7 @@ t('unknown views fail safely to Journal', recordsModeFromSearch('?view=nope') ==
 t('Journal route removes only view and preserves character scope', recordsSearch('journal', '?view=both&character=vesperian') === '?character=vesperian')
 t('Chronicle route preserves character scope', recordsSearch('chronicle', '?character=vesperian') === '?character=vesperian&view=chronicle')
 t('split route is bookmarkable', recordsSearch('both', '') === '?view=both')
+t('records switch preserves the guarded quest-capture flag', recordsSearch('chronicle', '?questCapture=1') === '?questCapture=1&view=chronicle')
 t('invalid requested mode falls back to Chronicle', recordsSearch('nope', '') === '?view=chronicle')
 t('invalid dock width uses the approved default', clampDockWidth('nope') === DEFAULT_DOCK_WIDTH)
 t('dock width clamps at 30%', clampDockWidth(4) === 30)
@@ -56,7 +57,7 @@ const stampedPages = [
   'npcs.html', 'party.html', 'radio.html', 'shards.html', 'sheet-v2.html', 'world.html',
 ]
 t('every production nav include carries the new cache stamp',
-  stampedPages.every(p => read(p).includes('nav.js?v=sup3')))
+  stampedPages.every(p => read(p).includes('nav.js?v=sup5')))
 
 console.log(`\n${pass} passed, ${fail} failed`)
 process.exit(fail ? 1 : 0)

@@ -340,9 +340,33 @@ execute it, anonymous may not, `quest_starts` has one SELECT policy and both
 append-only trigger events, optional giver fields are nullable, authenticated
 may SELECT starts, and direct quest/start inserts remain false with
 `write_grants = 0`. No real quest was seeded by the migration. The first
-signed-in RPC round trip and the Journal/Chronicle reader wiring remain open;
-Quest Hub, World, rail, and navigation runtime are still outside this database
-slice.
+signed-in RPC round trip remains open.
+
+The first Journal/Chronicle production wiring is now local behind the explicit
+`?questCapture=1` rollback flag. On an editable persisted Journal page, TipTap
+`/quest` opens the approved four-section capture, seeds the description from
+the current paragraph, and calls only `create_quest(...)` with a retained UUID
+for safe retry. Giver and location use canonical entity IDs and plain labels;
+closing or failing never clears the user's entered details. Success links to
+the guarded Quest Hub record. The Chronicle separately reads `quest_starts`,
+quests, and first objectives, then inserts the approved expandable **Quest
+begun** milestone. Chronicle-origin receipts anchor immediately after their
+source row; Journal/Hub receipts use creation time; a receipt can create a
+session volume even when no prose row exists. Realtime refreshes on appended
+starts. Quest-load failure narrates itself without blanking Chronicle prose.
+With the flag absent, `/quest`, quest reads, quest realtime, and milestones all
+remain off.
+
+The Journal Vite build passes. Focused pure/adapter gates pass **24/24** and
+**86/86**; the unchanged shelf gate passes **65/65**, records workspace passes
+**22/22**, the production Quest reader passes **61/61**, and the four existing
+Quest SQL/mock gates pass **232/232**. Local production-component browser proof
+at 1280×720 and 390×844 covers all four capture sections, the expanded
+milestone, 52px phone actions, exact phone width, direct Hub identity, and zero
+fresh-load warnings/errors. The first signed-in flagged RPC round trip and
+deployed desktop/mobile Chronicle confirmation remain the field gates before
+removing the flag. Quest Hub authoring, World, rail, `@quest`, completion, and
+navigation runtime remain outside this slice.
 
 The approved standalone connection proof is
 `_edits/mock-quest-hub-world-rail.html`, contract

@@ -28,6 +28,7 @@ import { docWalk, indexToPos, captureAnchor, findAnchor, insertionIndex, splitBy
 import { seatVars, seatColor } from './comments/accents.js'
 import { SEATS } from './data/party.js'
 import RecordsModeSwitch from './RecordsModeSwitch.jsx'
+import QuestCaptureDialog from './QuestCaptureDialog.jsx'
 
 const SEAT_NAMES = { liadan: 'Líadan', caim: 'Caim', vesperian: 'Vesperian', cosmere: 'Cosmere' }
 function seatDisplay(seat) {
@@ -45,7 +46,7 @@ function RefChips({ refs }) {
   ))
 }
 
-export default function JournalView({ vault, banner = null, isStaff = false, store = null, comments = null, accents = {}, me = null, viewSeatKey = null, live = false, commentCounts = {}, docked = false, recordsMode = 'journal', onRecordsModeChange = () => {}, onCloseDock = () => {} }) {
+export default function JournalView({ vault, banner = null, isStaff = false, store = null, comments = null, accents = {}, me = null, viewSeatKey = null, live = false, questCapture = false, commentCounts = {}, docked = false, recordsMode = 'journal', onRecordsModeChange = () => {}, onCloseDock = () => {} }) {
   const first = vault.pages()[0]
   const [activeId, setActiveId] = useState(first?.id || null)
   const activeRef = useRef(activeId)
@@ -64,6 +65,11 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
   const [selPop, setSelPop] = useState(null)     // {x, y} for the ✎ popover
   const [accentMap, setAccentMap] = useState(accents || {})
   const [vaultOpen, setVaultOpen] = useState(false)
+  const [questOpen, setQuestOpen] = useState(false)
+  const [questSeed, setQuestSeed] = useState('')
+  const [questNotice, setQuestNotice] = useState(null)
+  const questRequestRef = useRef(null)
+  const openQuestRef = useRef(() => {})
   const jumpRef = useRef(() => {})
   const openPageRef = useRef(() => {})
   const bump = () => setTick(t => t + 1)
@@ -82,7 +88,7 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
         suggestion: makePageSuggestion({ vault, onCreatePage: bump }),
       }),
       Attribution,
-      SlashCommand,
+      SlashCommand.configure({ onQuest: questCapture ? () => openQuestRef.current() : null }),
       CommentMarks.configure({ onJump: id => jumpRef.current(id) }),
     ],
     content: first?.html || '',
@@ -134,6 +140,44 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
   const active = vault.get(activeId)
   const canEditActive = vault.canEdit ? vault.canEdit(activeId) : true
   const canWriteHere = vault.canWrite ? vault.canWrite() : true
+
+  openQuestRef.current = () => {
+    if (!live || !store?.createQuest) {
+      setQuestNotice({ error: true, text: 'Quest capture is available only in the signed-in game.' })
+      return
+    }
+    if (!active || !canEditActive || !active._rowId) {
+      setQuestNotice({ error: true, text: 'Open one of your saved Journal pages before beginning a quest.' })
+      return
+    }
+    const paragraph = editor?.state.selection.$from.parent.textContent.trim() || ''
+    questRequestRef.current = null
+    setQuestSeed(paragraph)
+    setQuestNotice(null)
+    setQuestOpen(true)
+  }
+
+  const closeQuest = () => {
+    setQuestOpen(false)
+    questRequestRef.current = null
+  }
+
+  const submitQuest = async details => {
+    if (!store?.createQuest || !active?._rowId) throw new Error('This Journal page is not ready to start a quest.')
+    if (!questRequestRef.current) questRequestRef.current = window.crypto.randomUUID()
+    const result = await store.createQuest({
+      ...details,
+      requestId: questRequestRef.current,
+      origin: 'journal',
+      sourceFeedPostId: null,
+      sourceJournalPageId: active._rowId,
+    })
+    const questId = result?.quest?.id || null
+    setQuestOpen(false)
+    setQuestNotice({ error: false, text: `Quest begun — ${details.title}`, questId })
+    questRequestRef.current = null
+    return result
+  }
 
   useEffect(() => {
     if (editor) editor.setEditable(canEditActive)
@@ -577,7 +621,7 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
             <div className="j-cheat">
               <code># heading</code> <code>**bold**</code> <code>*italic*</code>{' '}
               <code>&gt; quote</code> <code>- list</code> <code>[ ] task</code>{' '}
-              <code>--- rule</code> <code>@ world</code> <code>[[ page</code>
+              <code>--- rule</code> <code>@ world</code> <code>[[ page</code>{questCapture && <> <code>/quest</code></>}
             </div>
 
             <section className="j-know">
@@ -630,6 +674,19 @@ export default function JournalView({ vault, banner = null, isStaff = false, sto
           </>
         )}
       </main>
+
+      <QuestCaptureDialog
+        open={questOpen} initialDescription={questSeed}
+        npcs={entityStore.npcs()} locations={entityStore.locations()}
+        sourceLabel={active?.title || 'this Journal page'}
+        onClose={closeQuest} onSubmit={submitQuest} />
+      {questNotice && (
+        <div className={`j-quest-toast${questNotice.error ? ' is-error' : ''}`} role="status">
+          <span>{questNotice.text}</span>
+          {questNotice.questId && <a href={`quests.html?questLog=1&quest=${encodeURIComponent(questNotice.questId)}`}>Open in Quest Hub</a>}
+          <button type="button" onClick={() => setQuestNotice(null)} aria-label="Dismiss">×</button>
+        </div>
+      )}
     </div>
   )
 }

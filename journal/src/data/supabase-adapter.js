@@ -286,6 +286,27 @@ export function makeJournalStore({ sb, uid, characterKey }) {
       return { rows: rowsRes.data || [], encounters }
     },
 
+    // Quest Begun is a separate append-only record. Join in the reader rather
+    // than copying quest detail into Chronicle prose.
+    async loadQuestStarts() {
+      const [starts, quests, objectives] = await Promise.all([
+        sb.from('quest_starts')
+          .select('id, quest_id, origin, occurred_at, session_id, feed_post_id, journal_page_id, started_by, recorded_at')
+          .order('occurred_at'),
+        sb.from('quests')
+          .select('id, title, summary, giver_id, giver_label, destination_location_id, destination_label'),
+        sb.from('quest_objectives')
+          .select('id, quest_id, position, title, state')
+          .order('position'),
+      ])
+      if (starts.error) throw new Error(`loadQuestStarts: ${starts.error.message}`)
+      if (quests.error) throw new Error(`loadQuestStarts/quests: ${quests.error.message}`)
+      if (objectives.error) throw new Error(`loadQuestStarts/objectives: ${objectives.error.message}`)
+      return {
+        starts: starts.data || [], quests: quests.data || [], objectives: objectives.data || [],
+      }
+    },
+
     // canonical per-session titles (session_titles table). Read-all;
     // non-fatal on error — the book falls back to row meta.
     async loadSessionTitles() {
@@ -380,6 +401,26 @@ export function makeJournalStore({ sb, uid, characterKey }) {
       return res.data
     },
 
+    // One authenticated RPC owns quest + first objective + append-only start.
+    // p_request_id is retained by the caller so a lost response retries safely.
+    async createQuest(input) {
+      const res = await sb.rpc('create_quest', {
+        p_request_id: input.requestId,
+        p_title: input.title,
+        p_description: input.description,
+        p_objective: input.objective,
+        p_giver_id: input.giverId || null,
+        p_giver_label: input.giverLabel || null,
+        p_location_id: input.locationId || null,
+        p_location_label: input.locationLabel || null,
+        p_origin: input.origin,
+        p_source_feed_post_id: input.sourceFeedPostId || null,
+        p_source_journal_page_id: input.sourceJournalPageId || null,
+      })
+      if (res.error) throw new Error(`createQuest: ${res.error.message}`)
+      return res.data
+    },
+
     // ── publication: Share to Chronicle (a feed insert; RLS already live) ──
     async shareToChronicle(page, { characterName, session }) {
       const ins = await sb.from('feed')
@@ -413,8 +454,8 @@ export function makeJournalStore({ sb, uid, characterKey }) {
     // stream to players). Returns an unsubscribe. DELETE is left unfiltered and matched
     // by id (Supabase can't filter deletes on a non-PK column reliably); a delete of a
     // row not in the book is simply a no-op.
-    subscribeChronicle({ onInsert, onUpdate, onCombatInsert, onCombatUpdate, onDelete }) {
-      const ch = sb.channel('journal-chronicle-live')
+    subscribeChronicle({ onInsert, onUpdate, onCombatInsert, onCombatUpdate, onQuestStart, onDelete }) {
+      let ch = sb.channel('journal-chronicle-live')
         .on('postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'feed', filter: 'channel=eq.chronicle' },
           ({ new: row }) => { if (row && onInsert) onInsert(row) })
@@ -427,7 +468,10 @@ export function makeJournalStore({ sb, uid, characterKey }) {
         .on('postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'feed', filter: 'channel=eq.combat' },
           ({ new: row }) => { if (row && onCombatUpdate) onCombatUpdate(row) })
-        .on('postgres_changes',
+      if (onQuestStart) ch = ch.on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'quest_starts' },
+          ({ new: row }) => { if (row) onQuestStart(row) })
+      ch = ch.on('postgres_changes',
           { event: 'DELETE', schema: 'public', table: 'feed' },
           ({ old }) => { if (old && old.id != null && onDelete) onDelete(old.id) })
         .subscribe()

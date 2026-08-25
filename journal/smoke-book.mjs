@@ -1,5 +1,6 @@
 // smoke-book.mjs — the book model: feed rows → chapters. Pure, no DOM.
 import { buildBook, rowToBookEntry, facetCounts, entryMatches } from './src/data/bookModel.js'
+import { buildQuestStarts, chaptersWithQuestSessions, mergeStoryTimeline, questCaptureEnabled, questTitle, questStartsBySession } from './src/data/questModel.js'
 let pass = 0, fail = 0
 const t = (n, c) => { c ? (pass++, console.log('  ✓ ' + n)) : (fail++, console.log('  ✗ ' + n)) }
 const R = (o) => ({ channel: 'chronicle', kind: 'message', hidden: false, meta: {}, ...o })
@@ -56,6 +57,41 @@ t('character facet finds Chonkalius without an NPC filter', (() => {
     body: '<p><span data-mention-type="character" data-mention-key="chonkalius-a1b2">Chonkalius</span></p>',
     created_at: '2026-07-01T00:00:00Z' }))
   return entryMatches(e, { characters: { 'chonkalius-a1b2': 1 }, npcs: {}, tags: {} })
+})())
+
+const questStarts = buildQuestStarts({
+  starts: [
+    { id: 's1', quest_id: 'q1', origin: 'chronicle', occurred_at: '2026-07-01T19:40:00Z', session_id: 4, feed_post_id: 1 },
+    { id: 's2', quest_id: 'q2', origin: 'journal', occurred_at: '2026-07-10T20:00:00Z', session_id: 9, journal_page_id: 'p2' },
+  ],
+  quests: [
+    { id: 'q1', title: 'The Bell Beneath', summary: 'A bell rings below the wastes.', giver_id: 'old-nan', giver_label: 'Old Nan', destination_location_id: 'barrow-wastes', destination_label: 'Barrow Wastes' },
+    { id: 'q2', title: 'The Last Letter', summary: 'Carry the bottle home.' },
+  ],
+  objectives: [
+    { id: 'o2b', quest_id: 'q2', position: 2, title: 'Return' },
+    { id: 'o1', quest_id: 'q1', position: 1, title: 'Find the bell' },
+    { id: 'o2a', quest_id: 'q2', position: 1, title: 'Deliver the letter' },
+  ],
+})
+t('quest flag is explicit and off by default', !questCaptureEnabled('?view=both') && questCaptureEnabled('?view=both&questCapture=1'))
+t('optional quest title falls back to the objective', questTitle('', 'Deliver the letter.') === 'Deliver the letter')
+t('quest starts join canonical quest + first objective detail', questStarts[0].title === 'The Bell Beneath' && questStarts[0].objective === 'Find the bell' && questStarts[0].giverLabel === 'Old Nan')
+t('quest starts group by Chronicle session', questStartsBySession(questStarts)[4][0].questId === 'q1')
+t('Chronicle-origin quest lands immediately after its source prose', (() => {
+  const timeline = mergeStoryTimeline(book[0].entries, [], [questStarts[0]])
+  const source = timeline.findIndex(it => it.k === 'entry' && it.e.id === '1')
+  return source >= 0 && timeline[source + 1].k === 'quest' && timeline[source + 1].q.questId === 'q1'
+})())
+t('Journal-origin quest keeps creation time in the session timeline', (() => {
+  const q = { ...questStarts[1], session: 4, at: book[0].entries[1].at + 1 }
+  const timeline = mergeStoryTimeline(book[0].entries, [], [q])
+  return timeline.findIndex(it => it.k === 'quest') > timeline.findIndex(it => it.k === 'entry' && it.e.id === '3')
+})())
+t('a quest can create a Chronicle volume without copied prose', (() => {
+  const chapters = chaptersWithQuestSessions(book, questStarts)
+  const ch = chapters.find(c => c.session === 9)
+  return ch && ch.entries.length === 0 && ch.date
 })())
 
 console.log(`\n${pass} passed, ${fail} failed`)

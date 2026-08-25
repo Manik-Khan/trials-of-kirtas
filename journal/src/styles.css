@@ -370,6 +370,23 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
 .sh-fight-title b { font-style: normal; font-weight: 700; }
 .sh-fight-sum { margin-left: auto; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sh-ink-faint); font-weight: 600; }
 .sh-fight-pad { padding: 6px 16px 14px; }
+
+/* Quest Begun — a compact Chronicle milestone, not a second prose entry. */
+.sh-quest-start { border: 1px solid var(--sh-hairline); border-left: 3px solid var(--sh-accent); margin: 3vh 0; background: color-mix(in srgb, var(--sh-accent) 4%, transparent); }
+.sh-quest-lead { padding: 9px 15px 0; font-family: var(--sh-font-utility); font-size: 9px; letter-spacing: 0.24em; text-transform: uppercase; font-weight: 700; color: var(--sh-accent); }
+.sh-quest-head { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; padding: 10px 15px 13px; cursor: pointer; background: none; border: 0; text-align: left; }
+.sh-quest-head:hover { background: color-mix(in srgb, var(--sh-ink) 4%, transparent); }
+.sh-quest-caret { grid-row: 1 / span 2; align-self: center; font-size: 10px; color: var(--sh-ink-faint); transition: transform 0.2s ease; }
+.sh-quest-head.is-open .sh-quest-caret { transform: rotate(90deg); }
+.sh-quest-title { font-family: var(--sh-font-poster); font-size: 19px; line-height: 1.12; color: var(--sh-ink); }
+.sh-quest-objective { font-family: var(--sh-font-body); font-size: 14px; line-height: 1.35; color: var(--sh-ink-soft); }
+.sh-quest-details { padding: 4px 38px 17px; border-top: 1px solid var(--sh-hairline); font-family: var(--sh-font-body); font-size: 15px; line-height: 1.52; }
+.sh-quest-details > p { margin: 12px 0; }
+.sh-quest-details dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 12px 0; }
+.sh-quest-details dt { font-family: var(--sh-font-utility); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; color: var(--sh-ink-faint); }
+.sh-quest-details dd { margin: 0; color: var(--sh-ink); }
+.sh-quest-details a { display: inline-block; margin-top: 6px; color: var(--sh-accent); font-family: var(--sh-font-utility); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; }
+.sh-quest-warning { position: absolute; z-index: 12; top: 12px; left: 50%; transform: translateX(-50%); width: min(620px, calc(100% - 32px)); padding: 8px 12px; background: var(--sh-paper); border: 1px solid var(--sh-accent); color: var(--sh-ink-soft); font-family: var(--sh-font-body); font-size: 13px; text-align: center; }
 .sh-round + .sh-round { border-top: 1px solid color-mix(in srgb, var(--sh-ink) 8%, transparent); }
 .sh-round-head { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 16px; cursor: pointer;
   background: color-mix(in srgb, var(--sh-ink) 4%, transparent); border: 0; text-align: left;
@@ -1108,6 +1125,43 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
   padding: 8px 16px 7px;
 }
 
+/* /quest — four short in-play sections over the current Journal page. */
+.j-quest-veil { position: fixed; inset: 0; z-index: 175; display: flex; align-items: center; justify-content: center; padding: 18px; background: color-mix(in srgb, var(--sh-ink) 48%, transparent); }
+.j-quest-dlg { width: min(620px, 100%); max-height: min(760px, 92vh); overflow-y: auto; box-sizing: border-box; padding: 26px 28px; background: var(--sh-paper); color: var(--sh-ink); border: 1.5px solid var(--sh-ink); box-shadow: 0 30px 90px color-mix(in srgb, var(--sh-ink) 45%, transparent); }
+.j-quest-head { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; }
+.j-quest-head h2 { margin: 4px 0 0; font-family: var(--sh-font-poster); font-size: clamp(25px, 4vw, 34px); font-weight: 400; line-height: 1.1; }
+.j-quest-kicker { font-family: var(--sh-font-utility); font-size: 9px; letter-spacing: 0.24em; text-transform: uppercase; font-weight: 700; color: var(--sh-accent); }
+.j-quest-x { flex: none; width: 38px; height: 38px; font-size: 24px; line-height: 1; color: var(--sh-ink-faint); }
+.j-quest-progress { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 18px 0 24px; }
+.j-quest-progress span { height: 2px; background: var(--sh-hairline); }
+.j-quest-progress span.is-on { background: var(--sh-accent); }
+.j-quest-fields { display: flex; flex-direction: column; gap: 17px; }
+.j-quest-field { display: flex; flex-direction: column; gap: 7px; }
+.j-quest-field > span { font-family: var(--sh-font-utility); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; color: var(--sh-ink-soft); }
+.j-quest-field > span em { font-style: normal; font-weight: 400; color: var(--sh-ink-faint); }
+.j-quest-field textarea, .j-quest-field input, .j-quest-field select { width: 100%; box-sizing: border-box; padding: 11px 12px; border: 1px solid var(--sh-hairline); border-radius: 0; background: color-mix(in srgb, var(--sh-ink) 2%, transparent); color: var(--sh-ink); font-family: var(--sh-font-body); font-size: 17px; line-height: 1.4; outline: none; caret-color: var(--sh-accent); }
+.j-quest-field textarea { resize: vertical; }
+.j-quest-field textarea:focus, .j-quest-field input:focus, .j-quest-field select:focus { border-color: var(--sh-accent); }
+.j-quest-field small, .j-quest-note { margin: 0; font-family: var(--sh-font-body); font-size: 13px; font-style: italic; color: var(--sh-ink-faint); }
+.j-quest-preview { padding: 18px 20px; border: 1px solid var(--sh-hairline); border-left: 3px solid var(--sh-accent); }
+.j-quest-preview h3 { margin: 5px 0 4px; font-family: var(--sh-font-poster); font-size: 25px; font-weight: 400; }
+.j-quest-preview > p { margin: 10px 0; font-family: var(--sh-font-body); font-size: 15px; line-height: 1.45; }
+.j-quest-preview .j-quest-objective { margin-top: 0; color: var(--sh-ink-soft); font-style: italic; }
+.j-quest-preview dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 14px 0; }
+.j-quest-preview dt { font-family: var(--sh-font-utility); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: var(--sh-ink-faint); }
+.j-quest-preview dd { margin: 0; font-family: var(--sh-font-body); }
+.j-quest-preview small { font-family: var(--sh-font-utility); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sh-ink-faint); }
+.j-quest-error { margin: 16px 0 0; padding: 9px 11px; border-left: 3px solid #a84a40; background: color-mix(in srgb, #a84a40 8%, transparent); font-family: var(--sh-font-body); color: var(--sh-ink); }
+.j-quest-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 24px; }
+.j-quest-actions button { min-width: 120px; min-height: 46px; padding: 10px 16px; border: 1px solid var(--sh-hairline); color: var(--sh-ink-soft); font-family: var(--sh-font-utility); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; }
+.j-quest-actions button.is-primary { margin-left: auto; background: var(--sh-ink); border-color: var(--sh-ink); color: var(--sh-paper); }
+.j-quest-actions button.is-primary:hover { background: var(--sh-accent); border-color: var(--sh-accent); }
+.j-quest-actions button:disabled { opacity: 0.38; cursor: not-allowed; }
+.j-quest-toast { position: fixed; z-index: 180; right: 18px; bottom: 18px; display: flex; align-items: center; gap: 12px; max-width: min(520px, calc(100vw - 36px)); padding: 10px 12px 10px 15px; background: var(--sh-ink); color: var(--sh-paper); box-shadow: 0 12px 36px color-mix(in srgb, var(--sh-ink) 32%, transparent); font-family: var(--sh-font-body); font-size: 14px; }
+.j-quest-toast.is-error { background: #762f2a; }
+.j-quest-toast a { color: var(--sh-paper); border-bottom: 1px solid currentColor; font-family: var(--sh-font-utility); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; }
+.j-quest-toast button { color: inherit; font-size: 19px; line-height: 1; }
+
 .j-empty { font-family: var(--sh-font-body); font-style: italic; color: var(--sh-ink-faint); text-align: center; }
 
 /* ── lightbox (shelf panel images) ── */
@@ -1149,6 +1203,12 @@ body:not(:has(#site-nav)) .sh-scope { height: 100dvh; } /* standalone preview */
   .sh-strip { flex-wrap: wrap; }
   .j-index { flex-basis: 54px; width: 54px; }
   .j-side { width: min(var(--sh-rail), 88vw); }
+  .j-quest-veil { align-items: stretch; padding: 0; }
+  .j-quest-dlg { max-height: 100vh; min-height: 100vh; padding: 22px 18px; border: 0; }
+  .j-quest-actions button { min-height: 52px; min-width: 108px; }
+  .j-quest-toast { left: 12px; right: 12px; bottom: 12px; max-width: none; flex-wrap: wrap; }
+  .sh-quest-head { padding-left: 12px; padding-right: 12px; }
+  .sh-quest-details { padding-left: 34px; padding-right: 12px; }
 }
 
 /* ── the Index: sticky left spine + slim overlay (the book's frontmatter) ── */

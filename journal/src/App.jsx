@@ -14,6 +14,7 @@ import RecordsModeSwitch from './RecordsModeSwitch.jsx'
 import { bootJournal } from './data/backend.js'
 import { clampDockWidth, DEFAULT_DOCK_WIDTH, recordsModeFromSearch, recordsSearch } from './recordsLayout.js'
 import { INKS, PAPERS, DEFAULT_LOOK, lookVars, resolveInk, resolvePaper } from './shelf/shelfTheme.js'
+import { questCaptureEnabled } from './data/questModel.js'
 
 // nav.js mounts asynchronously (after the session gate) — the strip's
 // ink/paper switcher stands down the moment site chrome exists, because the
@@ -35,6 +36,7 @@ export default function App() {
   // journal.html remains the direct Journal address; Chronicle and the split
   // workspace deep-link through ?view= so bookmarks/back keep their meaning.
   const initialView = typeof window === 'undefined' ? 'journal' : recordsModeFromSearch(window.location.search)
+  const questCapture = typeof window !== 'undefined' && questCaptureEnabled(window.location.search)
   const [view, setView] = useState(initialView)
   const [dockWidth, setDockWidth] = useState(initialDockWidth)
   const [backend, setBackend] = useState(null)
@@ -184,6 +186,7 @@ export default function App() {
             <section className="records-chronicle" aria-label="Chronicle">
               <ChronicleView live={backend.mode === 'live'} store={backend.store || null}
                 accents={backend.accents || {}} isStaff={!!backend.isStaff}
+                questCapture={questCapture}
                 recordsMode={view} onRecordsModeChange={setRecordsMode} />
             </section>
           )}
@@ -207,6 +210,7 @@ export default function App() {
                 me={backend.me || null}
                 viewSeatKey={backend.viewSeatKey !== undefined ? backend.viewSeatKey : null}
                 live={backend.mode === 'live'}
+                questCapture={questCapture}
                 commentCounts={backend.commentCounts || {}}
                 docked={view === 'both'} recordsMode={view}
                 onRecordsModeChange={setRecordsMode}
