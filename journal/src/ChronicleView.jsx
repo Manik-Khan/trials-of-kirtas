@@ -99,7 +99,7 @@ export function QuestStartBlock({ q }) {
   const detailsRef = useRef(null)
   useEffect(() => {
     if (open && detailsRef.current && window.attachTooltips) window.attachTooltips(detailsRef.current)
-  }, [open, q.description])
+  }, [open, q.description, q.objective])
   return (
     <div className="sh-quest-start" id={`quest-${q.id}`}>
       <div className="sh-quest-lead">Quest begun</div>
@@ -107,7 +107,7 @@ export function QuestStartBlock({ q }) {
         aria-expanded={open} onClick={() => setOpen(value => !value)}>
         <span className="sh-quest-caret">▶</span>
         <span className="sh-quest-title">{q.title}</span>
-        <span className="sh-quest-objective">{q.objective}</span>
+        <span className="sh-quest-objective" dangerouslySetInnerHTML={{ __html: descriptionHTML(q.objective) }} />
       </button>
       {open && (
         <div className="sh-quest-details" ref={detailsRef}>
@@ -118,7 +118,7 @@ export function QuestStartBlock({ q }) {
               {q.locationLabel && <><dt>Location</dt><dd className="location-link" data-location={q.locationId} tabIndex="0">{q.locationLabel}</dd></>}
             </dl>
           )}
-          <a href={`quests.html?questLog=1&quest=${encodeURIComponent(q.questId)}`}>Open in Quest Hub →</a>
+          <a href={`quests.html?quest=${encodeURIComponent(q.questId)}`}>Open in Quest Hub →</a>
         </div>
       )}
     </div>

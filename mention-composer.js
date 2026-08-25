@@ -272,6 +272,7 @@ function makeChip(doc, item) {
                         present; tabs are click-switched in the picker.
      onNewEntity(item)  — optional: an unresolved @ was chip-inserted
      onQuest({ seed })  — optional: /quest action (exact typing opens now)
+     allowedMentionTypes — optional ['npc'] / ['location'] structural field gate
    }) → { el, getDoc, getRefs, isEmpty, clear, focus }                   */
 export function createComposer(host, opts) {
   opts = opts || {};
@@ -391,6 +392,9 @@ export function createComposer(host, opts) {
       curTabs = null;
       const pool = opts.pool ? opts.pool() : { characters: [], npcs: [], locations: [] };
       items = buildItems(trig.query, pool.characters || [], pool.npcs || [], pool.locations || []);
+      if (Array.isArray(opts.allowedMentionTypes)) {
+        items = items.filter(item => opts.allowedMentionTypes.indexOf(item.type) >= 0);
+      }
     }
     sel = 0; renderPick();
   }

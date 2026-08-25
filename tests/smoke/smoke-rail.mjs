@@ -205,6 +205,7 @@ async function makeRail({ role, characterKey, withBattle = true, preferences = n
   ok(!!questRpc && questRpc.payload.p_source_feed_post_id === questSource.id, 'B: create_quest receives the real Feed source identity');
   ok(questRpc && questRpc.payload.p_title === 'The Last Letter' && questRpc.payload.p_origin === 'chronicle', 'B: rail sends the approved title and Chronicle origin through the narrow RPC');
   ok(questRpc && /^tok-quest-rich-v1:/.test(questRpc.payload.p_description), 'B: rail stores the versioned rich-description envelope without a schema change');
+  ok(questRpc && /^tok-quest-rich-v1:/.test(questRpc.payload.p_objective), 'B: rail stores Objective through the same safe rich-text envelope');
   ok(!questVeil.classList.contains('on'), 'B: successful quest creation closes and narrates in the rail');
 
   // a /roll posts a roll row to combat

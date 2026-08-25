@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>World location editing — review mock</title>
+  <style>
+    *{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden}body{background:#111815;color:#e8e0d0;font-family:Georgia,serif}.shell{height:100%;display:grid;grid-template-columns:minmax(0,1fr) 360px;background:radial-gradient(circle at 28% 42%,#35443a,#19221e 34%,#0d1311 72%)}.map{position:relative;overflow:hidden}.map:before{content:"KIRTAS";position:absolute;inset:0;display:grid;place-items:center;color:rgba(232,224,208,.08);font-size:15vw;letter-spacing:.18em}.pin{position:absolute;right:12%;bottom:10%;width:16px;height:16px;transform:rotate(45deg);border:2px solid #d0a94c;background:#57461e;box-shadow:0 0 18px #d0a94c}.pin:after{content:"Mortaine";position:absolute;left:18px;top:-21px;transform:rotate(-45deg);color:#e8e0d0;font:11px Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase}.panel{min-height:0;display:flex;flex-direction:column;border-left:1px solid #6f592a;background:rgba(12,16,14,.97)}header{flex:none;padding:18px;border-bottom:1px solid #433819}.eyebrow{color:#d0a94c;font:10px Arial,sans-serif;letter-spacing:.18em;text-transform:uppercase}h1{margin:5px 0 0;font-size:27px;font-weight:400}.sub{margin-top:3px;color:#958f82;font-style:italic}.body{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:18px;scrollbar-color:#6f592a transparent}.section{margin:0 0 9px;padding-bottom:5px;border-bottom:1px solid #433819;color:#b28e3e;font:9px Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase}.prose{color:#d6cdbc;font-size:15px;line-height:1.65;white-space:pre-line}.actions{display:flex;gap:8px;margin-top:17px}.actions button,.edit-actions button{min-height:42px;padding:0 13px;border:1px solid #6f592a;background:transparent;color:#d0a94c;font:10px Arial,sans-serif;letter-spacing:.13em;text-transform:uppercase;cursor:pointer}.actions button:hover,.edit-actions .primary{background:rgba(208,169,76,.12);border-color:#d0a94c}.editor{display:none}.editor.on{display:block}.reader.off{display:none}label{display:block;margin-bottom:7px;color:#b28e3e;font:9px Arial,sans-serif;letter-spacing:.16em;text-transform:uppercase}textarea{width:100%;min-height:360px;padding:12px;border:1px solid #6f592a;outline:none;resize:vertical;background:#080d0b;color:#e8e0d0;font:15px/1.55 Georgia,serif}textarea:focus{border-color:#d0a94c}.help,.status{margin:7px 0 0;color:#958f82;font-size:12px;font-style:italic;line-height:1.4}.edit-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:11px}.status{min-height:17px;color:#cdb877}@media(max-width:720px){.shell{display:block}.map{height:38vh}.panel{position:absolute;inset:auto 0 0;height:66vh;border-left:0;border-top:1px solid #6f592a;border-radius:14px 14px 0 0}textarea{min-height:260px}.actions button,.edit-actions button{min-height:52px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="map" aria-label="Illustrative map"><span class="pin"></span></section>
+    <aside class="panel">
+      <header><div class="eyebrow">Foreign town · Public World entry</div><h1>Mortaine</h1><div class="sub">Northern Numior</div></header>
+      <div class="body">
+        <section class="reader" data-reader>
+          <div class="section">About</div>
+          <div class="prose" data-prose></div>
+          <div class="actions"><button type="button" data-edit>Edit description</button></div>
+        </section>
+        <section class="editor" data-editor>
+          <label for="description">Location description</label>
+          <textarea id="description" data-input></textarea>
+          <p class="help">Use a blank line to start a new paragraph. This changes Mortaine’s shared World description and its hover preview.</p>
+          <div class="edit-actions"><button type="button" data-cancel>Cancel</button><button class="primary" type="button" data-save>Save description</button></div>
+          <p class="status" data-status aria-live="polite"></p>
+        </section>
+      </div>
+    </aside>
+  </main>
+  <script id="mock-data" type="application/json">{"contract":"tok-world-location-editing/v1-candidate","boundary":"standalone-review-only-no-reads-no-writes","authority":"dm-or-overseer","rules":["the panel body always scrolls independently","blank lines create readable paragraphs","editing updates one shared location record","quests remain projections and are not copied into location prose","saving narrates success or failure"]}</script>
+  <script>
+  (()=>{
+    const initial=`The most significant settlement in Northern Numior, Mortaine was for many years an administrative center due to its proximity to Kirtas via the mountain passes and, more circuitously, the Coast Road. With the coming of the civil war and corresponding withdrawal of Kirtasian military and administrative personnel the town fell into rapid decline and irrelevancy. This state of affairs perpetuated for over a decade and the rolling plains and woodlands extending from the town north to the Kharak range returned mostly to a state of wilderness.
+
+Smallholder farms surrounding the immediate area of the town supported a local market, a few artisans and a sense of independence, hardihood and overall pride in self-reliance among the populace. As the war dragged on Mortaine began to grow in prominence again in conjunction with the rise of mercenary bands. As the last stop for groups headed into the beleaguered kingdom the town became an ad-hoc military depot and outfitting center.
+
+Those aspiring to fight from throughout Numior would make their way individually, in small groups or even as whole companies to Mortaine to prepare for the journey over the mountains and glory beyond. Farmers and artisans grew prosperous providing supplies and equipment to these groups and the farmland expanded into large areas around the town. While Northern Numior remains a backwater with the decline of trade and civilian travel to Kirtas, Mortaine stands out as a relatively cosmopolitan and prosperous settlement that has been fortunate to reap the benefits of a comfortably distant catastrophe.`;
+    const one=s=>document.querySelector(s),reader=one('[data-reader]'),editor=one('[data-editor]'),input=one('[data-input]'),prose=one('[data-prose]'),status=one('[data-status]');
+    let saved=initial;prose.textContent=saved;
+    one('[data-edit]').onclick=()=>{input.value=saved;reader.classList.add('off');editor.classList.add('on');input.focus()};
+    one('[data-cancel]').onclick=()=>{editor.classList.remove('on');reader.classList.remove('off');status.textContent=''};
+    one('[data-save]').onclick=()=>{const next=input.value.trim();if(!next){status.textContent='Add a description before saving.';return}saved=next;prose.textContent=saved;status.textContent='';editor.classList.remove('on');reader.classList.remove('off')};
+    window.WorldLocationEditingMock={getDescription:()=>saved,edit:()=>one('[data-edit]').click()};
+  })();
+  </script>
+</body>
+</html>

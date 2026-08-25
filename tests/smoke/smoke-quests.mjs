@@ -8,9 +8,9 @@ function ok(condition, label) {
   else { failed += 1; console.log('  FAIL: ' + label); }
 }
 
-ok(Quests.VERSION === 'q-2', 'reader exposes the q-2 guarded contract');
-ok(Quests.isEnabled('?questLog=1') && Quests.isEnabled('?quest=quest-a'), 'guard accepts explicit list and deep-link doors');
-ok(!Quests.isEnabled(''), 'Quest Log remains guarded by default');
+ok(Quests.VERSION === 'q-3', 'reader exposes the q-3 shared contract');
+ok(Quests.isEnabled('') && Quests.isEnabled('?quest=quest-a'), 'Quest Log is available through normal and deep-link routes');
+ok(!Quests.isEnabled('?questLog=0'), 'Quest Log retains an explicit rollback door');
 ok(Quests.isStaff({ role:'dm' }) && Quests.isStaff({ role:'overseer' }) && !Quests.isStaff({ role:'player' }), 'staff projection is role-gated');
 
 const quest = Quests.normalizeQuest({ id:'quest-a', title:'A Quest', status:'active', giver_id:'sumi', giver_label:'Sumi', destination_location_id:'barrow-wastes', destination_label:'Near the Barrow Wastes', destination_precision:'approximate' });
@@ -95,6 +95,9 @@ const harness = readFileSync(new URL('../fixtures/quests-harness.html', import.m
 const nav = readFileSync(new URL('../../nav.js', import.meta.url), 'utf8');
 const preflight = readFileSync(new URL('../../docs/guides/QUEST-PREFLIGHT.sql', import.meta.url), 'utf8');
 const privilegeSql = readFileSync(new URL('../../schema_delta_quest_reader_privileges.sql', import.meta.url), 'utf8');
+const world = readFileSync(new URL('../../world.html', import.meta.url), 'utf8');
+const rail = readFileSync(new URL('../../rail.js', import.meta.url), 'utf8');
+const railTab = readFileSync(new URL('../../quests-tab.js', import.meta.url), 'utf8');
 
 ok(/create table if not exists public\.quests/i.test(sql), 'canonical quest table exists');
 ok(/create table if not exists public\.quest_secrets/i.test(sql), 'staff truth has a separate table');
@@ -128,17 +131,23 @@ ok(source.includes('partyProjection(quest)') && source.includes("reward.visibili
 ok(source.includes('campaignApi.targets(moment)'), 'objective evidence reuses campaign connection targets');
 ok(source.includes('No completion evidence is attached.'), 'missing evidence narrates why an objective remains incomplete');
 ok(source.includes('QuestFeedCapture.descriptionHTML(value)') && source.includes('view.attachTooltips(root)'), 'Quest Log renders safe linked descriptions and binds their hover cards');
-ok(source.includes('the quest never copies or rewrites them'), 'production UI narrates evidence ownership');
+ok(source.includes('See what matters now. Open a quest only when you want its story and connections.'), 'production Hub uses the approved streamlined purpose');
+ok(source.includes('function hubGroupsHtml()') && source.includes('Search quests, objectives, people, or locations'), 'Hub groups the visual record and searches its useful fields');
 ok(!/\.insert\s*\(|\.update\s*\(|\.delete\s*\(/.test(source), 'guarded client has no write path');
 ok(css.includes('@media(max-width:720px)') && css.includes('min-height:64px'), 'mobile layout retains touch-sized evidence links');
-ok(page.includes('quests.css?v=q2') && page.includes('quests.js?v=q2') && page.includes('campaign-moments.js?v=cm2'), 'production page loads cache-stamped quest and campaign readers');
+ok(page.includes('quests.css?v=q3') && page.includes('quests.js?v=q3') && page.includes('campaign-moments.js?v=cm2'), 'production page loads cache-stamped quest and campaign readers');
 ok(page.includes('quest-feed-capture.js?v=qfc3') && page.includes('tooltips.css?v=qt1') && page.includes('tooltips.js'), 'Quest Log loads the rich-description and tooltip dependencies');
-ok(/characters\.js[\s\S]*nav\.js\?v=sup7[\s\S]*battle\.js\?v=settings1/.test(page), 'production page loads battle.js only after its character dependency');
+ok(/characters\.js[\s\S]*nav\.js\?v=sup8[\s\S]*battle\.js\?v=settings1/.test(page), 'production page loads battle.js only after its character dependency');
 ok(page.includes('data-quest-root') && page.includes('window.Quests.mount'), 'dedicated page mounts the guarded reader');
-ok(!nav.includes("{ label: 'Quests'"), 'global navigation remains untouched before field promotion');
+ok(nav.includes("{ label: 'Quests'"), 'global navigation exposes the promoted Quest Hub');
+ok(rail.includes('quests-tab.js?v=qt1') && railTab.includes("id: 'quests'"), 'site-wide rail registers the compact Quest projection');
+ok(railTab.includes('Open in Quest Hub') && railTab.includes('Use <b>/quest</b> in the Feed'), 'rail keeps details concise and points authoring back to the Feed');
+ok(world.includes('quests.js?v=q3') && world.includes('function locationQuestsHTML'), 'World derives location quest cards from the shared reader');
+ok(world.includes('world.html?quest=') === false && source.includes('world.html?quest='), 'Hub links to World without embedding copied World URLs in quest data');
+ok(world.includes('min-height: 0; overflow-y: auto; overscroll-behavior: contain') && world.includes('formatLocationProse'), 'World detail panel scrolls and breaks very long legacy prose into paragraphs');
 const inline = [...page.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/g)].map(match => match[1]).find(block => block.includes('startQuestLog'));
 try { new Function(inline); ok(true, 'production page boot script parses'); } catch (error) { ok(false, 'production page boot script parses: ' + error.message); }
-ok(harness.includes('../../quests.js?v=q2') && harness.includes('../../quest-feed-capture.js?v=qfc3') && harness.includes('../../campaign-moments.js?v=cm2') && harness.includes('window.Quests.mount'), 'browser harness uses production readers');
+ok(harness.includes('../../quests.js?v=q3') && harness.includes('../../quest-feed-capture.js?v=qfc3') && harness.includes('../../campaign-moments.js?v=cm2') && harness.includes('window.Quests.mount'), 'browser harness uses production readers');
 
 console.log(`\nsmoke-quests: ${passed}/${passed + failed} passed${failed ? `  (${failed} FAILED)` : ''}`);
 process.exit(failed ? 1 : 0);

@@ -41,7 +41,7 @@
 
   var LS_KEY = 'tok.rail.v1';
   var RAIL_W = 384;
-  var RAIL_ASSET_V = 'quest2';
+  var RAIL_ASSET_V = 'quest3';
 
   function readPreferences() {
     return (window.TokPreferences && window.TokPreferences.get) ? window.TokPreferences.get() : {};
@@ -67,6 +67,12 @@
       var ct = document.createElement('script'); ct.src = 'characters-tab.js?v=src1';
       ct.onerror = function () { console.warn('[rail] characters-tab.js failed to load'); };
       document.head.appendChild(ct);
+    }
+    // Party-visible quests ride site-wide, with the full Hub one click away.
+    if (!window.__tokQuestsTab && !document.querySelector('script[src*="quests-tab.js"]')) {
+      var qt = document.createElement('script'); qt.src = 'quests-tab.js?v=qt1';
+      qt.onerror = function () { console.warn('[rail] quests-tab.js failed to load'); };
+      document.head.appendChild(qt);
     }
     // Bardic remote tab + corner chip — registers itself against the seam on
     // tok-rail:ready (same rider pattern as characters-tab.js). Non-blocking.
@@ -494,8 +500,8 @@
             + '<div class="tr-quest-progress" data-rail="questprogress"><span></span><span></span><span></span><span></span></div>'
             + '<div class="tr-quest-body">'
               + '<div class="tr-quest-step" data-quest-step="0"><label>Description<div class="tr-quest-description-host" data-rail="questdescriptionhost"><textarea data-rail="questdescription" rows="5" maxlength="5000" placeholder="The moment that made this a quest…"></textarea></div></label><p class="tr-quest-note" data-rail="questdescriptionnote">Type @ to link a person or place. The Feed entry remains the full story.</p></div>'
-              + '<div class="tr-quest-step" data-quest-step="1" hidden><label>Quest Giver <em>optional</em><select data-rail="questgiver"><option value="">No quest giver</option></select></label><label>Location <em>optional</em><select data-rail="questlocation"><option value="">No location yet</option></select></label><p class="tr-quest-note">These connect to the same people and places used across the world.</p></div>'
-              + '<div class="tr-quest-step" data-quest-step="2" hidden><label>Objective<textarea data-rail="questobjective" rows="3" maxlength="500" placeholder="What needs to be done?"></textarea></label><label>Quest title <em>optional</em><input data-rail="questtitle" maxlength="160" placeholder="Uses the objective if blank"></label></div>'
+              + '<div class="tr-quest-step" data-quest-step="1" hidden><label>Quest Giver <em>optional</em><div class="tr-quest-entity-host" data-rail="questgiverhost"><select data-rail="questgiver"><option value="">No quest giver</option></select></div></label><label>Location <em>optional</em><div class="tr-quest-entity-host" data-rail="questlocationhost"><select data-rail="questlocation"><option value="">No location yet</option></select></div></label><p class="tr-quest-note">Type @, then choose a person or place. New names can enter the Codex queue.</p></div>'
+              + '<div class="tr-quest-step" data-quest-step="2" hidden><label>Objective<div class="tr-quest-objective-host" data-rail="questobjectivehost"><textarea data-rail="questobjective" rows="3" maxlength="500" placeholder="What needs to be done?"></textarea></div></label><p class="tr-quest-note">Type @ to link people and places inside the objective.</p><label>Quest title <em>optional</em><input data-rail="questtitle" maxlength="160" placeholder="Uses the objective if blank"></label></div>'
               + '<div class="tr-quest-step" data-quest-step="3" hidden><div class="tr-quest-preview"><div class="k">Quest begun</div><h3 data-rail="questpreviewtitle">Untitled quest</h3><p class="objective" data-rail="questpreviewobjective"></p><p data-rail="questpreviewdescription"></p><dl data-rail="questpreviewlinks"></dl><small data-rail="questpreviewsource"></small></div></div>'
               + '<p class="tr-quest-error" data-rail="questerror" role="alert"></p>'
               + '<div class="tr-quest-actions"><button type="button" data-rail="questback">Cancel</button><button type="button" class="primary" data-rail="questnext">Continue</button></div>'
@@ -782,6 +788,9 @@
       var questVeil = root.querySelector('[data-rail="questveil"]');
       var questState = null;
       var questDescriptionSurface = null;
+      var questObjectiveSurface = null;
+      var questGiverSurface = null;
+      var questLocationSurface = null;
       var QUEST_STEPS = ['What happened?', 'Who and where?', 'What needs doing?', 'Share'];
 
       function questEl(name) { return root.querySelector('[data-rail="' + name + '"]'); }
@@ -802,11 +811,25 @@
         fillQuestSelect('questlocation', MC.pool.locations, 'No location yet');
         updateQuestPreview();
       }
+      function firstMention(surface, type) {
+        if (!surface) return null;
+        var doc = surface.doc();
+        var found = null;
+        (doc.content || []).some(function (paragraph) {
+          return (paragraph.content || []).some(function (node) {
+            if (node.type !== 'tokMention' || !node.attrs || node.attrs.type !== type) return false;
+            found = { id: node.attrs.id || node.attrs.key, label: node.attrs.label };
+            return true;
+          });
+        });
+        return found;
+      }
       function questDetails() {
         var giverId = questEl('questgiver').value, locationId = questEl('questlocation').value;
-        var giver = (MC.pool.npcs || []).find(function (item) { return String(item.id) === String(giverId); });
-        var place = (MC.pool.locations || []).find(function (item) { return String(item.id) === String(locationId); });
-        var objective = questEl('questobjective').value.trim();
+        var giver = firstMention(questGiverSurface, 'npc') || (MC.pool.npcs || []).find(function (item) { return String(item.id) === String(giverId); });
+        var place = firstMention(questLocationSurface, 'location') || (MC.pool.locations || []).find(function (item) { return String(item.id) === String(locationId); });
+        var objectiveText = questObjectiveSurface ? questObjectiveSurface.text().trim() : questEl('questobjective').value.trim();
+        var objective = questObjectiveSurface ? questObjectiveSurface.encoded() : window.QuestFeedCapture.encodeDescription(objectiveText);
         var descriptionText = questDescriptionSurface
           ? questDescriptionSurface.text().trim()
           : questEl('questdescription').value.trim();
@@ -814,8 +837,8 @@
           ? questDescriptionSurface.encoded()
           : window.QuestFeedCapture.encodeDescription(questEl('questdescription').value);
         return {
-          title: window.QuestFeedCapture.questTitle(questEl('questtitle').value, objective),
-          description: description, descriptionText: descriptionText, objective: objective,
+          title: window.QuestFeedCapture.questTitle(questEl('questtitle').value, objectiveText),
+          description: description, descriptionText: descriptionText, objective: objective, objectiveText: objectiveText,
           giverId: giver ? giver.id : null, giverLabel: giver ? giver.label : null,
           locationId: place ? place.id : null, locationLabel: place ? place.label : null,
         };
@@ -824,7 +847,7 @@
         if (!questState) return;
         var details = questDetails();
         questEl('questpreviewtitle').textContent = details.title || 'Untitled quest';
-        questEl('questpreviewobjective').textContent = details.objective;
+        questEl('questpreviewobjective').innerHTML = window.QuestFeedCapture.descriptionHTML(details.objective);
         questEl('questpreviewdescription').innerHTML = window.QuestFeedCapture.descriptionHTML(details.description);
         var links = questEl('questpreviewlinks'); links.innerHTML = '';
         [['Quest Giver', details.giverLabel, details.giverId, 'npc'], ['Location', details.locationLabel, details.locationId, 'location']].forEach(function (pair) {
@@ -849,7 +872,7 @@
         questEl('questnext').disabled = !!questState.busy;
         questEl('questclose').disabled = !!questState.busy;
         updateQuestPreview();
-        var focus = [questDescriptionSurface ? questDescriptionSurface.el : questEl('questdescription'), questEl('questgiver'), questEl('questobjective'), null][step];
+        var focus = [questDescriptionSurface ? questDescriptionSurface.el : questEl('questdescription'), questGiverSurface ? questGiverSurface.el : questEl('questgiver'), questObjectiveSurface ? questObjectiveSurface.el : questEl('questobjective'), null][step];
         if (focus) setTimeout(function () { focus.focus(); }, 0);
       }
       function openQuestCapture(seed) {
@@ -859,7 +882,11 @@
           if (questDescriptionSurface) questDescriptionSurface.setText(seed || '');
           else questEl('questdescription').value = seed || '';
           questEl('questgiver').value = ''; questEl('questlocation').value = '';
-          questEl('questobjective').value = ''; questEl('questtitle').value = '';
+          if (questGiverSurface) questGiverSurface.clear();
+          if (questLocationSurface) questLocationSurface.clear();
+          if (questObjectiveSurface) questObjectiveSurface.clear();
+          else questEl('questobjective').value = '';
+          questEl('questtitle').value = '';
         } else if (!(questDescriptionSurface ? questDescriptionSurface.text() : questEl('questdescription').value).trim() && seed) {
           if (questDescriptionSurface) questDescriptionSurface.setText(seed);
           else questEl('questdescription').value = seed;
@@ -910,7 +937,8 @@
         var details = questDetails(), errorEl = questEl('questerror');
         if (!details.descriptionText) { errorEl.textContent = 'Add the moment that made this a quest.'; return; }
         if (details.description.length > 5000) { errorEl.textContent = 'This description is a little too long. Shorten it before beginning the quest.'; return; }
-        if (!details.objective) { errorEl.textContent = 'Add one clear thing that needs to be done.'; return; }
+        if (!details.objectiveText) { errorEl.textContent = 'Add one clear thing that needs to be done.'; return; }
+        if (details.objective.length > 500) { errorEl.textContent = 'This objective is a little too long. Shorten it before beginning the quest.'; return; }
         questState.busy = true; errorEl.textContent = ''; renderQuestCapture();
         var source = questState.sourceFeedPostId ? Promise.resolve(questState.sourceFeedPostId) : insertQuestSource(details);
         source.then(function (feedId) {
@@ -941,7 +969,10 @@
         var details = questDetails();
         if (questState.step === 0 && !details.descriptionText) { errorEl.textContent = 'Add the moment that made this a quest.'; return; }
         if (questState.step === 0 && details.description.length > 5000) { errorEl.textContent = 'This description is a little too long. Shorten it before continuing.'; return; }
-        if (questState.step === 2 && !details.objective) { errorEl.textContent = 'Add one clear thing that needs to be done.'; return; }
+        if (questState.step === 1 && questGiverSurface && questGiverSurface.text() && !details.giverId) { errorEl.textContent = 'Choose the Quest Giver from the @ suggestions, or clear the field.'; return; }
+        if (questState.step === 1 && questLocationSurface && questLocationSurface.text() && !details.locationId) { errorEl.textContent = 'Choose the Location from the @ suggestions, or clear the field.'; return; }
+        if (questState.step === 2 && !details.objectiveText) { errorEl.textContent = 'Add one clear thing that needs to be done.'; return; }
+        if (questState.step === 2 && details.objective.length > 500) { errorEl.textContent = 'This objective is a little too long. Shorten it before continuing.'; return; }
         if (questState.step < 3) { questState.step += 1; renderQuestCapture(); return; }
         submitQuestCapture();
       }
@@ -1055,6 +1086,59 @@
         composer.el.addEventListener('input', updateQuestPreview);
         composer.el.addEventListener('focus', function () { loadMentionData(composer.el); }, true);
       }
+      function mountQuestEntity(mod, type, name, placeholder) {
+        var fallback = questEl(name);
+        var hostEl = questEl(name + 'host');
+        var composer = mod.createComposer(hostEl, {
+          placeholder: placeholder,
+          allowedMentionTypes: [type],
+          pool: function () {
+            return type === 'npc'
+              ? { characters: [], npcs: MC.pool.npcs, locations: [] }
+              : { characters: [], npcs: [], locations: MC.pool.locations };
+          },
+          onNewEntity: function (item) {
+            if (!MC.newEntities.some(function (entity) { return entity.id === item.id && entity.type === item.type; })) {
+              MC.newEntities.push({ id: item.id, type: item.type, label: item.label });
+            }
+          },
+        });
+        fallback.hidden = true;
+        var surface = {
+          text: function () { return composer.el.textContent.replace(/\u00a0/g, ' ').trim(); },
+          doc: function () { return composer.getDoc(); },
+          clear: function () { composer.clear(); },
+          el: composer.el,
+        };
+        composer.el.addEventListener('input', updateQuestPreview);
+        composer.el.addEventListener('focus', function () { loadMentionData(composer.el); }, true);
+        return surface;
+      }
+      function mountQuestObjective(mod) {
+        if (questObjectiveSurface) return;
+        var fallback = questEl('questobjective');
+        var hostEl = questEl('questobjectivehost');
+        var composer = mod.createComposer(hostEl, {
+          placeholder: 'What needs to be done? Type @ to link a person or place.',
+          pool: function () { return { characters: [], npcs: MC.pool.npcs, locations: MC.pool.locations }; },
+          onNewEntity: function (item) {
+            if (!MC.newEntities.some(function (entity) { return entity.id === item.id && entity.type === item.type; })) {
+              MC.newEntities.push({ id: item.id, type: item.type, label: item.label });
+            }
+          },
+        });
+        var initial = fallback.value;
+        fallback.hidden = true;
+        questObjectiveSurface = {
+          text: function () { return window.QuestFeedCapture.descriptionText(composer.getDoc()); },
+          encoded: function () { return window.QuestFeedCapture.encodeDescription(composer.getDoc()); },
+          clear: function () { composer.clear(); },
+          el: composer.el,
+        };
+        if (initial) composer.el.textContent = initial;
+        composer.el.addEventListener('input', updateQuestPreview);
+        composer.el.addEventListener('focus', function () { loadMentionData(composer.el); }, true);
+      }
       function seatName(key) {
         if (!key) return 'Narrator';
         return (typeof CHARACTERS !== 'undefined' && CHARACTERS[key] && CHARACTERS[key].name) || key;
@@ -1095,8 +1179,11 @@
         mountFallbackInput();
       } else {
       setTimeout(function () { if (!SURF) mountFallbackInput(); }, 1500);
-      import('./mention-composer.js?v=mc5').then(function (mod) {
+      import('./mention-composer.js?v=mc6').then(function (mod) {
         mountQuestDescription(mod);
+        questGiverSurface = mountQuestEntity(mod, 'npc', 'questgiver', 'Type @ to find or add an NPC…');
+        questLocationSurface = mountQuestEntity(mod, 'location', 'questlocation', 'Type @ to find or add a location…');
+        mountQuestObjective(mod);
         if (SURF) { console.warn('[rail] mention-composer arrived after fallback — keeping the input'); return; }
         MC.mod = mod;
         var composer = mod.createComposer(host, {
@@ -1167,7 +1254,7 @@
         return words.length > 6 ? t + '…' : t;
       }
       function sendRowToJournal(row) {
-        Promise.all([import('./mention-composer.js?v=mc5'), import('./journal-capture.js?v=jc4')]).then(function (mods) {
+        Promise.all([import('./mention-composer.js?v=mc6'), import('./journal-capture.js?v=jc5')]).then(function (mods) {
           var mc = mods[0], jc = mods[1];
           if (!MC.mod) MC.mod = mc;
           var ensureSlugs = MC.loaded ? Promise.resolve()

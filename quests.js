@@ -1,4 +1,4 @@
-/* quests.js — guarded shared Quest Log read contract.
+/* quests.js — shared Quest Log read contract.
  * Quests own giver, ordered objectives, completion, and rewards. Campaign
  * moments remain linked evidence; World and Chronicle stay projections.
  * Plain script + CommonJS dual export: window.Quests.
@@ -10,7 +10,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  var VERSION = 'q-2';
+  var VERSION = 'q-3';
   var STATUSES = ['offered', 'active', 'completed', 'failed', 'archived'];
   var OBJECTIVE_STATES = ['locked', 'current', 'complete', 'failed'];
   var STATUS_ORDER = { active: 0, offered: 1, completed: 2, failed: 3, archived: 4 };
@@ -20,8 +20,8 @@
   function isEnabled(search) {
     try {
       var query = new URLSearchParams(search == null ? '' : String(search));
-      return query.get('questLog') === '1' || !!query.get('quest');
-    } catch (_) { return false; }
+      return query.get('questLog') !== '0';
+    } catch (_) { return true; }
   }
   function dateValue(value) {
     var time = value ? Date.parse(value) : NaN;
@@ -233,7 +233,7 @@
     var profile = options.profile || (view && view.__tok && view.__tok.ready ? await view.__tok.ready : null);
     var staff = isStaff(profile);
     var campaignApi = options.campaignMoments || (view && view.CampaignMoments);
-    var state = { result: null, moments: [], audience: staff ? 'staff' : 'player', filter: 'active', questId: queryValue(search, 'quest'), objectiveId: '' };
+    var state = { result: null, moments: [], audience: staff ? 'staff' : 'player', filter: 'active', query: '', questId: queryValue(search, 'quest'), objectiveId: '' };
 
     async function refresh() {
       try {
@@ -245,6 +245,7 @@
         if (!state.result.available) { root.innerHTML = '<div class="q-state"><b>Quest Log unavailable</b><p>' + esc(state.result.error) + '</p></div>'; return; }
         if (!state.result.quests.some(function (quest) { return quest.id === state.questId; })) state.questId = state.result.quests[0] ? state.result.quests[0].id : '';
         var quest = currentQuest();
+        if (queryValue(search, 'quest') && quest && quest.status !== 'active') state.filter = 'all';
         if (quest && !quest.objectives.some(function (objective) { return objective.id === state.objectiveId; })) {
           var current = quest.objectives.find(function (objective) { return objective.state === 'current'; }) || quest.objectives[0];
           state.objectiveId = current ? current.id : '';
@@ -277,7 +278,7 @@
       if (!quest.objectives.length) return '<div class="q-empty">No objectives have been published.</div>';
       return quest.objectives.map(function (objective) {
         return '<button type="button" class="q-objective ' + esc(objective.state) + '" data-objective="' + esc(objective.id) + '" aria-current="' + (objective.id === state.objectiveId) + '">' +
-          '<span>' + esc(objectiveLabel(objective.state)) + '</span><b>' + esc(objective.title) + '</b><p>' + esc(objective.publicHint || 'No public hint recorded.') + '</p></button>';
+          '<span>' + esc(objectiveLabel(objective.state)) + '</span><b>' + descriptionHtml(objective.title) + '</b><p>' + esc(objective.publicHint || 'No public hint recorded.') + '</p></button>';
       }).join('');
     }
     function rewardsHtml(quest) {
@@ -322,18 +323,66 @@
       if (!label || !id) return '<b>' + esc(label || fallback) + '</b>';
       return '<b class="' + type + '-link" data-' + type + '="' + esc(id) + '" tabindex="0">' + esc(label) + '</b>';
     }
+    function plainRich(value) {
+      return view && view.QuestFeedCapture && typeof view.QuestFeedCapture.descriptionText === 'function'
+        ? view.QuestFeedCapture.descriptionText(value)
+        : text(value);
+    }
+    function visibleQuests() {
+      var query = state.query.toLowerCase();
+      return allQuests().filter(function (raw) {
+        var quest = state.audience === 'player' ? partyProjection(raw) : raw;
+        if (state.filter !== 'all' && quest.status !== state.filter) return false;
+        if (!query) return true;
+        var objective = quest.objectives.map(function (row) { return plainRich(row.title); }).join(' ');
+        return [quest.title, plainRich(quest.summary), objective, quest.giverLabel, quest.destinationLabel]
+          .join(' ').toLowerCase().indexOf(query) >= 0;
+      });
+    }
+    function hubCardHtml(quest) {
+      var progress = progressFor(quest), objective = quest.objectives.find(function (row) { return row.state === 'current'; }) || quest.objectives[0];
+      var open = quest.id === state.questId;
+      return '<article class="qh-card ' + esc(quest.status) + (open ? ' is-open' : '') + '">' +
+        '<div class="qh-card-top"><span>' + esc(statusLabel(quest.status)) + '</span><small>' + esc(progress.label) + ' objectives</small></div>' +
+        '<h3>' + esc(quest.title) + '</h3>' + (objective ? '<p class="qh-objective">' + descriptionHtml(objective.title) + '</p>' : '') +
+        '<div class="qh-card-actions"><button type="button" data-quest="' + esc(quest.id) + '">' + (open ? 'Close details' : 'Details') + '</button>' +
+        (quest.destinationLocationId ? '<a href="world.html?quest=' + encodeURIComponent(quest.id) + '&location=' + encodeURIComponent(quest.destinationLocationId) + '">View on World</a>' : '') + '</div>' +
+        (open ? '<div class="qh-details"><p>' + descriptionHtml(quest.summary || 'No description recorded.') + '</p><dl>' +
+          '<div><dt>Quest Giver</dt><dd>' + entityHtml(quest.giverLabel, quest.giverId, 'npc', 'Not recorded') + '</dd></div>' +
+          '<div><dt>Location</dt><dd>' + entityHtml(quest.destinationLabel, quest.destinationLocationId, 'location', 'No location yet') + '</dd></div></dl>' +
+          (staff && state.audience === 'staff' && quest.staffTruth ? '<div class="qh-staff"><b>Staff truth</b><p>' + esc(quest.staffTruth) + '</p></div>' : '') + '</div>' : '') + '</article>';
+    }
+    function hubGroupsHtml() {
+      var groups = {}, order = [];
+      visibleQuests().forEach(function (raw) {
+        var quest = state.audience === 'player' ? partyProjection(raw) : raw;
+        var key = quest.destinationLocationId || 'unlocated';
+        if (!groups[key]) { groups[key] = { label: quest.destinationLabel || 'No location yet', rows: [] }; order.push(key); }
+        groups[key].rows.push(quest);
+      });
+      order.sort(function (a, b) {
+        if (a === 'unlocated') return 1; if (b === 'unlocated') return -1;
+        return groups[a].label.localeCompare(groups[b].label);
+      });
+      if (!order.length) return '<div class="q-empty">No quests match this view.</div>';
+      return order.map(function (key) {
+        var group = groups[key];
+        return '<section class="qh-group"><header><h2>' + esc(group.label) + '</h2>' +
+          (key !== 'unlocated' ? '<a href="world.html?location=' + encodeURIComponent(key) + '">View on World</a>' : '') +
+          '<span>' + group.rows.length + ' quest' + (group.rows.length === 1 ? '' : 's') + '</span></header><div class="qh-cards">' + group.rows.map(hubCardHtml).join('') + '</div></section>';
+      }).join('');
+    }
     function render() {
       if (!state.result || !state.result.quests.length) {
         root.innerHTML = '<div class="q-state"><b>No shared quests yet</b><p>No campaign quest has been published to the party.</p></div>';
         return;
       }
-      var quest = currentQuest(), objective = currentObjective(), progress = progressFor(quest);
-      root.innerHTML = '<div class="q-app"><header class="q-head"><div><span>Guarded shared campaign reader</span><h1>Quest Log</h1><p>Shared campaign state—not a character\'s private Journal checklist.</p></div>' +
-        (staff ? '<div class="q-audience" role="group" aria-label="Preview audience"><button type="button" data-audience="player" aria-pressed="' + (state.audience === 'player') + '">Player view</button><button type="button" data-audience="staff" aria-pressed="' + (state.audience === 'staff') + '">Staff view</button></div>' : '') + '</header>' +
-        noticesHtml() + '<div class="q-workspace"><aside class="q-index"><header><span>Campaign threads</span><h2>Quests</h2><div class="q-filters"><button data-filter="active" aria-pressed="' + (state.filter === 'active') + '">Active</button><button data-filter="completed" aria-pressed="' + (state.filter === 'completed') + '">Completed</button><button data-filter="all" aria-pressed="' + (state.filter === 'all') + '">All</button></div></header><div class="q-list">' + questListHtml() + '</div></aside>' +
-        '<main class="q-main"><section class="q-hero"><div class="q-hero-line"><div><span>Shared quest · ' + esc(quest.id) + '</span><h2>' + esc(quest.title) + '</h2></div><b class="q-pill">' + esc(statusLabel(quest.status)) + '</b></div><p class="q-summary">' + descriptionHtml(quest.summary || 'No public summary recorded.') + '</p><div class="q-meta"><div><span>Quest giver</span>' + entityHtml(quest.giverLabel, quest.giverId, 'npc', 'Not recorded') + '</div><div><span>Destination</span>' + entityHtml(quest.destinationLabel, quest.destinationLocationId, 'location', 'No map destination') + '<small>' + esc(quest.destinationPrecision) + '</small></div><div><span>Progress</span><b>' + progress.label + ' complete</b></div></div><blockquote><b>What the party knows</b><p>' + esc(quest.publicHint || 'No public hint recorded.') + '</p></blockquote>' + staffTruthHtml(quest) + '</section>' +
-        '<div class="q-section-head"><h3>Objectives</h3><span>Completion requires attached campaign evidence</span></div><div class="q-objectives">' + objectivesHtml(quest) + '</div><div class="q-section-head"><h3>Rewards</h3><span>Promised, hidden, or awarded</span></div><div class="q-rewards">' + rewardsHtml(quest) + '</div></main>' +
-        '<aside class="q-side"><header><span>Selected objective</span><h2>Evidence</h2><p>Campaign moments prove completed deeds; the quest never copies or rewrites them.</p></header><div class="q-selected"><b>' + esc(objective ? objective.title : 'No objective selected') + '</b><p>' + esc(objective ? objectiveLabel(objective.state) : '') + '</p></div><section class="q-destination"><span>World destination</span><b>' + esc(quest.destinationLabel || 'No destination recorded') + '</b><p>' + (quest.destinationPrecision === 'approximate' ? '? Approximate party knowledge; exact truth remains separate.' : quest.destinationPrecision === 'confirmed' ? 'Confirmed party destination.' : 'World has no quest destination to project.') + '</p></section><div class="q-evidence-list">' + evidenceHtml(objective) + '</div></aside></div></div>';
+      var rows = allQuests(), active = rows.filter(function (quest) { return quest.status === 'active'; }).length;
+      var completed = rows.filter(function (quest) { return quest.status === 'completed'; }).length;
+      root.innerHTML = '<div class="qh-app"><header class="q-head"><div><span>Shared campaign record</span><h1>Quest Hub</h1><p>See what matters now. Open a quest only when you want its story and connections.</p></div>' +
+        (staff ? '<div class="q-audience" role="group" aria-label="Preview audience"><button type="button" data-audience="player" aria-pressed="' + (state.audience === 'player') + '">Player view</button><button type="button" data-audience="staff" aria-pressed="' + (state.audience === 'staff') + '">Staff view</button></div>' : '') + '</header>' + noticesHtml() +
+        '<main class="qh-main"><div class="qh-tools"><input type="search" data-quest-search aria-label="Search quests" placeholder="Search quests, objectives, people, or locations" value="' + esc(state.query) + '"><div class="q-filters"><button data-filter="active" aria-pressed="' + (state.filter === 'active') + '">Active</button><button data-filter="completed" aria-pressed="' + (state.filter === 'completed') + '">Completed</button><button data-filter="all" aria-pressed="' + (state.filter === 'all') + '">All</button></div></div>' +
+        '<div class="qh-metrics"><div><small>Active</small><b>' + active + '</b></div><div><small>Completed</small><b>' + completed + '</b></div><p>Begin a new quest with <b>/quest</b> in the Feed.</p></div><div class="qh-groups">' + hubGroupsHtml() + '</div></main></div>';
       if (view && typeof view.attachTooltips === 'function') {
         try { view.attachTooltips(root); } catch (_) {}
       }
@@ -342,7 +391,8 @@
       var button = event.target && event.target.closest ? event.target.closest('button,[data-quest],[data-objective]') : null;
       if (!button || !root.contains(button)) return;
       if (button.dataset.quest) {
-        state.questId = button.dataset.quest;
+        state.questId = state.questId === button.dataset.quest ? '' : button.dataset.quest;
+        if (!state.questId) { render(); return; }
         var quest = currentQuest();
         var current = quest.objectives.find(function (row) { return row.state === 'current'; }) || quest.objectives[0];
         state.objectiveId = current ? current.id : '';
@@ -352,7 +402,15 @@
       else return;
       render();
     }
+    function onInput(event) {
+      if (!event.target || !event.target.matches('[data-quest-search]')) return;
+      state.query = event.target.value;
+      render();
+      var input = root.querySelector('[data-quest-search]');
+      if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+    }
     root.addEventListener('click', onClick);
+    root.addEventListener('input', onInput);
     await refresh();
     var channel = null;
     if (sb && typeof sb.channel === 'function' && state.result && state.result.available) {
@@ -364,6 +422,7 @@
     }
     return { active: true, staff: staff, refresh: refresh, destroy: function () {
       root.removeEventListener('click', onClick);
+      root.removeEventListener('input', onInput);
       if (channel && sb && typeof sb.removeChannel === 'function') sb.removeChannel(channel);
     } };
   }

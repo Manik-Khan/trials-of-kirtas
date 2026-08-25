@@ -501,6 +501,49 @@ interaction on August 24. This Hub approval does not itself promote Journal,
 World, navigation, rail, or presentation work; the separately authorized
 authoring delta above is the only production-bound Quest change in this slice.
 
+**Quest capture/Hub/World promotion — local after `f7c2e3d7099c`, August 25:**
+M's next signed-in field pass proved that Description was reaching both
+`quests.summary` and its intentional Chronicle source, but the guarded Hub made
+the quest copy invisible. It also proved that Quest Giver and Location were
+still dropdowns, Objective was plain text, and World had no quest projection.
+The local correction now gives Giver and Location writable single-type `@`
+fields (known or newly queued entity), gives Objective the same safe rich
+NPC/location mention envelope as Description, and decodes Objective mentions in
+the capture preview, Quest Hub, compact quest rail, and Chronicle receipt. The
+plain Giver/Location labels remain free of visible `@` syntax outside editing.
+No SQL changed.
+
+The approved Hub projection is now promoted: Quests is normal global
+navigation, `quests.html` is on by default with `?questLog=0` as the rollback
+door, the page groups concise cards by World location and searches title,
+description, objective, giver, or location, and the global right rail has a
+compact expandable Quests tab. World reads those same quest identities,
+normalizes legacy location slugs such as `barrow-wastes` / `barrowwastes`, lists
+matching quests in the selected location panel, and accepts Hub deep links that
+center and open the destination. No quest record is copied into World.
+
+The World detail flex chain now has explicit `min-height:0`, contained vertical
+scrolling, and long legacy single-paragraph prose is grouped into readable
+three-sentence paragraphs without changing the words. Direct editing remains
+mock-first: `_edits/mock-world-location-editing.html`, contract
+`tok-world-location-editing/v1-candidate`, proposes a staff-only shared
+description editor with blank-line paragraph formatting and narrated save.
+Production description writes wait for M's visual approval of that mock.
+
+Cache stamps advance to `rail.js/css?v=quest3`,
+`mention-composer.js?v=mc6`, `journal-capture.js?v=jc5`,
+`quests.js/css?v=q3`, `quests-tab.js/css?v=qt1`, and `nav.js?v=sup8`; the
+Journal bundle is rebuilt. Focused gates pass **87/87** rail, **50/50** real
+composer, **28/28** capture helper, **69/69** Quest reader/Hub/World contract,
+**49/49** campaign moments, **10/10** World focus, **69/69** approved Hub mock,
+**13/13** location-editing mock, **22/22** records workspace, and **25/25**
+book/quest timeline; Vite production build passes. The repository-wide sheet
+mount remains the known unrelated **49/50** manual-proficiency-label baseline.
+Remaining field gates after M's push: desktop/mobile rich Objective + writable
+Giver/Location creation, normal Hub and rail visibility, Hub → World centering,
+World location quest cards, and Mortaine panel scrolling. Then review the
+location-editing mock before wiring any production location description writes.
+
 ---
 
 ## 🟡 Forge Blueprint/Diorama + map creation + Combat — July 28–August 8

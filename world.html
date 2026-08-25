@@ -13,7 +13,7 @@
     .world-header { height: 36px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); border-bottom: 1px solid var(--gold-dim); flex-shrink: 0; gap: 0.6rem; }
     .world-header-diamond { color: var(--gold); font-size: 0.55rem; opacity: 0.8; }
     .world-header-title { font-family: var(--font-title); font-size: 0.52rem; letter-spacing: 0.4em; text-transform: uppercase; color: var(--gold-light); }
-    .world-layout { display: flex; flex: 1; overflow: hidden; position: relative; }
+    .world-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; position: relative; }
     .world-rail { width: 52px; background: rgba(0,0,0,0.72); border-right: 1px solid var(--gold-dim); display: flex; flex-direction: column; align-items: center; padding: 0.6rem 0; gap: 0.2rem; z-index: 5; flex-shrink: 0; }
     .rail-btn { position: relative; width: 38px; height: 38px; background: transparent; border: 1px solid transparent; color: var(--muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.12rem; transition: color 0.15s, border-color 0.15s, background 0.15s; }
     .rail-btn:hover { color: var(--aged); border-color: var(--gold-dim); background: rgba(184,149,42,0.06); }
@@ -50,7 +50,7 @@
     .pin-palette-name { font-family: var(--font-title); font-size: 0.44rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--parchment2); }
     .pin-palette-cancel { margin-top: 0.2rem; font-family: var(--font-title); font-size: 0.38rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); cursor: pointer; text-align: center; padding: 0.2rem; border-top: 1px solid var(--gold-dim); transition: color 0.12s; }
     .pin-palette-cancel:hover { color: var(--aged); }
-    .world-panel { width: 300px; flex-shrink: 0; background: rgba(10,8,5,0.94); border-left: 1px solid var(--gold-dim); display: flex; flex-direction: column; z-index: 5; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.22,1,0.36,1); position: absolute; top: 0; right: 0; bottom: 0; }
+    .world-panel { width: 300px; min-height: 0; max-height: 100%; flex-shrink: 0; background: rgba(10,8,5,0.94); border-left: 1px solid var(--gold-dim); display: flex; flex-direction: column; z-index: 5; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.22,1,0.36,1); position: absolute; top: 0; right: 0; bottom: 0; }
     .world-panel.open { transform: translateX(0); }
     .world-panel::before { content: ''; position: absolute; inset: 0; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E"); opacity: 0.5; }
     .panel-header { padding: 0.85rem 1rem 0.65rem; border-bottom: 1px solid var(--gold-dim); flex-shrink: 0; position: relative; }
@@ -60,12 +60,18 @@
     .panel-status-badge { font-family: var(--font-title); font-size: 0.34rem; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.1rem 0.35rem; border: 1px solid; }
     .panel-name { font-family: var(--font-title); font-size: 1rem; color: var(--parchment); line-height: 1.2; }
     .panel-subtitle { font-size: 0.72rem; color: var(--muted); font-style: italic; margin-top: 0.15rem; }
-    .panel-body { flex: 1; overflow-y: auto; padding: 0.8rem 1rem; scrollbar-width: thin; scrollbar-color: var(--gold-dim) transparent; position: relative; }
+    .panel-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.8rem 1rem; scrollbar-width: thin; scrollbar-color: var(--gold-dim) transparent; position: relative; }
     .panel-body::-webkit-scrollbar { width: 3px; }
     .panel-body::-webkit-scrollbar-thumb { background: var(--gold-dim); }
     .panel-section { font-family: var(--font-title); font-size: 0.36rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold-dim); border-bottom: 1px solid var(--gold-dim); padding-bottom: 0.18rem; margin: 0.75rem 0 0.45rem; }
     .panel-section:first-child { margin-top: 0; }
-    .panel-desc { font-size: 0.85rem; color: var(--parchment2); line-height: 1.75; }
+    .panel-desc { font-size: 0.85rem; color: var(--parchment2); line-height: 1.75; white-space: pre-line; }
+    .world-quest-list { display:flex; flex-direction:column; gap:.45rem; }
+    .world-quest-card { display:block; min-height:64px; padding:.6rem .7rem; border:1px solid var(--gold-dim); border-left:3px solid var(--gold); background:rgba(184,149,42,.05); color:inherit; text-decoration:none; }
+    .world-quest-card:hover { border-color:var(--gold); background:rgba(184,149,42,.11); }
+    .world-quest-card small { display:block; color:var(--gold-dim); font-family:var(--font-title); font-size:.36rem; letter-spacing:.12em; text-transform:uppercase; }
+    .world-quest-card b { display:block; margin-top:.25rem; color:var(--parchment); font-size:.9rem; font-weight:500; }
+    .world-quest-card p { margin-top:.3rem; color:var(--parchment2); font-size:.78rem; line-height:1.4; }
     .panel-pin-who { display: flex; align-items: center; gap: 0.3rem; font-family: var(--font-title); font-size: 0.42rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--aged); }
     .panel-pin-who-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
     .panel-pin-note { font-size: 0.85rem; color: var(--parchment2); line-height: 1.7; font-style: italic; margin-top: 0.3rem; }
@@ -530,10 +536,12 @@
   </div>
 
 <script src="characters.js"></script>
-  <script src="nav.js?v=sup7"></script>
+  <script src="nav.js?v=sup8"></script>
 <script src="tooltips.js"></script>
 <script src="living-codex.js?v=lc1"></script>
 <script src="campaign-moments.js?v=cm2"></script>
+<script src="quest-feed-capture.js?v=qfc3"></script>
+<script src="quests.js?v=q3"></script>
 <script src="battle.js?v=settings1"></script>
 <script src="feed-bridge.js"></script>
 <script>
@@ -645,6 +653,8 @@ let worldIsStaff     = false;
 let livingCodex      = { characters: [], npcs: [], locations: [], entities: [], aliases: {} };
 let pendingCodexLocation = null;
 let campaignHistory  = { available: false, moments: [], error: '' };
+let worldQuests      = { available: false, quests: [], error: '' };
+let worldQuestFocused = false;
 let partyPathEnabled = false;
 let partyPathFilter  = 'all';
 let selectedMomentId = null;
@@ -1036,7 +1046,8 @@ function selectCanonLocation(event, key) {
 
   document.getElementById('panel-body').innerHTML = `
     <div class="panel-section">About</div>
-    <div class="panel-desc">${escapeHtml(loc.desc)}</div>
+    <div class="panel-desc">${formatLocationProse(loc.desc)}</div>
+    ${locationQuestsHTML(key, loc.name)}
     ${locationChildrenHTML(key)}
   `;
 
@@ -1049,6 +1060,33 @@ function locationChildrenHTML(parentId) {
   return `<div class="panel-section">Within this location</div><div class="panel-sublocations">${children.map(child =>
     `<button class="panel-sublocation" onclick="selectLivingLocation(event,'${escapeHtml(child.id)}')">${escapeHtml(child.label)}${child.role ? ` · ${escapeHtml(child.role)}` : ''}</button>`
   ).join('')}</div>`;
+}
+
+function locationToken(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function questsAtLocation(id, label) {
+  const ids = [locationToken(id), locationToken(label)].filter(Boolean);
+  return (worldQuests.quests || []).filter(quest => {
+    const destination = [locationToken(quest.destinationLocationId), locationToken(quest.destinationLabel)];
+    return destination.some(value => value && ids.includes(value));
+  });
+}
+
+function questRich(value) {
+  return window.QuestFeedCapture && QuestFeedCapture.descriptionHTML
+    ? QuestFeedCapture.descriptionHTML(value)
+    : escapeHtml(value);
+}
+
+function locationQuestsHTML(id, label) {
+  const quests = questsAtLocation(id, label);
+  if (!quests.length) return '';
+  return `<div class="panel-section">Quests here</div><div class="world-quest-list">${quests.map(quest => {
+    const objective = quest.objectives && quest.objectives[0];
+    return `<a class="world-quest-card" href="quests.html?quest=${encodeURIComponent(quest.id)}"><small>${escapeHtml(quest.status)}</small><b>${escapeHtml(quest.title)}</b>${objective ? `<p>${questRich(objective.title)}</p>` : ''}</a>`;
+  }).join('')}</div>`;
 }
 
 function selectLivingLocation(event, id) {
@@ -1071,7 +1109,8 @@ function selectLivingLocation(event, id) {
   document.getElementById('panel-subtitle').textContent = parent ? `Inside ${parent.label}` : (loc.role || 'Discovered in the Chronicle');
   document.getElementById('panel-body').innerHTML = `
     <div class="panel-section">About</div>
-    <div class="panel-desc">${escapeHtml(loc.descr || 'A newly recorded place. More will be written as the party learns it.')}</div>
+    <div class="panel-desc">${formatLocationProse(loc.descr || 'A newly recorded place. More will be written as the party learns it.')}</div>
+    ${locationQuestsHTML(id, loc.label)}
     ${locationChildrenHTML(id)}
   `;
   openPanel();
@@ -1665,6 +1704,17 @@ function escapeHtml(str) {
   return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function formatLocationProse(value) {
+  const text = String(value || '').trim();
+  if (text.length < 560 || /\n\s*\n/.test(text)) return escapeHtml(text);
+  const sentences = text.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g) || [text];
+  const paragraphs = [];
+  for (let i = 0; i < sentences.length; i += 3) {
+    paragraphs.push(sentences.slice(i, i + 3).join(' ').replace(/\s+/g, ' ').trim());
+  }
+  return escapeHtml(paragraphs.join('\n\n'));
+}
+
 // ══════════════════════════════════════════════════════════
 // KEYBOARD
 // ══════════════════════════════════════════════════════════
@@ -1832,11 +1882,38 @@ async function loadWorldCodex() {
   }
 }
 
+async function loadWorldQuests() {
+  if (!worldSB || !window.Quests) return;
+  try {
+    worldQuests = await Quests.load(worldSB, { staff:false });
+  } catch (e) {
+    worldQuests = { available:false, quests:[], error:e.message || 'Quests are unavailable.' };
+    console.warn('[quests] World projection unavailable:', worldQuests.error);
+  }
+  const query = new URLSearchParams(location.search);
+  const requestedQuest = query.get('quest');
+  const requestedLocation = query.get('location');
+  if (!worldQuestFocused && (requestedQuest || requestedLocation)) {
+    const quest = (worldQuests.quests || []).find(row => row.id === requestedQuest);
+    const target = requestedLocation || (quest && (quest.destinationLocationId || quest.destinationLabel));
+    const token = locationToken(target);
+    const canon = CANON_LOCATIONS.find(row => locationToken(row.key) === token || locationToken((LOCATION_DATA[row.key] || {}).name) === token);
+    const living = livingCodex.locations.find(row => locationToken(row.id) === token || locationToken(row.label) === token);
+    if (canon || living) {
+      worldQuestFocused = true;
+      zoomToLocation(canon ? canon.key : living.id);
+    }
+  }
+  if (selectedKey && selectedKey.indexOf('canon-') === 0) selectCanonLocation({ stopPropagation:() => {} }, selectedKey.slice(6));
+  else if (selectedKey && selectedKey.indexOf('living-') === 0) selectLivingLocation({ stopPropagation:() => {} }, selectedKey.slice(7));
+}
+
 async function startWorldCodex() {
   worldSB = window.__tok.sb;
   const profile = window.__tok.ready ? await window.__tok.ready : null;
   worldIsStaff = !!(profile && (profile.role === 'overseer' || profile.role === 'dm'));
   await loadWorldCodex();
+  await loadWorldQuests();
   await loadWorldMoments();
   worldSB.channel('world-codex-live')
     .on('postgres_changes', { event:'*', schema:'public', table:'entities' }, loadWorldCodex)
@@ -1844,6 +1921,12 @@ async function startWorldCodex() {
   if (campaignHistory.available) {
     worldSB.channel('world-campaign-history-live')
       .on('postgres_changes', { event:'*', schema:'public', table:'campaign_moments' }, loadWorldMoments)
+      .subscribe();
+  }
+  if (worldQuests.available) {
+    worldSB.channel('world-quests-live')
+      .on('postgres_changes', { event:'*', schema:'public', table:'quests' }, loadWorldQuests)
+      .on('postgres_changes', { event:'*', schema:'public', table:'quest_objectives' }, loadWorldQuests)
       .subscribe();
   }
 }

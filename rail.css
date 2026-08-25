@@ -185,11 +185,13 @@
 #tok-rail .tr-quest-step textarea,#tok-rail .tr-quest-step input,#tok-rail .tr-quest-step select{ display:block; width:100%; margin-top:6px; padding:9px 10px; border:1px solid var(--frame); border-radius:0; outline:none; background:rgba(5,10,9,.5); color:var(--cream-hi); font-family:"EB Garamond",Georgia,serif; font-size:15px; line-height:1.4; }
 #tok-rail .tr-quest-step textarea{ resize:vertical; }
 #tok-rail .tr-quest-step textarea:focus,#tok-rail .tr-quest-step input:focus,#tok-rail .tr-quest-step select:focus{ border-color:var(--gold); box-shadow:0 0 0 2px rgba(199,154,74,.09); }
-#tok-rail .tr-quest-description-host{ position:relative; margin-top:6px; text-transform:none; }
-#tok-rail .tr-quest-description-host textarea{ margin-top:0; }
+#tok-rail .tr-quest-description-host,#tok-rail .tr-quest-entity-host,#tok-rail .tr-quest-objective-host{ position:relative; margin-top:6px; text-transform:none; }
+#tok-rail .tr-quest-description-host textarea,#tok-rail .tr-quest-entity-host select,#tok-rail .tr-quest-objective-host textarea{ margin-top:0; }
 #tok-rail .tr-quest-description-host .mc-editor{ min-height:116px; max-height:180px; text-transform:none; }
-#tok-rail .tr-quest-description-host .mc-pick{ top:calc(100% + 5px); bottom:auto; text-transform:none; }
-#tok-rail .tr-quest-description-host .mc-wrap{ position:relative; }
+#tok-rail .tr-quest-entity-host .mc-editor{ min-height:42px; max-height:96px; text-transform:none; }
+#tok-rail .tr-quest-objective-host .mc-editor{ min-height:88px; max-height:150px; text-transform:none; }
+#tok-rail .tr-quest-description-host .mc-pick,#tok-rail .tr-quest-entity-host .mc-pick,#tok-rail .tr-quest-objective-host .mc-pick{ top:calc(100% + 5px); bottom:auto; text-transform:none; }
+#tok-rail .tr-quest-description-host .mc-wrap,#tok-rail .tr-quest-entity-host .mc-wrap,#tok-rail .tr-quest-objective-host .mc-wrap{ position:relative; }
 #tok-rail .tr-quest-note{ margin:6px 0 0; color:var(--cream-fnt); font-size:11px; font-style:italic; line-height:1.4; }
 #tok-rail .tr-quest-preview{ padding:12px; border:1px solid var(--hair); background:rgba(7,12,11,.35); }
 #tok-rail .tr-quest-preview h3{ margin:6px 0 0; color:var(--cream-hi); font-family:"Playfair Display",Georgia,serif; font-size:21px; font-weight:500; }

@@ -150,6 +150,20 @@ ok(pick.textContent.includes('Add this person') && pick.textContent.includes('Ad
 pressEnter();
 ok(createdEntities.length === 1 && createdEntities[0].type === 'npc' && createdEntities[0].id === 'new-rock', 'choosing Create NPC queues the new entity');
 
+// Structural quest fields can narrow both matches and explicit Create rows.
+const locationHost = document.createElement('div'); document.body.appendChild(locationHost);
+const locationComposer = mc.createComposer(locationHost, {
+  pool: () => ({ characters: [], npcs: [], locations: [] }),
+  allowedMentionTypes: ['location'],
+});
+const locationText = document.createTextNode('@new crossing');
+locationComposer.el.appendChild(locationText);
+const locationRange = document.createRange(); locationRange.setStart(locationText, locationText.nodeValue.length); locationRange.collapse(true);
+dom.window.getSelection().removeAllRanges(); dom.window.getSelection().addRange(locationRange);
+locationComposer.el.dispatchEvent(new dom.window.Event('input'));
+const locationBadges = locationHost.querySelectorAll('.mc-pick-badge');
+ok(locationBadges.length === 1 && locationBadges[0].textContent === 'New Location', 'location-only quest field never offers the wrong entity type');
+
 // picker closed → Enter sends; Shift+Enter falls through
 pressEnter();
 ok(sends === 1, 'picker-closed Enter sends');

@@ -32,6 +32,7 @@ const PAGES = [
   { label: 'Factions',    path: 'factions.html' },
   { label: 'Chronicle',   path: 'journal.html?view=chronicle' },   // records workspace: book + Journal
   { label: 'Feed',        path: 'chronicle.html' },                 // live posting / DM console
+  { label: 'Quests',      path: 'quests.html' },
   { label: 'NPCs',       path: 'npcs.html' },
   { label: 'World',      path: 'world.html' },
   { label: 'Lore',       path: 'lore.html' },
@@ -542,7 +543,7 @@ function mountRail() {
   if (document.getElementById('tok-rail-js')) return;   // inject once
   const s = document.createElement('script');
   s.id = 'tok-rail-js';
-  s.src = 'rail.js?v=quest2';
+  s.src = 'rail.js?v=quest3';
   s.defer = true;
   document.body.appendChild(s);
 }
