@@ -1,4 +1,4 @@
-# Durable item system handoff — current through 2026-08-23
+# Durable item system handoff — current through 2026-08-24
 
 Status: **identity/schema, staff adoption, and server-side transfer are applied;
 the real full-sheet adoption flow and tracked-item reader are field-visible on
@@ -9,19 +9,25 @@ campaign-moment reader, schema, and first two real rows are live. The post-seed
 World/Chronicle/Encounter/Item History player path is field-proven at desktop
 and mobile; the authenticated staff matrix remains. The first shared Quest Log
 mock is approved, its SELECT-only foundation is applied, and its guarded reader
-is deployed and field-proven empty for player and Overseer seats. No production quest authoring, Loot
-Workshop, evolving-item, or Forge runtime wiring is approved.**
+is deployed and field-proven empty for player and Overseer seats. A separate
+in-game TipTap Quest-capture interaction is approved, with creation open to
+every authenticated player, DM, and Overseer. The connected Quest Hub / World /
+global-right-rail standalone mock is also approved. No production quest
+authoring, Hub, World projection, rail wiring, Loot Workshop,
+evolving-item, or Forge runtime wiring is approved.**
 
 This document is the current item-system authority. Read it with `AGENTS.md`
 and `CONTEXT.md` before touching Gear, inventory imports, item SQL, Chronicle
 links, or World-map item projection.
 
-Current synchronized baseline: local `main` and `origin/main` at `863aed3`
-(`updating quest structure`). The field correction owns only
-`schema_delta_quest_reader_privileges.sql`, `quests.html`, the focused Quest
-smoke, and these two authority docs. No unrelated project owns or dirties those
-files. M deploys manually. Codex never pushes and commits only when M explicitly
-asks.
+Current synchronized baseline: local `main` and `origin/main` at `042ddeb`
+(`building quests in database`). The current review slice owns only
+`_edits/mock-quest-authoring-transitions.html`,
+`_edits/mock-quest-hub-world-rail.html`, their focused smokes, and these two
+authority docs. It does not modify the production Quest tables, reader,
+navigation, Journal, World, global rail, applied SQL, campaign-moment
+projection, items, or Forge. M deploys manually. Codex never pushes and commits
+only when M explicitly asks.
 
 ## 1. Executive verdict
 
@@ -499,7 +505,61 @@ guarded doors narrate **No shared quests yet**, the control narrates **Quest Log
 is guarded**, every document is exact-width, and browser warnings/errors are
 zero. M separately confirmed the guarded empty state from an authenticated
 Overseer seat. The first empty-reader field gate is complete; the first
-reviewed real quest and its separately approved authoring boundary remain open.
+in-game capture interaction is now approved, and every authenticated player,
+DM, and Overseer may create. The Chronicle-moment authoring boundary remains
+open.
+
+M rejected the first transition-contract version as too much lifecycle
+machinery for someone playing the game. The replacement at
+`_edits/mock-quest-authoring-transitions.html` is
+`tok-quest-capture/v2-candidate`. It begins in a Chronicle/Journal-style TipTap
+composer: `/quest` creates a quest from the event being written, and `@quest`
+links an existing quest in later prose.
+
+The replacement asks four small sections one at a time: what happened; optional
+NPC and location links; one objective plus an optional title; and share. Only
+the description and objective are required. Found quests need no giver, and
+small quests need no reward or multi-step authoring gate. Sharing makes the
+candidate active and visible in Chronicle and the shared Quest Log; checking
+the objective completes it from the current Chronicle moment. Persistence
+transitions stay behind the interaction. The bottled-letter caravan is
+illustrative mock content, not reviewed campaign data or a seed candidate.
+
+The surface performs no reads, writes, storage, SQL, or production wiring. Its
+focused gate passes **49/49**. Browser review at 1280×720 and 390×844 is
+exact-width, retains 52px-or-larger mobile controls, and covers `/quest`, all
+four sections, sharing, and single-check completion. M approved this short
+progressive interaction and its person-facing language. M then settled shared
+creation authority for every authenticated campaign role: player, DM, and
+Overseer. Whether sharing creates or links the current campaign moment remains
+the open design gate.
+
+`_edits/mock-quest-hub-world-rail.html` is the approved connected standalone
+projection, contract `tok-quest-hub-projections/v1-candidate`. It derives three
+consumer views from one canonical quest identity: the Hub organizes and
+searches; World resolves location → quests and quest → location; the existing
+site-wide right rail holds pinned quests and current objectives. The default
+Hub card shows only title, objective, status, location, and source. Description
+and giver stay behind **Details**. A collapsed rail quest shows title and
+objective; its own **Details** expansion adds description, **Quest Giver**,
+and location, plus an explicit **Open in Quest Hub** action. The corrected label
+is simply **Quest Giver** and displays **Old Nan**, not `@Old Nan`. Giver and
+location are stable entity links: hover or keyboard focus previews description
+from the NPC or location record. Production must reuse the existing
+`tooltips.js` / Living Codex description authority rather than copy prose into
+the quest. Hub **+ Add quest** opens the same approved four-section capture
+while honestly assuming no Chronicle moment for Hub-origin creation. When
+World supplies location context, the rail replaces its generic pinned/current
+sections with **Quests here** rather than repeating records.
+
+All mock quests and locations are illustrative only. The surface performs no
+reads, writes, storage, SQL, production World work, or global-rail wiring. Its
+focused gate passes **69/69**. Browser review at 1280×720 and 390×844 covers
+search, location selection, Hub → World → rail → expanded Hub return, the
+off-canvas mobile rail, the reused capture entry, 52px capture/rail controls,
+and exact document width. M approved the complete hierarchy, language,
+in-rail detail, and linked-entity tooltip interaction on August 24. It does not
+authorize production integration.
 
 ## 6. File ownership map
 
@@ -563,8 +623,18 @@ reviewed real quest and its separately approved authoring boundary remain open.
   illustrative only, with no production reads, writes, or storage.
 - `tests/smoke/smoke-quest-foundation-mock.mjs` — candidate quest identity,
   audience, objective, evidence, destination, reward, and responsive gate.
-- `schema_delta_quests.sql` — additive read-only-for-clients quest contract;
-  pending live application.
+- `_edits/mock-quest-authoring-transitions.html` — standalone in-game
+  Chronicle/Journal Quest-capture candidate; local simulation only.
+- `tests/smoke/smoke-quest-authoring-transitions-mock.mjs` — `/quest`, `@quest`,
+  progressive capture, optional-link, sharing, completion, and responsive gate.
+- `_edits/mock-quest-hub-world-rail.html` — approved standalone connected Quest
+  Hub, World-location, and global-right-rail projection; illustrative and local
+  only.
+- `tests/smoke/smoke-quest-hub-world-rail-mock.mjs` — canonical identity,
+  search/grouping, bidirectional World location, concise rail, capture reuse,
+  no-write, and responsive contract gate.
+- `schema_delta_quests.sql` — applied additive read-only-for-clients quest
+  contract; preserve as migration history.
 - `quests.js` / `quests.css` / `quests.html` — guarded dedicated shared Quest
   Log reader; no global nav entry and no client write path.
 - `tests/fixtures/quests-harness.html` — in-memory production-reader field
@@ -602,7 +672,12 @@ reviewed real quest and its separately approved authoring boundary remain open.
 - The durable quest contract is applied with authenticated clients proven
   SELECT-only, and the guarded empty reader is field-proven for player and
   Overseer seats. No real quest is seeded, the page is not in global navigation,
-  and staff authoring RPCs/client writes do not exist.
+  and authoring RPCs/client writes do not exist. The standalone in-game capture
+  interaction is approved, while its implementation remains review-only. Every
+  authenticated player, DM, and Overseer may create; the Chronicle-moment write
+  seam and narrow server operation are not approved.
+  The connected Hub/World/rail mock is also review-only and has no production
+  consumer wiring.
 - Evolving-item deeds/unlocks do not exist. Manual `transformed` history is only
   a contract capability today.
 
@@ -644,9 +719,9 @@ desktop mouse/keyboard exploration and mobile touch exploration.
 
 ### E. Introduce the quest foundation
 
-Staff-created quests need quest giver, multi-step objectives/deeds, public
-hints, secret truth, approximate or confirmed map destination,
-Chronicle/session evidence, completion state, and rewards.
+Shared quests can begin during play with a description and one objective.
+Quest giver, location, additional objectives, public hints, secret truth, and
+rewards are optional detail; Chronicle/session connections carry the evidence.
 
 ### F. Add evolving items
 
@@ -665,7 +740,7 @@ production reader. Its schema and SELECT-only correction are applied; its
 cache-stamped empty reader is field-proven at live commit `07762c4`.
 
 1. Synchronize against `AGENTS.md`, `CONTEXT.md`, this handoff, current `HEAD`,
-   working tree, and changes since `52d6518`.
+   working tree, and changes since `042ddeb`.
 2. Preserve both campaign SQL files as applied history. The saved link-delta
    evidence is `installed_review_two_facts`; it contains both reviewed rows,
    one Skyblinder association, and the source event with `moment_id = null`.
@@ -677,29 +752,45 @@ cache-stamped empty reader is field-proven at live commit `07762c4`.
 4. Preserve the passed guarded-reader boundary: `quests.js?v=q1` /
    `quests.css?v=q1`, no global navigation entry, no seed quest, and no
    authenticated client write path.
-5. Before production authoring, review the first real quest's giver,
-   destination, ordered objectives, evidence moments, and rewards. Design the
-   narrow staff authoring/transition contract separately; never seed the mock's
-   illustrative IDs.
-6. Carry the separate authenticated staff campaign-moment projection as an
+5. Preserve M's approval of `_edits/mock-quest-authoring-transitions.html`:
+   `/quest` creates, `@quest` links, four progressive sections collect only the
+   needed fields, and one evidence-backed check completes a small quest. This
+   interaction approval is not authorization for SQL, Journal edits, or client
+   writes.
+6. Preserve M's approval of the overall hierarchy in
+   `_edits/mock-quest-hub-world-rail.html`: minimal Hub cards,
+   search/status/location grouping, bidirectional World location links, and
+   reuse of the approved capture from **+ Add quest**. The approved rail
+   interaction lets a collapsed title/objective expand in place to
+   description, **Quest Giver**, location, and **Open in Quest Hub**; the giver
+   is a plain name without `@`; giver/location hover or keyboard focus reads the
+   entity-owned NPC/World description. The mock remains standalone and must not
+   become production Hub, World, rail, navigation, or schema work without
+   separate approval.
+7. Carry the separate authenticated staff campaign-moment projection as an
    explicit field gate; do not reopen or rewrite either applied campaign delta.
-7. Preserve the approved ownership boundaries: a quest owns giver,
+8. Preserve the approved ownership boundaries: a quest owns giver,
    objectives, completion, and rewards; World owns destination projection;
    campaign moments and Chronicle/session records remain linked evidence rather
    than being copied into the quest; Journal pages may link but do not own
    shared quest state.
-8. Select the first real quest only after every giver, destination, objective,
-   evidence moment, and reward is reviewed. Never seed the mock's illustrative
-   IDs. Staff authoring RPCs and client writes are the next separate approval
-   boundary after the empty reader is field-proven.
-9. Carry the existing item gates independently: confirm management SQL live
+9. Preserve shared creation authority for every authenticated campaign role:
+   player, DM, and Overseer. Before production design, decide whether sharing
+   atomically creates a campaign moment or links an already-saved Chronicle
+   row, then design one narrow server operation without restoring direct table
+   writes. Keep NPC/location connections optional and reuse TipTap's structured
+   mentions. Do not seed the illustrative bottled-letter quest.
+10. Carry the existing item gates independently: confirm management SQL live
    state; field-test Attune/Release, identify, rename, and transfer; complete
    the approved Gear/import presentation; and keep mounted-sheet rollout as a
    separate boundary.
-10. Preserve the Loot Workshop's approved standalone interaction and 140/140
+11. Preserve the Loot Workshop's approved standalone interaction and 140/140
    smoke. Its licensed data and bundle/roster persistence boundary remain
    separate from campaign-moment production work.
 
-The first quest slice ends at a field-proven empty guarded reader. The next
-decision is the narrow staff authoring/transition contract and the first real
-quest—not World projection or evolving-item automation.
+The first Quest reader slice ends at a field-proven guarded empty state, and the
+in-game TipTap capture interaction and the complete Hub/World/right-rail mock
+are approved, and every authenticated player, DM, and Overseer may create.
+Chronicle-moment linkage and the narrow server operation must still be settled
+before production SQL/RPC or Journal work. Production Hub, World, rail,
+navigation, schema, and evolving-item automation remain later boundaries.

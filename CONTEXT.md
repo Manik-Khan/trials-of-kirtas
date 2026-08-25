@@ -4,7 +4,11 @@ Custom D&D 5e virtual tabletop. Live: **trials-of-kirtas.netlify.app**
 Repo: `Manik-Khan/trials-of-kirtas` · vanilla JS/HTML/CSS + Supabase + Netlify + GitHub.
 Walled React/Vite/TipTap corner at `journal/`.
 
-Updated: **August 23, 2026 (the applied SELECT-only guarded Quest foundation;
+Updated: **August 24, 2026 (the applied SELECT-only guarded Quest foundation,
+the approved in-game TipTap Quest-capture interaction, the applied guarded
+member-authoring contract, and the current
+approved Chronicle Quest begun milestone and standalone Quest Hub / World /
+right-rail projection;
 the approved guarded focused Level Up staging flow;
 durable notable-item identity, staff adoption,
 atomic custody transfer, the field-proven full-sheet item-history bridge, the
@@ -276,10 +280,99 @@ the guarded list, direct `?quest=` door, and unguarded control at 1280×720 and
 narrates **Quest Log is guarded**, every document is exact-width, and browser
 warnings/errors are zero. M separately confirmed the guarded empty state from
 an authenticated Overseer seat. That closes the first empty-reader field gate.
-The separate staff campaign-moment projection remains carried work. The next
-Quest decision is the narrow staff authoring/transition contract and the first
-deliberately reviewed real quest—not World projection or evolving-item
-automation.
+The separate staff campaign-moment projection remains carried work. M has now
+approved the in-game TipTap capture interaction and settled creation authority:
+every authenticated campaign member—player, DM, or Overseer—may create a
+shared quest. M also approved the Chronicle start projection described below.
+The durable start-record and atomic write seam were the next design gates; the
+prepared additive candidate is described below and still requires manual
+application evidence. Shared creation uses a narrow operation and does not
+restore authenticated table-write grants.
+
+M rejected the first transition-contract mock as too much lifecycle machinery
+for a person playing the game. The replacement standalone surface at
+`_edits/mock-quest-authoring-transitions.html` is
+`tok-quest-capture/v3-candidate`. It begins inside a Chronicle/Journal-style
+TipTap composer: `/quest` captures a new quest from the event being written,
+while `@quest` is reserved for linking an existing quest in later prose.
+
+Capture asks four small sections one at a time: what happened; optional NPC and
+location connections; one objective plus an optional title; and share. Only the
+description and one objective are required. A found quest can have no giver,
+small quests need no extra objectives, and reward/private detail can be added
+later instead of blocking play. Sharing makes the candidate active and visible
+in Chronicle and the shared Quest Log. The originating prose remains the story;
+the Chronicle inserts a compact, expandable **Quest begun** receipt immediately
+after it, with title and objective visible at a glance. Expansion shows only the
+description, giver, location, and **Open in Quest Hub**. A quest created from the
+Hub or Journal receives the same milestone at creation time rather than
+inventing a Chronicle source entry. Completion UI is deliberately outside this
+slice. Database transitions remain behind the interaction.
+
+The bottled-letter caravan scene is illustrative mock content, not a reviewed
+campaign quest or seed candidate. The mock performs no reads, writes, storage,
+SQL, or production wiring. Its gate passes **68/68**. The earlier capture-only
+surface passed desktop 1280×720 and mobile 390×844 interaction checks; the v3
+milestone was then visually approved by M in the local in-app preview on August
+24. M approved the short progressive interaction, its person-facing language,
+creation by every authenticated campaign member, and both Chronicle-origin and
+outside-origin **Quest begun** placements. A 390×844 milestone field pass and
+the production TipTap/Chronicle reader wiring remain open.
+
+The additive `schema_delta_quest_authoring.sql` is now the applied authoring
+contract. It corrects giver identity/label to be an optional pair, adds one
+append-only `quest_starts` receipt per quest, and exposes one `create_quest(...)`
+SECURITY DEFINER RPC to approved members. The RPC creates
+the party-visible active quest, first current objective, and **Quest begun**
+receipt in one transaction. Chronicle origins must link a readable public feed
+entry; Journal origins must link a real Journal page; Hub origins invent no
+source. The receipt derives its session from that source or the current campaign
+and retains typed historical IDs even if the source prose is later removed.
+
+The caller supplies a UUID request identity. Concurrent or lost-response retries
+with the same details return the existing three records; reuse with different
+details is rejected. Authenticated table privileges remain SELECT-only and
+anonymous callers receive no table or RPC capability. The focused static gate
+passes **44/44**. M applied the delta on August 24 and the read-only
+`docs/guides/QUEST-AUTHORING-PREFLIGHT.sql` returned
+`installed_quest_authoring`: `create_quest(...)` exists, authenticated may
+execute it, anonymous may not, `quest_starts` has one SELECT policy and both
+append-only trigger events, optional giver fields are nullable, authenticated
+may SELECT starts, and direct quest/start inserts remain false with
+`write_grants = 0`. No real quest was seeded by the migration. The first
+signed-in RPC round trip and the Journal/Chronicle reader wiring remain open;
+Quest Hub, World, rail, and navigation runtime are still outside this database
+slice.
+
+The approved standalone connection proof is
+`_edits/mock-quest-hub-world-rail.html`, contract
+`tok-quest-hub-projections/v1-candidate`. It keeps one canonical quest identity
+and presents only the information needed in each place: the Hub groups and
+searches quests by status and location; World resolves location → quests and
+quest → location; the existing site-wide right rail provides pinned quests and
+current objectives. Quest cards lead with title, objective, status, location,
+and source; description and giver remain behind **Details**. A collapsed rail
+quest leads with title and objective, then its own **Details** expansion shows
+description, **Quest Giver**, and location before offering **Open in Quest
+Hub**. Giver labels are plain names such as **Old Nan**, never stored/displayed
+as `@Old Nan`. Giver and location remain stable entity links: hover or keyboard
+focus previews the description owned by the NPC or location record, matching
+the existing `tooltips.js` / Living Codex seam rather than copying that prose
+into the quest. Hub **+ Add quest** reuses the approved four-section capture
+and explicitly assumes no Chronicle moment for a Hub-origin quest. World
+location context replaces the rail's generic pinned/current view instead of
+duplicating it.
+
+All four quest rows and three locations in this proof are illustrative only.
+The mock performs no reads, writes, storage, SQL, production World work, or
+global-rail wiring. Its focused gate passes **69/69**. Desktop 1280×720 and
+mobile 390×844 browser passes cover search, location selection, Hub → World →
+rail → expanded Hub return, the off-canvas mobile rail, the reused capture
+entry, 52px mobile capture/rail controls, and exact document width. M approved
+the complete hierarchy, language, in-rail detail, and linked-entity tooltip
+interaction on August 24. This Hub approval does not itself promote Journal,
+World, navigation, rail, or presentation work; the separately authorized
+authoring delta above is the only production-bound Quest change in this slice.
 
 ---
 
