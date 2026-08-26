@@ -41,7 +41,7 @@
 
   var LS_KEY = 'tok.rail.v1';
   var RAIL_W = 384;
-  var RAIL_ASSET_V = 'quest4';
+  var RAIL_ASSET_V = 'quest5';
 
   function readPreferences() {
     return (window.TokPreferences && window.TokPreferences.get) ? window.TokPreferences.get() : {};
@@ -936,9 +936,9 @@
       function submitQuestCapture() {
         var details = questDetails(), errorEl = questEl('questerror');
         if (!details.descriptionText) { errorEl.textContent = 'Add the moment that made this a quest.'; return; }
-        if (details.description.length > 5000) { errorEl.textContent = 'This description is a little too long. Shorten it before beginning the quest.'; return; }
+        if (details.descriptionText.length > 5000) { errorEl.textContent = 'This description is a little too long. Shorten it before beginning the quest.'; return; }
         if (!details.objectiveText) { errorEl.textContent = 'Add one clear thing that needs to be done.'; return; }
-        if (details.objective.length > 500) { errorEl.textContent = 'This objective is a little too long. Shorten it before beginning the quest.'; return; }
+        if (details.objectiveText.length > 500) { errorEl.textContent = 'This objective is a little too long. Shorten it before beginning the quest.'; return; }
         questState.busy = true; errorEl.textContent = ''; renderQuestCapture();
         var source = questState.sourceFeedPostId ? Promise.resolve(questState.sourceFeedPostId) : insertQuestSource(details);
         source.then(function (feedId) {
@@ -968,11 +968,11 @@
         }
         var details = questDetails();
         if (questState.step === 0 && !details.descriptionText) { errorEl.textContent = 'Add the moment that made this a quest.'; return; }
-        if (questState.step === 0 && details.description.length > 5000) { errorEl.textContent = 'This description is a little too long. Shorten it before continuing.'; return; }
+        if (questState.step === 0 && details.descriptionText.length > 5000) { errorEl.textContent = 'This description is a little too long. Shorten it before continuing.'; return; }
         if (questState.step === 1 && questGiverSurface && questGiverSurface.text() && !details.giverId) { errorEl.textContent = 'Choose the Quest Giver from the @ suggestions, or clear the field.'; return; }
         if (questState.step === 1 && questLocationSurface && questLocationSurface.text() && !details.locationId) { errorEl.textContent = 'Choose the Location from the @ suggestions, or clear the field.'; return; }
         if (questState.step === 2 && !details.objectiveText) { errorEl.textContent = 'Add one clear thing that needs to be done.'; return; }
-        if (questState.step === 2 && details.objective.length > 500) { errorEl.textContent = 'This objective is a little too long. Shorten it before continuing.'; return; }
+        if (questState.step === 2 && details.objectiveText.length > 500) { errorEl.textContent = 'This objective is a little too long. Shorten it before continuing.'; return; }
         if (questState.step < 3) { questState.step += 1; renderQuestCapture(); return; }
         submitQuestCapture();
       }

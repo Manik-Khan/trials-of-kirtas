@@ -30,6 +30,7 @@ const RAIL_CSS = readFileSync('./rail.css', 'utf8');
 ok(RAIL_CSS.includes('.tr-quest-step textarea[hidden]') && RAIL_CSS.includes('.tr-quest-step select[hidden]'), 'quest rich editors hide their plain emergency controls');
 ok((RAIL_SRC.match(/fallback\.style\.display = 'none'/g) || []).length === 3, 'all three quest rich surfaces force their duplicate fallback out of layout');
 ok(RAIL_CSS.includes('.tr-quest-objective-host .mc-editor:empty::before') && RAIL_CSS.includes('font-style:normal'), 'quest field guidance uses the normal Chronicle writing face');
+ok((RAIL_SRC.match(/details\.(?:description|objective)Text\.length/g) || []).length === 4 && !/details\.(?:description|objective)\.length >/.test(RAIL_SRC), 'quest limits count readable writing instead of its linked-text envelope');
 
 const CHARACTERS = {
   cosmere: { name: 'Cosmere' }, caim: { name: 'Caim' },

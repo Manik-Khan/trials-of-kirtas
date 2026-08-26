@@ -544,22 +544,47 @@ linking path. Objective remains required prose, not a checkbox. Multiple or
 nested checklist objectives are a separate mock-first authoring slice rather
 than part of this field repair.
 
-Cache stamps advance to `rail.js/css?v=quest4`,
+The August 26 field pass found that rich writing limits were measuring the
+stored `tok-quest-rich-v1:` JSON envelope rather than the words a player could
+read. The reported three-part Veren's Watch objective is **124** readable
+characters but crosses the old 500-character storage guard once its linked
+mention, paragraphs, and blank lines are encoded. The rail now measures
+`descriptionText` / `objectiveText`. Additive migration
+`schema_delta_quest_rich_length_validation.sql` installs the same readable-text
+counter at the `create_quest(...)` boundary, retains separate 50,000 / 10,000
+raw-envelope safety caps, and fails closed if the installed authoring function
+does not match the expected foundation. It is not applied until M runs it;
+`docs/guides/QUEST-RICH-LENGTH-PREFLIGHT.sql` is the read-only result check.
+
+Quest session reassignment is not wired directly into production because the
+canonical `quest_starts` receipt is deliberately append-only. Standalone
+`_edits/mock-quest-session-correction.html`, contract
+`tok-quest-session-correction/v1-candidate`, proposes the smallest honest Hub
+interaction: **Edit session**, choose an existing Chronicle session, then
+**Save session**. The resolved Quest Hub session changes while the original
+Chronicle source remains visible and unchanged; the correction appends to quest
+history. The mock assumes any approved campaign member may correct a quest
+session, performs no reads or writes, and awaits M's visual and permission
+approval before an additive correction table/RPC and production Hub work.
+
+Cache stamps advance to `rail.js/css?v=quest5`,
 `mention-composer.js?v=mc6`, `journal-capture.js?v=jc5`,
-`quests.js/css?v=q3`, `quests-tab.js/css?v=qt1`, and `nav.js?v=sup9`. Focused
-gates pass **90/90** rail, **50/50** real
-composer, **28/28** capture helper, **69/69** Quest reader/Hub/World contract,
+`quests.js/css?v=q3`, `quests-tab.js/css?v=qt1`, and `nav.js?v=sup10`. Focused
+gates pass **91/91** rail, **50/50** real
+composer, **29/29** capture helper, **15/15** readable-length SQL,
+**44/44** authoring SQL, **14/14** session-correction mock,
+**69/69** Quest reader/Hub/World contract,
 **49/49** campaign moments, **10/10** World focus, **69/69** approved Hub mock,
 **13/13** location-editing mock, **22/22** records workspace, and **25/25**
 book/quest timeline. The repository-wide sheet
 mount remains the known unrelated **49/50** manual-proficiency-label baseline.
-Remaining field gates after M's push: desktop/mobile confirmation that each
-capture section shows only one field; Objective advances; `@Veren's Watch`
-selects the durable location; normal Hub and rail visibility; Hub → World
-centering; World location quest cards; and Mortaine panel scrolling. Then review
-the location-editing mock before wiring any production location description
-writes, and mock the multi-objective/checklist authoring layer before changing
-the durable objective structure.
+Remaining field gates after M applies the readable-length migration and pushes:
+run its preflight, repeat the exact formatted objective, and confirm the quest
+begins. Then review the session-correction mock and its all-member permission
+assumption before production session corrections. The other open checks remain
+desktop/mobile single-field capture, normal Hub and rail visibility, Hub →
+World centering, World location quest cards, Mortaine panel scrolling, the
+location-editing mock, and a separate multi-objective/checklist authoring mock.
 
 ---
 

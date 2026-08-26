@@ -45,6 +45,19 @@ const unsafeDescription = QuestFeedCapture.encodeDescription({ type: 'doc', cont
 ] }] })
 ok(!QuestFeedCapture.descriptionHTML(unsafeDescription).includes('<img') && !QuestFeedCapture.descriptionHTML(unsafeDescription).includes('@Nope'), 'description renderer strips unsupported nodes and escapes prose')
 
+const formattedObjective = QuestFeedCapture.encodeDescription({ type: 'doc', content: [
+  { type: 'paragraph', content: [
+    { type: 'text', text: 'We need to reach ' },
+    { type: 'tokMention', attrs: { type: 'location', key: 'veren-s-watch', label: "Veren's Watch", resolved: true } },
+    { type: 'text', text: ' and find out what happened to it.' },
+  ] },
+  { type: 'paragraph', content: [] },
+  { type: 'paragraph', content: [{ type: 'text', text: 'What happened to the guard there?' }] },
+  { type: 'paragraph', content: [] },
+  { type: 'paragraph', content: [{ type: 'text', text: 'Why has trade stopped?' }] },
+] })
+ok(formattedObjective.length > 500 && QuestFeedCapture.descriptionText(formattedObjective).length === 124, 'formatted objective limit can use 124 readable characters instead of the larger storage envelope')
+
 const payload = QuestFeedCapture.rpcPayload({
   requestId: '11111111-1111-4111-8111-111111111111',
   title: 'The Bell Beneath', description: 'A bell rings below.', objective: 'Find the bell',

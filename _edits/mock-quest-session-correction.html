@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Quest session correction — approval mock</title>
+  <style>
+    :root{--night:#06100d;--panel:#101e1a;--card:#14241f;--ink:#eee4d2;--muted:#aaa08d;--dim:#746d60;--line:rgba(238,228,210,.16);--gold:#c89b4b;--gold2:#ebc87d;--blue:#7aaec9;--green:#79b889}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--night);color:var(--ink)}body{font-family:"EB Garamond",Georgia,serif;background:radial-gradient(circle at 72% 0,rgba(122,174,201,.1),transparent 34rem),linear-gradient(150deg,#0b1714,#050a08)}button,select{font:inherit;color:inherit}button{cursor:pointer}button:focus-visible,select:focus-visible{outline:2px solid var(--gold2);outline-offset:2px}[hidden]{display:none!important}.eyebrow,.status,.label,.source,.notice small{font-family:"Arial Narrow",Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase}
+    .top{min-height:62px;display:flex;align-items:center;padding:10px 22px;border-bottom:1px solid var(--line);background:rgba(5,12,10,.92)}.top b{font:500 20px Georgia,serif}.top span{margin-left:auto;color:var(--dim);font-size:12px}.wrap{width:min(760px,calc(100% - 28px));margin:0 auto;padding:38px 0 70px}.eyebrow{color:var(--gold);font-size:8px}.intro h1{margin:5px 0 7px;font:500 clamp(30px,5vw,42px)/1.05 Georgia,serif}.intro p{max-width:610px;margin:0;color:var(--muted);font-size:15px;line-height:1.5}.quest{margin-top:25px;border:1px solid var(--line);border-left:3px solid var(--gold);background:var(--card);box-shadow:0 24px 60px rgba(0,0,0,.22)}.quest-head{padding:18px 20px 15px;border-bottom:1px solid var(--line)}.status{color:var(--gold2);font-size:8px}.quest h2{margin:6px 0 7px;font:500 26px Georgia,serif}.objective{margin:0;color:var(--ink);font-size:16px;line-height:1.42}.details{padding:16px 20px 20px}.facts{display:grid;grid-template-columns:1fr 1fr;gap:10px}.fact{min-height:75px;padding:11px 12px;border:1px solid var(--line);background:rgba(0,0,0,.12)}.label{display:block;color:var(--dim);font-size:7px}.fact b{display:block;margin-top:5px;font-size:17px;font-weight:500}.fact .source{margin-top:5px;color:var(--dim);font-size:7px}.session-row{display:flex;align-items:center;gap:12px}.session-row>div{flex:1}.edit{min-height:42px;padding:0 13px;border:1px solid var(--blue);background:transparent;color:var(--blue)}.editor{margin-top:12px;padding:14px;border:1px solid rgba(122,174,201,.44);background:rgba(122,174,201,.055)}.editor label{display:block}.editor select{width:100%;min-height:46px;margin-top:6px;padding:0 10px;border:1px solid var(--line);border-radius:0;background:#091511}.editor p{margin:8px 0 0;color:var(--muted);font-size:13px;line-height:1.42}.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:13px}.actions button{min-height:42px;padding:0 14px;border:1px solid var(--line);background:transparent}.actions .save{border-color:var(--gold);background:var(--gold);color:#17120b;font-weight:700}.notice{margin-top:12px;padding:12px 13px;border-left:2px solid var(--green);background:rgba(121,184,137,.06)}.notice small{color:var(--green);font-size:7px}.notice p{margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.4}.history{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}.history h3{margin:0 0 8px;color:var(--dim);font:600 8px Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase}.history-entry{display:grid;grid-template-columns:10px 1fr;gap:9px;color:var(--muted);font-size:13px;line-height:1.4}.history-entry:before{content:"";width:7px;height:7px;margin-top:5px;border:1px solid var(--green);border-radius:50%}.history-entry b{color:var(--ink);font-weight:500}.boundary{margin-top:16px;color:var(--dim);font-size:12px;font-style:italic;text-align:center}
+    @media(max-width:620px){.top{padding:9px 14px}.top span{display:none}.wrap{padding-top:24px}.facts{grid-template-columns:1fr}.quest-head,.details{padding-left:14px;padding-right:14px}.session-row{align-items:stretch;flex-direction:column}.edit,.actions button{min-height:52px}.actions{display:grid;grid-template-columns:1fr 1fr}.editor select{min-height:52px}}
+  </style>
+</head>
+<body>
+  <script id="mock-data" type="application/json">
+  {
+    "contract":"tok-quest-session-correction/v1-candidate",
+    "boundary":"standalone-review-only-no-reads-no-writes",
+    "permissionAssumption":"any approved campaign member may correct a quest session",
+    "historyRule":"the original Quest begun receipt and Chronicle source are never rewritten",
+    "quest":{"id":"quest-road-to-verens-watch","title":"The Road to Veren's Watch","objective":"Reach Veren's Watch and learn what happened there.","currentSession":8,"sourceSession":9},
+    "sessions":[{"id":9,"label":"Session 9 · The Broken Caravan"},{"id":8,"label":"Session 8 · The Fort Road"},{"id":7,"label":"Session 7 · The Occupation"},{"id":6,"label":"Session 6"}]
+  }
+  </script>
+
+  <header class="top"><b>Trials of Kirtas</b><span>Standalone Quest Hub correction mock</span></header>
+  <main class="wrap">
+    <header class="intro"><span class="eyebrow">Quest Hub · correction proof</span><h1>Edit the quest’s session after the fact</h1><p>The quest can be organized under the session where it truly began without moving or changing the Chronicle entry that captured it.</p></header>
+    <article class="quest">
+      <header class="quest-head"><span class="status">Active quest</span><h2>The Road to Veren’s Watch</h2><p class="objective">Reach Veren’s Watch and learn what happened there.</p></header>
+      <div class="details">
+        <div class="facts">
+          <div class="fact session-row"><div><span class="label">Quest began in</span><b data-current-session>Session 8 · The Fort Road</b></div><button type="button" class="edit" data-edit-session>Edit session</button></div>
+          <div class="fact"><span class="label">Original Chronicle source</span><b>Session 9 · The Broken Caravan</b><span class="source">Kept exactly where it was written</span></div>
+        </div>
+
+        <section class="editor" data-session-editor hidden>
+          <label><span class="label">Quest began in</span><select data-session-select aria-label="Quest began in"></select></label>
+          <p>This changes where the quest is organized and searched. It does not move the original Chronicle entry.</p>
+          <div class="actions"><button type="button" data-cancel>Cancel</button><button type="button" class="save" data-save>Save session</button></div>
+        </section>
+
+        <div class="notice" data-notice hidden role="status"><small>Session corrected</small><p data-notice-copy></p></div>
+        <section class="history"><h3>Quest history</h3><div data-history><div class="history-entry"><span><b>Quest begun · Session 8</b><br>Captured from a Chronicle entry written in Session 9.</span></div></div></section>
+      </div>
+    </article>
+    <p class="boundary">Mock only · no Supabase reads, writes, RPCs, or production Quest Hub changes.</p>
+  </main>
+
+  <script>
+  (function(){
+    'use strict';
+    var data=JSON.parse(document.getElementById('mock-data').textContent),current=data.quest.currentSession;
+    var editor=document.querySelector('[data-session-editor]'),select=document.querySelector('[data-session-select]');
+    function session(id){return data.sessions.find(function(row){return row.id===Number(id);})||{id:Number(id),label:'Session '+id};}
+    function open(){select.value=String(current);editor.hidden=false;select.focus();}
+    function close(){editor.hidden=true;}
+    data.sessions.forEach(function(row){var option=document.createElement('option');option.value=String(row.id);option.textContent=row.label;select.appendChild(option);});
+    document.querySelector('[data-edit-session]').onclick=open;
+    document.querySelector('[data-cancel]').onclick=close;
+    document.querySelector('[data-save]').onclick=function(){
+      var previous=current,next=Number(select.value);if(next===previous){close();return;}
+      current=next;document.querySelector('[data-current-session]').textContent=session(next).label;
+      var notice=document.querySelector('[data-notice]');document.querySelector('[data-notice-copy]').textContent='Moved from Session '+previous+' to Session '+next+'. The Session '+data.quest.sourceSession+' Chronicle source remains unchanged.';notice.hidden=false;
+      var entry=document.createElement('div');entry.className='history-entry';entry.innerHTML='<span><b>Session corrected · Session '+previous+' → Session '+next+'</b><br>Recorded by Vesperian Vale · original receipt retained.</span>';document.querySelector('[data-history]').prepend(entry);close();
+    };
+    window.QuestSessionCorrectionMock={data:data,getState:function(){return{currentSession:current,editorOpen:!editor.hidden};},open:open};
+  })();
+  </script>
+</body>
+</html>
