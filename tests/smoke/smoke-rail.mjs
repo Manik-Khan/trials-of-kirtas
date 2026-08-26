@@ -25,6 +25,11 @@ const FEED_RENDER_SRC = readFileSync('./feed-render.js', 'utf8');
 const RAIL_SETTINGS_SRC = readFileSync('./rail-settings.js', 'utf8');
 const QUEST_CAPTURE_SRC = readFileSync('./quest-feed-capture.js', 'utf8');
 const RAIL_SRC = readFileSync('./rail.js', 'utf8');
+const RAIL_CSS = readFileSync('./rail.css', 'utf8');
+
+ok(RAIL_CSS.includes('.tr-quest-step textarea[hidden]') && RAIL_CSS.includes('.tr-quest-step select[hidden]'), 'quest rich editors hide their plain emergency controls');
+ok((RAIL_SRC.match(/fallback\.style\.display = 'none'/g) || []).length === 3, 'all three quest rich surfaces force their duplicate fallback out of layout');
+ok(RAIL_CSS.includes('.tr-quest-objective-host .mc-editor:empty::before') && RAIL_CSS.includes('font-style:normal'), 'quest field guidance uses the normal Chronicle writing face');
 
 const CHARACTERS = {
   cosmere: { name: 'Cosmere' }, caim: { name: 'Caim' },

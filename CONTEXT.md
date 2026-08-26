@@ -530,19 +530,36 @@ mock-first: `_edits/mock-world-location-editing.html`, contract
 description editor with blank-line paragraph formatting and narrated save.
 Production description writes wait for M's visual approval of that mock.
 
-Cache stamps advance to `rail.js/css?v=quest3`,
+The August 25 field pass exposed a CSS collision in Quest capture: the generic
+quest input rule forced the plain emergency textarea/selects to remain visible
+after the linked editors mounted. Text entered in those duplicate controls was
+therefore absent from linked-editor validation, which made a written Objective
+look empty and left `@Veren's Watch` as plain prose. The fallback controls now
+leave layout at both the CSS and mount boundaries; the linked editor is the one
+visible field for Description, Quest Giver, Location, and Objective. Quest-field
+guidance also uses the normal upright Chronicle writing face instead of the
+oversized-looking italic placeholder. Veren's Watch already has the durable
+Living Codex location identity `veren-s-watch`; choosing its @ suggestion is the
+linking path. Objective remains required prose, not a checkbox. Multiple or
+nested checklist objectives are a separate mock-first authoring slice rather
+than part of this field repair.
+
+Cache stamps advance to `rail.js/css?v=quest4`,
 `mention-composer.js?v=mc6`, `journal-capture.js?v=jc5`,
-`quests.js/css?v=q3`, `quests-tab.js/css?v=qt1`, and `nav.js?v=sup8`; the
-Journal bundle is rebuilt. Focused gates pass **87/87** rail, **50/50** real
+`quests.js/css?v=q3`, `quests-tab.js/css?v=qt1`, and `nav.js?v=sup9`. Focused
+gates pass **90/90** rail, **50/50** real
 composer, **28/28** capture helper, **69/69** Quest reader/Hub/World contract,
 **49/49** campaign moments, **10/10** World focus, **69/69** approved Hub mock,
 **13/13** location-editing mock, **22/22** records workspace, and **25/25**
-book/quest timeline; Vite production build passes. The repository-wide sheet
+book/quest timeline. The repository-wide sheet
 mount remains the known unrelated **49/50** manual-proficiency-label baseline.
-Remaining field gates after M's push: desktop/mobile rich Objective + writable
-Giver/Location creation, normal Hub and rail visibility, Hub → World centering,
-World location quest cards, and Mortaine panel scrolling. Then review the
-location-editing mock before wiring any production location description writes.
+Remaining field gates after M's push: desktop/mobile confirmation that each
+capture section shows only one field; Objective advances; `@Veren's Watch`
+selects the durable location; normal Hub and rail visibility; Hub → World
+centering; World location quest cards; and Mortaine panel scrolling. Then review
+the location-editing mock before wiring any production location description
+writes, and mock the multi-objective/checklist authoring layer before changing
+the durable objective structure.
 
 ---
 

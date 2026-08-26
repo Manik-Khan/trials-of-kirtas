@@ -137,7 +137,7 @@ ok(!/\.insert\s*\(|\.update\s*\(|\.delete\s*\(/.test(source), 'guarded client ha
 ok(css.includes('@media(max-width:720px)') && css.includes('min-height:64px'), 'mobile layout retains touch-sized evidence links');
 ok(page.includes('quests.css?v=q3') && page.includes('quests.js?v=q3') && page.includes('campaign-moments.js?v=cm2'), 'production page loads cache-stamped quest and campaign readers');
 ok(page.includes('quest-feed-capture.js?v=qfc3') && page.includes('tooltips.css?v=qt1') && page.includes('tooltips.js'), 'Quest Log loads the rich-description and tooltip dependencies');
-ok(/characters\.js[\s\S]*nav\.js\?v=sup8[\s\S]*battle\.js\?v=settings1/.test(page), 'production page loads battle.js only after its character dependency');
+ok(/characters\.js[\s\S]*nav\.js\?v=sup9[\s\S]*battle\.js\?v=settings1/.test(page), 'production page loads battle.js only after its character dependency');
 ok(page.includes('data-quest-root') && page.includes('window.Quests.mount'), 'dedicated page mounts the guarded reader');
 ok(nav.includes("{ label: 'Quests'"), 'global navigation exposes the promoted Quest Hub');
 ok(rail.includes('quests-tab.js?v=qt1') && railTab.includes("id: 'quests'"), 'site-wide rail registers the compact Quest projection');

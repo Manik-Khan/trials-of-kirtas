@@ -41,7 +41,7 @@
 
   var LS_KEY = 'tok.rail.v1';
   var RAIL_W = 384;
-  var RAIL_ASSET_V = 'quest3';
+  var RAIL_ASSET_V = 'quest4';
 
   function readPreferences() {
     return (window.TokPreferences && window.TokPreferences.get) ? window.TokPreferences.get() : {};
@@ -1076,6 +1076,7 @@
         });
         var initial = fallback.value;
         fallback.hidden = true;
+        fallback.style.display = 'none';
         questDescriptionSurface = {
           text: function () { return window.QuestFeedCapture.descriptionText(composer.getDoc()); },
           encoded: function () { return window.QuestFeedCapture.encodeDescription(composer.getDoc()); },
@@ -1104,6 +1105,7 @@
           },
         });
         fallback.hidden = true;
+        fallback.style.display = 'none';
         var surface = {
           text: function () { return composer.el.textContent.replace(/\u00a0/g, ' ').trim(); },
           doc: function () { return composer.getDoc(); },
@@ -1129,6 +1131,7 @@
         });
         var initial = fallback.value;
         fallback.hidden = true;
+        fallback.style.display = 'none';
         questObjectiveSurface = {
           text: function () { return window.QuestFeedCapture.descriptionText(composer.getDoc()); },
           encoded: function () { return window.QuestFeedCapture.encodeDescription(composer.getDoc()); },
